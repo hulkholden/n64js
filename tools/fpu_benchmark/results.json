@@ -1,0 +1,1601 @@
+{
+  "baseline": "6e9fbd8",
+  "romSha256": "2cdcec8a9f0cb6e36337f3ee39d8ad105dc8afa6ba1c02d466e8f5b771f9a162",
+  "host": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "25.5.0",
+    "cpu": "Apple M4",
+    "node": "v24.13.1"
+  },
+  "runtime": "145.0.7632.6",
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "operationProfile": {
+    "loading": {
+      "MUL_S": {
+        "calls": 23487165,
+        "classes": {
+          "normal/normal": 19715628,
+          "+zero/normal": 1739250,
+          "+zero/+zero": 638201,
+          "+zero/-zero": 8606,
+          "normal/-zero": 182188,
+          "-zero/-zero": 47332,
+          "-zero/normal": 165749,
+          "-zero/+zero": 6741,
+          "normal/+zero": 983470
+        },
+        "rounding": [
+          23487165,
+          0,
+          0,
+          0
+        ],
+        "enables": {
+          "2048": 23487165
+        },
+        "normalResult": 19715628,
+        "fastPathHits": 19715628
+      },
+      "DIV_S": {
+        "calls": 1728329,
+        "classes": {
+          "normal/normal": 1693008,
+          "+zero/normal": 33152,
+          "-zero/normal": 1125,
+          "normal/+zero": 1044
+        },
+        "rounding": [
+          1728329,
+          0,
+          0,
+          0
+        ],
+        "enables": {
+          "2048": 1728329
+        },
+        "normalResult": 1693008
+      },
+      "ADD_S": {
+        "calls": 11947902,
+        "classes": {
+          "normal/normal": 9372697,
+          "normal/+zero": 799020,
+          "+zero/normal": 739824,
+          "+zero/+zero": 170473,
+          "normal/-zero": 397819,
+          "-zero/normal": 204795,
+          "+zero/-zero": 111672,
+          "-zero/+zero": 68853,
+          "-zero/-zero": 82749
+        },
+        "rounding": [
+          11947902,
+          0,
+          0,
+          0
+        ],
+        "enables": {
+          "2048": 11947902
+        },
+        "normalResult": 9371847
+      },
+      "SUB_S": {
+        "calls": 9271540,
+        "classes": {
+          "normal/normal": 8643744,
+          "+zero/normal": 113308,
+          "normal/-zero": 7076,
+          "-zero/+zero": 51493,
+          "-zero/-zero": 37821,
+          "+zero/-zero": 51687,
+          "+zero/+zero": 134102,
+          "normal/+zero": 216136,
+          "-zero/normal": 16173
+        },
+        "rounding": [
+          9271540,
+          0,
+          0,
+          0
+        ],
+        "enables": {
+          "2048": 9271540
+        },
+        "normalResult": 8224780
+      }
+    },
+    "gameplay": {
+      "MUL_S": {
+        "calls": 12832369,
+        "classes": {
+          "normal/normal": 10780476,
+          "+zero/normal": 966518,
+          "normal/+zero": 638089,
+          "+zero/+zero": 363264,
+          "-zero/normal": 29677,
+          "normal/-zero": 38307,
+          "-zero/-zero": 10908,
+          "-zero/+zero": 3941,
+          "+zero/-zero": 1189
+        },
+        "rounding": [
+          12832369,
+          0,
+          0,
+          0
+        ],
+        "enables": {
+          "2048": 12832369
+        },
+        "normalResult": 10780476,
+        "fastPathHits": 10780476
+      },
+      "DIV_S": {
+        "calls": 623821,
+        "classes": {
+          "normal/normal": 588391,
+          "+zero/normal": 33270,
+          "-zero/normal": 1080,
+          "normal/+zero": 1080
+        },
+        "rounding": [
+          623821,
+          0,
+          0,
+          0
+        ],
+        "enables": {
+          "2048": 623821
+        },
+        "normalResult": 588391
+      },
+      "ADD_S": {
+        "calls": 5525538,
+        "classes": {
+          "+zero/normal": 399663,
+          "normal/normal": 4298550,
+          "+zero/+zero": 185056,
+          "normal/+zero": 309698,
+          "+zero/-zero": 35207,
+          "-zero/normal": 109603,
+          "-zero/+zero": 26577,
+          "normal/-zero": 145435,
+          "-zero/-zero": 15749
+        },
+        "rounding": [
+          5525538,
+          0,
+          0,
+          0
+        ],
+        "enables": {
+          "2048": 5525538
+        },
+        "normalResult": 4297877
+      },
+      "SUB_S": {
+        "calls": 5317772,
+        "classes": {
+          "normal/normal": 5044496,
+          "+zero/normal": 43860,
+          "+zero/+zero": 37721,
+          "-zero/-zero": 11114,
+          "normal/+zero": 132168,
+          "-zero/+zero": 14591,
+          "+zero/-zero": 25707,
+          "normal/-zero": 3412,
+          "-zero/normal": 4703
+        },
+        "rounding": [
+          5317772,
+          0,
+          0,
+          0
+        ],
+        "enables": {
+          "2048": 5317772
+        },
+        "normalResult": 4785713
+      }
+    }
+  },
+  "microbenchmarks": [
+    {
+      "pair": 1,
+      "variant": "baseline",
+      "runtime": "145.0.7632.6",
+      "iterations": 2000000,
+      "results": [
+        {
+          "name": "normal",
+          "milliseconds": [
+            33.299999952316284,
+            33.80000001192093,
+            33.30000001192093,
+            33.30000001192093,
+            33.19999998807907
+          ],
+          "checksum": [
+            1226402458,
+            0
+          ]
+        },
+        {
+          "name": "zeros",
+          "milliseconds": [
+            40.19999998807907,
+            40.19999998807907,
+            40.200000047683716,
+            40.299999952316284,
+            40.200000047683716
+          ],
+          "checksum": [
+            4096000000,
+            0
+          ]
+        },
+        {
+          "name": "exceptions",
+          "milliseconds": [
+            31.100000023841858,
+            31,
+            31.100000023841858,
+            30.69999998807907,
+            30.69999998807907
+          ],
+          "checksum": [
+            3243475840,
+            2000000
+          ]
+        },
+        {
+          "name": "loading",
+          "milliseconds": [
+            37.39999997615814,
+            37.5,
+            37.200000047683716,
+            37,
+            36.89999997615814
+          ],
+          "checksum": [
+            3606890342,
+            0
+          ]
+        },
+        {
+          "name": "gameplay",
+          "milliseconds": [
+            37.40000003576279,
+            37.80000001192093,
+            37.69999998807907,
+            37,
+            37.30000001192093
+          ],
+          "checksum": [
+            446397980,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 1,
+      "variant": "prototype",
+      "runtime": "145.0.7632.6",
+      "iterations": 2000000,
+      "results": [
+        {
+          "name": "normal",
+          "milliseconds": [
+            25.19999998807907,
+            24.5,
+            24.30000001192093,
+            24,
+            23.600000023841858
+          ],
+          "checksum": [
+            1226402458,
+            0
+          ]
+        },
+        {
+          "name": "zeros",
+          "milliseconds": [
+            46.30000001192093,
+            48.39999997615814,
+            48.10000002384186,
+            44.19999998807907,
+            44.19999998807907
+          ],
+          "checksum": [
+            4096000000,
+            0
+          ]
+        },
+        {
+          "name": "exceptions",
+          "milliseconds": [
+            38,
+            37.69999998807907,
+            37.5,
+            37.39999997615814,
+            37.90000003576279
+          ],
+          "checksum": [
+            3243475840,
+            2000000
+          ]
+        },
+        {
+          "name": "loading",
+          "milliseconds": [
+            24.900000035762787,
+            25.099999964237213,
+            25,
+            24.900000035762787,
+            24.69999998807907
+          ],
+          "checksum": [
+            3606890342,
+            0
+          ]
+        },
+        {
+          "name": "gameplay",
+          "milliseconds": [
+            24.100000023841858,
+            24.100000023841858,
+            24,
+            24.399999976158142,
+            24.100000023841858
+          ],
+          "checksum": [
+            446397980,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 2,
+      "variant": "prototype",
+      "runtime": "145.0.7632.6",
+      "iterations": 2000000,
+      "results": [
+        {
+          "name": "normal",
+          "milliseconds": [
+            25.700000047683716,
+            24.399999976158142,
+            24.19999998807907,
+            24.30000001192093,
+            24.19999998807907
+          ],
+          "checksum": [
+            1226402458,
+            0
+          ]
+        },
+        {
+          "name": "zeros",
+          "milliseconds": [
+            46.39999997615814,
+            48.40000003576279,
+            48.69999998807907,
+            44.5,
+            44.69999998807907
+          ],
+          "checksum": [
+            4096000000,
+            0
+          ]
+        },
+        {
+          "name": "exceptions",
+          "milliseconds": [
+            37.60000002384186,
+            37.5,
+            37.69999998807907,
+            37.69999998807907,
+            37.200000047683716
+          ],
+          "checksum": [
+            3243475840,
+            2000000
+          ]
+        },
+        {
+          "name": "loading",
+          "milliseconds": [
+            24,
+            23.099999964237213,
+            23.100000023841858,
+            23,
+            23.100000023841858
+          ],
+          "checksum": [
+            3606890342,
+            0
+          ]
+        },
+        {
+          "name": "gameplay",
+          "milliseconds": [
+            24.600000023841858,
+            24.599999964237213,
+            24.400000035762787,
+            24.5,
+            23.099999964237213
+          ],
+          "checksum": [
+            446397980,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 2,
+      "variant": "baseline",
+      "runtime": "145.0.7632.6",
+      "iterations": 2000000,
+      "results": [
+        {
+          "name": "normal",
+          "milliseconds": [
+            33.30000001192093,
+            33.30000001192093,
+            33.19999998807907,
+            33.30000001192093,
+            33.299999952316284
+          ],
+          "checksum": [
+            1226402458,
+            0
+          ]
+        },
+        {
+          "name": "zeros",
+          "milliseconds": [
+            39.700000047683716,
+            39.799999952316284,
+            39.80000001192093,
+            39.80000001192093,
+            39.80000001192093
+          ],
+          "checksum": [
+            4096000000,
+            0
+          ]
+        },
+        {
+          "name": "exceptions",
+          "milliseconds": [
+            31,
+            31,
+            31.099999964237213,
+            31.19999998807907,
+            31
+          ],
+          "checksum": [
+            3243475840,
+            2000000
+          ]
+        },
+        {
+          "name": "loading",
+          "milliseconds": [
+            37.60000002384186,
+            37.59999996423721,
+            37.5,
+            37.5,
+            37.10000002384186
+          ],
+          "checksum": [
+            3606890342,
+            0
+          ]
+        },
+        {
+          "name": "gameplay",
+          "milliseconds": [
+            37.69999998807907,
+            37.60000002384186,
+            38.39999997615814,
+            38.10000002384186,
+            37.59999996423721
+          ],
+          "checksum": [
+            446397980,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 3,
+      "variant": "baseline",
+      "runtime": "145.0.7632.6",
+      "iterations": 2000000,
+      "results": [
+        {
+          "name": "normal",
+          "milliseconds": [
+            33.5,
+            33.30000001192093,
+            33.40000003576279,
+            33.299999952316284,
+            33.200000047683716
+          ],
+          "checksum": [
+            1226402458,
+            0
+          ]
+        },
+        {
+          "name": "zeros",
+          "milliseconds": [
+            40.30000001192093,
+            40.30000001192093,
+            40.5,
+            40.39999997615814,
+            40.19999998807907
+          ],
+          "checksum": [
+            4096000000,
+            0
+          ]
+        },
+        {
+          "name": "exceptions",
+          "milliseconds": [
+            31.099999964237213,
+            31.100000023841858,
+            31.099999964237213,
+            30.900000035762787,
+            30.80000001192093
+          ],
+          "checksum": [
+            3243475840,
+            2000000
+          ]
+        },
+        {
+          "name": "loading",
+          "milliseconds": [
+            37.39999997615814,
+            37.5,
+            37.39999997615814,
+            37.40000003576279,
+            37.69999998807907
+          ],
+          "checksum": [
+            3606890342,
+            0
+          ]
+        },
+        {
+          "name": "gameplay",
+          "milliseconds": [
+            37.80000001192093,
+            37.80000001192093,
+            37.69999998807907,
+            37.59999996423721,
+            37.700000047683716
+          ],
+          "checksum": [
+            446397980,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 3,
+      "variant": "prototype",
+      "runtime": "145.0.7632.6",
+      "iterations": 2000000,
+      "results": [
+        {
+          "name": "normal",
+          "milliseconds": [
+            25.30000001192093,
+            23.80000001192093,
+            23.69999998807907,
+            23.69999998807907,
+            24.600000023841858
+          ],
+          "checksum": [
+            1226402458,
+            0
+          ]
+        },
+        {
+          "name": "zeros",
+          "milliseconds": [
+            46.30000001192093,
+            48,
+            48,
+            44.39999997615814,
+            44.19999998807907
+          ],
+          "checksum": [
+            4096000000,
+            0
+          ]
+        },
+        {
+          "name": "exceptions",
+          "milliseconds": [
+            37.19999998807907,
+            36.89999997615814,
+            36.90000003576279,
+            37,
+            37
+          ],
+          "checksum": [
+            3243475840,
+            2000000
+          ]
+        },
+        {
+          "name": "loading",
+          "milliseconds": [
+            23.80000001192093,
+            24.5,
+            24.30000001192093,
+            24.299999952316284,
+            24.400000035762787
+          ],
+          "checksum": [
+            3606890342,
+            0
+          ]
+        },
+        {
+          "name": "gameplay",
+          "milliseconds": [
+            24,
+            23.899999976158142,
+            23.600000023841858,
+            23.69999998807907,
+            23.600000023841858
+          ],
+          "checksum": [
+            446397980,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 4,
+      "variant": "prototype",
+      "runtime": "145.0.7632.6",
+      "iterations": 2000000,
+      "results": [
+        {
+          "name": "normal",
+          "milliseconds": [
+            25.80000001192093,
+            24.400000035762787,
+            24.100000023841858,
+            25.19999998807907,
+            24.69999998807907
+          ],
+          "checksum": [
+            1226402458,
+            0
+          ]
+        },
+        {
+          "name": "zeros",
+          "milliseconds": [
+            46.60000002384186,
+            47.59999996423721,
+            47.700000047683716,
+            44.19999998807907,
+            44.19999998807907
+          ],
+          "checksum": [
+            4096000000,
+            0
+          ]
+        },
+        {
+          "name": "exceptions",
+          "milliseconds": [
+            37.799999952316284,
+            36.90000003576279,
+            36.80000001192093,
+            36.69999998807907,
+            36.89999997615814
+          ],
+          "checksum": [
+            3243475840,
+            2000000
+          ]
+        },
+        {
+          "name": "loading",
+          "milliseconds": [
+            25,
+            25,
+            25,
+            24.899999976158142,
+            24.900000035762787
+          ],
+          "checksum": [
+            3606890342,
+            0
+          ]
+        },
+        {
+          "name": "gameplay",
+          "milliseconds": [
+            24.5,
+            24.399999976158142,
+            24.19999998807907,
+            24.100000023841858,
+            24.19999998807907
+          ],
+          "checksum": [
+            446397980,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 4,
+      "variant": "baseline",
+      "runtime": "145.0.7632.6",
+      "iterations": 2000000,
+      "results": [
+        {
+          "name": "normal",
+          "milliseconds": [
+            33.19999998807907,
+            33.30000001192093,
+            33.10000002384186,
+            33.299999952316284,
+            33.10000002384186
+          ],
+          "checksum": [
+            1226402458,
+            0
+          ]
+        },
+        {
+          "name": "zeros",
+          "milliseconds": [
+            40.5,
+            40.5,
+            40.40000003576279,
+            40.39999997615814,
+            40
+          ],
+          "checksum": [
+            4096000000,
+            0
+          ]
+        },
+        {
+          "name": "exceptions",
+          "milliseconds": [
+            31,
+            31.100000023841858,
+            31.099999964237213,
+            31,
+            31.19999998807907
+          ],
+          "checksum": [
+            3243475840,
+            2000000
+          ]
+        },
+        {
+          "name": "loading",
+          "milliseconds": [
+            37.80000001192093,
+            38,
+            38,
+            37.89999997615814,
+            38
+          ],
+          "checksum": [
+            3606890342,
+            0
+          ]
+        },
+        {
+          "name": "gameplay",
+          "milliseconds": [
+            37.80000001192093,
+            37.80000001192093,
+            37.59999996423721,
+            38,
+            38.40000003576279
+          ],
+          "checksum": [
+            446397980,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 5,
+      "variant": "baseline",
+      "runtime": "145.0.7632.6",
+      "iterations": 2000000,
+      "results": [
+        {
+          "name": "normal",
+          "milliseconds": [
+            33.30000001192093,
+            33.19999998807907,
+            33.30000001192093,
+            33.19999998807907,
+            33.19999998807907
+          ],
+          "checksum": [
+            1226402458,
+            0
+          ]
+        },
+        {
+          "name": "zeros",
+          "milliseconds": [
+            40.200000047683716,
+            40.299999952316284,
+            40.30000001192093,
+            40.40000003576279,
+            40.39999997615814
+          ],
+          "checksum": [
+            4096000000,
+            0
+          ]
+        },
+        {
+          "name": "exceptions",
+          "milliseconds": [
+            30.80000001192093,
+            30.80000001192093,
+            30.899999976158142,
+            30.900000035762787,
+            30.899999976158142
+          ],
+          "checksum": [
+            3243475840,
+            2000000
+          ]
+        },
+        {
+          "name": "loading",
+          "milliseconds": [
+            37.59999996423721,
+            38,
+            38,
+            37.90000003576279,
+            38
+          ],
+          "checksum": [
+            3606890342,
+            0
+          ]
+        },
+        {
+          "name": "gameplay",
+          "milliseconds": [
+            37.69999998807907,
+            37.90000003576279,
+            37.80000001192093,
+            37.69999998807907,
+            38.09999996423721
+          ],
+          "checksum": [
+            446397980,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 5,
+      "variant": "prototype",
+      "runtime": "145.0.7632.6",
+      "iterations": 2000000,
+      "results": [
+        {
+          "name": "normal",
+          "milliseconds": [
+            25.400000035762787,
+            24.099999964237213,
+            23.900000035762787,
+            24.099999964237213,
+            24.30000001192093
+          ],
+          "checksum": [
+            1226402458,
+            0
+          ]
+        },
+        {
+          "name": "zeros",
+          "milliseconds": [
+            47.09999996423721,
+            48.200000047683716,
+            48.5,
+            44.299999952316284,
+            44.5
+          ],
+          "checksum": [
+            4096000000,
+            0
+          ]
+        },
+        {
+          "name": "exceptions",
+          "milliseconds": [
+            37.5,
+            37,
+            36.89999997615814,
+            36.69999998807907,
+            36.80000001192093
+          ],
+          "checksum": [
+            3243475840,
+            2000000
+          ]
+        },
+        {
+          "name": "loading",
+          "milliseconds": [
+            25.5,
+            25.5,
+            25.30000001192093,
+            24.600000023841858,
+            24.299999952316284
+          ],
+          "checksum": [
+            3606890342,
+            0
+          ]
+        },
+        {
+          "name": "gameplay",
+          "milliseconds": [
+            24.799999952316284,
+            24.700000047683716,
+            24.5,
+            24.599999964237213,
+            24.5
+          ],
+          "checksum": [
+            446397980,
+            0
+          ]
+        }
+      ]
+    }
+  ],
+  "browserPairs": [
+    {
+      "pair": 1,
+      "variant": "baseline",
+      "buildSha256": "ec9d05e4060bbc690d744f9f799e461902e0ef6e75b78f4abf47dd081b8d72cc",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "running",
+      "loadingMs": 13317,
+      "gameplayMs": 9602.400000035763,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 1,
+      "variant": "prototype",
+      "buildSha256": "38f1e4267779858add3614b336778e8b60cf242fbbf3c3e2408667072a507ef6",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "running",
+      "loadingMs": 13244.400000035763,
+      "gameplayMs": 9487.100000023842,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 2,
+      "variant": "prototype",
+      "buildSha256": "38f1e4267779858add3614b336778e8b60cf242fbbf3c3e2408667072a507ef6",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "running",
+      "loadingMs": 13320.699999988079,
+      "gameplayMs": 9486,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 2,
+      "variant": "baseline",
+      "buildSha256": "ec9d05e4060bbc690d744f9f799e461902e0ef6e75b78f4abf47dd081b8d72cc",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "running",
+      "loadingMs": 13486.300000011921,
+      "gameplayMs": 9548,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 3,
+      "variant": "baseline",
+      "buildSha256": "ec9d05e4060bbc690d744f9f799e461902e0ef6e75b78f4abf47dd081b8d72cc",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "running",
+      "loadingMs": 13440.399999976158,
+      "gameplayMs": 9603.200000047684,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 3,
+      "variant": "prototype",
+      "buildSha256": "38f1e4267779858add3614b336778e8b60cf242fbbf3c3e2408667072a507ef6",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "running",
+      "loadingMs": 13323.300000011921,
+      "gameplayMs": 9533.800000011921,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 4,
+      "variant": "prototype",
+      "buildSha256": "38f1e4267779858add3614b336778e8b60cf242fbbf3c3e2408667072a507ef6",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "running",
+      "loadingMs": 13348.5,
+      "gameplayMs": 9499.5,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 4,
+      "variant": "baseline",
+      "buildSha256": "ec9d05e4060bbc690d744f9f799e461902e0ef6e75b78f4abf47dd081b8d72cc",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "running",
+      "loadingMs": 13471.899999976158,
+      "gameplayMs": 9578.300000011921,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 5,
+      "variant": "baseline",
+      "buildSha256": "ec9d05e4060bbc690d744f9f799e461902e0ef6e75b78f4abf47dd081b8d72cc",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "running",
+      "loadingMs": 13511.699999988079,
+      "gameplayMs": 9611.800000011921,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 5,
+      "variant": "prototype",
+      "buildSha256": "38f1e4267779858add3614b336778e8b60cf242fbbf3c3e2408667072a507ef6",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "running",
+      "loadingMs": 13373.799999952316,
+      "gameplayMs": 9542.699999988079,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    }
+  ],
+  "commonFinalState": {
+    "cpu": "bd4636c94d43355b691658965e4ab60c9be22062f905cfb60cdbc4ed02c0de33",
+    "cop0": "a1a8aa1480aba52199b6089bf9d69a37f5ed4ec662b984c9e937bb917702826b",
+    "fpu": "034d36d96d9e09a56e5c085bfc0ba97d13b3745e4f9d6e639a5d7cdf76817fac",
+    "fcr": [
+      2560,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      16779300
+    ],
+    "ram": "6cac8318803bcfb4c4f4afbc0024441f9b8c30b861d8dc241bb5613d8a1a70ba",
+    "spmem": "f11eb0e59f50dd2001c35005d30e495854c24ebc231ba9697d76488c0de20111",
+    "rsp": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+    "vectors": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560",
+    "accumulator": "f5a5fd42d16a20302798ef6ed309979b43003d2320d9f0e8ea9831a92759fb4b",
+    "rspPC": 0,
+    "rspDelayPC": 0,
+    "rspHalted": true,
+    "vco": [
+      0
+    ],
+    "vcc": [
+      0
+    ],
+    "vce": [
+      0
+    ],
+    "div": [
+      false,
+      0,
+      0
+    ],
+    "events": [
+      [
+        "AI DMA",
+        233702
+      ],
+      [
+        "VI Interrupt",
+        1562220
+      ],
+      [
+        "Compare",
+        3664395164
+      ]
+    ],
+    "devices": {
+      "sp_reg": [
+        0,
+        0,
+        16,
+        208,
+        0,
+        2,
+        14,
+        96,
+        0,
+        0,
+        15,
+        248,
+        0,
+        0,
+        15,
+        248,
+        0,
+        0,
+        2,
+        67,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "mi_reg": [
+        0,
+        0,
+        0,
+        0,
+        2,
+        2,
+        1,
+        2,
+        0,
+        0,
+        0,
+        8,
+        0,
+        0,
+        0,
+        63
+      ],
+      "pi_reg": [
+        0,
+        6,
+        145,
+        192,
+        16,
+        18,
+        85,
+        40,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        79,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        64,
+        0,
+        0,
+        0,
+        18,
+        0,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "si_reg": [
+        0,
+        6,
+        124,
+        160,
+        31,
+        192,
+        7,
+        192,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        31,
+        192,
+        7,
+        192,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "ai_reg": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "vi_reg": [
+        0,
+        1,
+        48,
+        22,
+        0,
+        61,
+        170,
+        128,
+        0,
+        0,
+        1,
+        64,
+        0,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        0,
+        3,
+        229,
+        34,
+        57,
+        0,
+        0,
+        2,
+        13,
+        0,
+        0,
+        12,
+        21,
+        12,
+        21,
+        12,
+        21,
+        0,
+        108,
+        2,
+        236,
+        0,
+        37,
+        1,
+        255,
+        0,
+        14,
+        2,
+        4,
+        0,
+        0,
+        2,
+        0,
+        0,
+        0,
+        4,
+        0
+      ],
+      "dpc_mem": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "initialPrototypePairs": [
+    {
+      "pair": 1,
+      "variant": "baseline",
+      "buildSha256": "ec9d05e4060bbc690d744f9f799e461902e0ef6e75b78f4abf47dd081b8d72cc",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "suspended",
+      "loadingMs": 13273.599999964237,
+      "gameplayMs": 9491.199999988079,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 1,
+      "variant": "prototype",
+      "buildSha256": "c35224a56072f656a409591237aaa533bf6120cde70ad5d6c986eeaa5a9f4351",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "suspended",
+      "loadingMs": 13336.699999988079,
+      "gameplayMs": 9469.199999988079,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 2,
+      "variant": "prototype",
+      "buildSha256": "c35224a56072f656a409591237aaa533bf6120cde70ad5d6c986eeaa5a9f4351",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "suspended",
+      "loadingMs": 13503,
+      "gameplayMs": 9628.800000011921,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 2,
+      "variant": "baseline",
+      "buildSha256": "ec9d05e4060bbc690d744f9f799e461902e0ef6e75b78f4abf47dd081b8d72cc",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "suspended",
+      "loadingMs": 13540.100000023842,
+      "gameplayMs": 9507.800000011921,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 3,
+      "variant": "baseline",
+      "buildSha256": "ec9d05e4060bbc690d744f9f799e461902e0ef6e75b78f4abf47dd081b8d72cc",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "suspended",
+      "loadingMs": 13242.400000035763,
+      "gameplayMs": 9425.100000023842,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 3,
+      "variant": "prototype",
+      "buildSha256": "c35224a56072f656a409591237aaa533bf6120cde70ad5d6c986eeaa5a9f4351",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "suspended",
+      "loadingMs": 13240.300000011921,
+      "gameplayMs": 9417.599999964237,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 4,
+      "variant": "prototype",
+      "buildSha256": "c35224a56072f656a409591237aaa533bf6120cde70ad5d6c986eeaa5a9f4351",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "suspended",
+      "loadingMs": 13158.100000023842,
+      "gameplayMs": 9412.300000011921,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 4,
+      "variant": "baseline",
+      "buildSha256": "ec9d05e4060bbc690d744f9f799e461902e0ef6e75b78f4abf47dd081b8d72cc",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "suspended",
+      "loadingMs": 13284.399999976158,
+      "gameplayMs": 9399,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 5,
+      "variant": "baseline",
+      "buildSha256": "ec9d05e4060bbc690d744f9f799e461902e0ef6e75b78f4abf47dd081b8d72cc",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "suspended",
+      "loadingMs": 13331.700000047684,
+      "gameplayMs": 9464.5,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    },
+    {
+      "pair": 5,
+      "variant": "prototype",
+      "buildSha256": "c35224a56072f656a409591237aaa533bf6120cde70ad5d6c986eeaa5a9f4351",
+      "startVI": 2594,
+      "codeBytes": 28216528,
+      "audioContext": "suspended",
+      "loadingMs": 13222,
+      "gameplayMs": 9409.800000011921,
+      "vi": 3134,
+      "count": 4925539428,
+      "pc": 2147484032,
+      "delayPC": null
+    }
+  ],
+  "screenshotSha256": "96a21d168479cb6e0c532b35f78028173f66fc63d6a79438092259a2b44ffbb0"
+}

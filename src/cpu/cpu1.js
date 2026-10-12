@@ -693,7 +693,41 @@ export class CPU1 {
   NEG_S(d, s) { this.f32UnaryOp(d, s, negOpCases); }
   ADD_S(d, s, t) { this.f32BinaryOp(d, s, t, addOpCases); }
   SUB_S(d, s, t) { this.f32BinaryOp(d, s, t, subOpCases); }
-  MUL_S(d, s, t) { this.f32BinaryOp(d, s, t, mulOpCases); }
+  // The common GoldenEye multiply: nearest rounding, normal inputs and output.
+  // Leave other rounding modes and exceptional classes to the generic helper.
+  MUL_S(d, s, t) {
+    if (this.control[31] & FPCSR_RM_MASK) {
+      this.f32BinaryOp(d, s, t, mulOpCases);
+      return;
+    }
+    const si = this.fsRegIdx32(s);
+    const ti = this.ftRegIdx32(t);
+    const se = this.loadU32(si) & f32ExponentBits;
+    const te = this.loadU32(ti) & f32ExponentBits;
+    if (se == 0 || se == f32ExponentBits || te == 0 || te == f32ExponentBits) {
+      this.f32BinaryOp(d, s, t, mulOpCases);
+      return;
+    }
+
+    // Two 24-bit significands multiply exactly in the host's 53-bit precision.
+    // Round once to f32, retaining the exact product for the inexact check.
+    const result = this.loadF32(si) * this.loadF32(ti);
+    this.tempF32[0] = result;
+    const re = this.tempU32[0] & f32ExponentBits;
+    if (re == 0 || re == f32ExponentBits) {
+      this.f32BinaryOp(d, s, t, mulOpCases);
+      return;
+    }
+
+    // No architectural state changes before all guards pass. In particular a
+    // fallback must clear cause/raise status only once, and traps preserve fd.
+    this.clearCause();
+    const exceptionBits = result != this.tempF32[0] ? exceptionInexactBit : 0;
+    if (!this.raiseException(exceptionBits)) {
+      this.store32ZeroExtend(this.fdRegIdx32(d), this.tempU32[0]);
+    }
+  }
+
   DIV_S(d, s, t) { this.f32BinaryOp(d, s, t, divOpCases); }
 
   // Move bits directly, to avoid renomalisation.

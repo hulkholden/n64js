@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
+import { genericMultiply as genericMultiplyOp } from './cpu1_test_support.js';
 import * as decode from './decode.js';
 import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
 
@@ -14,7 +15,7 @@ const jump = target => ((decode.OP_J << 26) | ((target >>> 2) & 0x03ffffff)) >>>
 // Emulator breakpoint marker, not a native MIPS instruction.
 const breakpointInstruction = 0x70000000;
 
-async function compareExecutions(instructions, prepare = () => {}, train = () => {}, profiled = false) {
+async function compareExecutions(instructions, prepare = () => {}, train = () => {}, profiled = false, genericMultiply = false) {
   const emulator = await createHeadlessEmulator({
     romBuffer: new ArrayBuffer(0x1000),
     rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
@@ -99,9 +100,14 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
   try {
     setPerformanceProfiling(false);
     setup(prepare);
+    const normalMultiply = hardware.cpu1.MUL_S;
+    if (genericMultiply) {
+      hardware.cpu1.MUL_S = genericMultiplyOp;
+    }
     cpu.run(runCycles);
     const interpreted = snapshot();
     const interpretedCop1Checks = cop1Checks;
+    hardware.cpu1.MUL_S = normalMultiply;
 
     // Use the production tracer/compiler, with safe inputs so a memory exception
     // does not prevent the training trace from completing.
@@ -127,7 +133,72 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
 
 for (const profiled of [false, true]) {
   describe(`compiled exceptions and timing${profiled ? ' with profiling' : ''}`, () => {
-    const compare = (words, prepare, train) => compareExecutions(words, prepare, train, profiled);
+    const compare = (words, prepare, train, genericMultiply) => compareExecutions(words, prepare, train, profiled, genericMultiply);
+
+    for (const fullMode of [false, true]) {
+      for (const delay of [false, true]) {
+        for (const [name, s, t, fcsr, cause] of [
+          ['exact', 0x40000000, 0x40400000, 0, 0],
+          ['inexact', 0x3f800001, 0x3f800001, 0, 0],
+          ['inexact trap', 0x3f800001, 0x3f800001, 0x80, 0x3c],
+          ['overflow trap', 0x7f7fffff, 0x40000000, 0x200, 0x3c],
+          ['underflow trap', 0x00800000, 0x3f000000, 0, 0x3c],
+          ['flushed underflow', 0x00800000, 0x3f000000, 0x1000000, 0],
+          ['subnormal operand', 1, 0x40000000, 0, 0x3c],
+          ['invalid trap', 0x7fc00001, 0x40000000, 0x800, 0x3c],
+          ['signed zero', 0x80000000, 0x40000000, 0, 0],
+          ['directed fallback', 0x3f800001, 0x3f800001, 2, 0],
+        ]) {
+          test(`MUL.S ${name}, FR=${Number(fullMode)}, delay=${delay} matches generic interpreter`, async () => {
+            const setup = (c, h, safe = false) => {
+              c.setControlU32(regs.controlStatus, 0x20000000 | (fullMode ? 0x04000000 : 0));
+              c.cop1ControlChanged();
+              const f = h.cpu1;
+              f.control[31] = fcsr | 0x00800020;
+              f.regU32[f.fsRegIdx32(3)] = safe ? 0x40000000 : s;
+              f.regU32[f.ftRegIdx32(5)] = safe ? 0x40400000 : t;
+              f.regU32[f.ftRegIdx32(5) + 1] = 0x12345678;
+            };
+            const result = await compare([
+              copMove(decode.OP_COP1, decode.COP_MF, 2, 0),
+              delay ? iop(decode.OP_BEQ, 0, 0, 1) : 0,
+              cop1(decode.COP1_FMT_S, 0x02 /* MUL.S */, 5, 3, 5),
+              iop(decode.OP_ORI, 0, 3, 0x77),
+            ], setup, (c, h) => setup(c, h, true), true);
+            expect(result.cause).toBe((cause | (cause && delay ? 0x80000000 : 0)) >>> 0);
+            expect(result.countCycles).toBe(runCycles);
+            expect(result.code.match(/executeCop1_disabled/g)?.length).toBe(1);
+            if (cause) {
+              expect(result.epc).toBe(pc + (delay ? 4 : 8));
+              expect(result.fpr[5]).toBe(t);
+              expect(result.rawFpr[11]).toBe(0x12345678);
+              expect(result.gpr[3]).toBe(0n);
+            } else {
+              expect(result.rawFpr[11]).toBe(0);
+              expect(result.gpr[3]).toBe(0x77n);
+            }
+          });
+        }
+      }
+    }
+
+    test('MUL.S checks COP1 usability before arithmetic in a delay slot', async () => {
+      const setup = (c, h) => {
+        c.setControlU32(regs.controlStatus, 0);
+        c.cop1ControlChanged();
+        h.cpu1.control[31] = 0x008010a4;
+        h.cpu1.regU64[5] = 0x123456783f800001n;
+      };
+      const result = await compare([
+        iop(decode.OP_BEQ, 0, 0, 1),
+        cop1(decode.COP1_FMT_S, 0x02 /* MUL.S */, 5, 3, 5),
+      ], setup, undefined, true);
+      expect(result.cause).toBe(0x9000002c);
+      expect(result.epc).toBe(pc);
+      expect(result.fcsr).toBe(0x008010a4);
+      expect(result.fpr[5]).toBe(0x3f800001);
+      expect(result.rawFpr[11]).toBe(0x12345678);
+    });
 
     for (const [name, opcode, operation] of [
       ['ANDI', decode.OP_ANDI, (s, i) => s & i],
