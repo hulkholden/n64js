@@ -748,7 +748,7 @@ export class CPU0 {
 
       case cpu0reg.controlCause:
         logger.log(`Setting cause register to ${toString32(newValue)}`);
-        n64js.check(newValue === 0, 'Should only write 0 to Cause register.');
+        n64js.check(newValue === 0n, 'Should only write 0 to Cause register.');
         this.maskControlBits64(controlReg, causeWritableBits, newValue);
         break;
 
