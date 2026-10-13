@@ -79,4 +79,11 @@ describe('DKR vertex fog', () => {
     expect(state.projectedVertices[1].color >>> 24).toBe(64);
     expect(state.projectedVertices[1].color & 0xffffff).toBe(0x563412);
   });
+
+  test('loads vertices up to the last slot of projectedVertices', () => {
+    const h = harness();
+    const lastIdx = h.state.projectedVertices.length - 1;
+    h.microcode.loadVertices(lastIdx, 1, 80, null);
+    expect(h.state.projectedVertices[lastIdx].set).toBe(true);
+  });
 });

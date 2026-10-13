@@ -264,7 +264,7 @@ export class GBI0PD extends GBI0 {
       this.previewVertex(v0, n, dv, dis, light);
     }
 
-    if (v0 + n >= this.state.projectedVertices.length) {
+    if (v0 + n > this.state.projectedVertices.length) {
       this.warn('Too many verts');
       return;
     }
