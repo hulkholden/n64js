@@ -161,7 +161,7 @@ export class GBI0DKR extends GBI0 {
   }
 
   loadVertices(v0, n, address, dis) {
-    if (v0 + n >= this.state.projectedVertices.length) {
+    if (v0 + n > this.state.projectedVertices.length) {
       this.warn('Too many verts');
       return;
     }

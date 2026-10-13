@@ -91,4 +91,11 @@ describe('Perfect Dark vertex fog', () => {
     h.load();
     expect(h.vertices().map(v => v.color >>> 24)).toEqual([17, 41, 128, 255]);
   });
+
+  test('loads vertices up to the last slot of projectedVertices', () => {
+    const h = harness();
+    const lastIdx = h.state.projectedVertices.length - 1;
+    h.microcode.loadVertices(lastIdx, 1, 80, null);
+    expect(h.state.projectedVertices[lastIdx].set).toBe(true);
+  });
 });
