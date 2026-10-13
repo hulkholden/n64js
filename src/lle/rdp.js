@@ -206,7 +206,7 @@ export class Triangle {
     const xBase = xh >> X_FRAC_BITS;
     const dx = x - xBase;
 
-    const out = new IVec4(base.precisionBits);
+    const out = new IVec4(base.displayPrecisionBits);
     for (let i = 0; i < 4; i++) {
       out.elems[i] = base.elems[i] + (dpde.elems[i] * dy) + ((dpdx.elems[i] & ~0x1f) * dx);
     }

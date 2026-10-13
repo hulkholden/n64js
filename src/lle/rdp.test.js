@@ -57,6 +57,12 @@ describe('Texture', () => {
       expect(uvs[6]).toBeCloseTo(-16.4172);
       expect(uvs[7]).toBeCloseTo(-6.2846);
     });
+    test('interpolate preserves displayPrecisionBits', () => {
+      const shade = triangle.interpolateShade(0, triangle.yh);
+      const tex = triangle.interpolateTexture(0, triangle.yh);
+      expect(shade.displayPrecisionBits).toBe(triangle.rgba.displayPrecisionBits);
+      expect(tex.displayPrecisionBits).toBe(triangle.stw.displayPrecisionBits);
+    });
   });
 
   describe('load tri2', () => {
