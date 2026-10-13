@@ -50,9 +50,6 @@ class DMA {
 export class SPMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("SPMem", hardware, hardware.sp_mem, rangeStart, rangeEnd);
-
-    this.pendingSPMemAddr = 0;
-    this.pendingDRAMAddr = 0;
   }
 
   calcEA(address) {
@@ -128,12 +125,18 @@ export class SPRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("SPReg", hardware, hardware.sp_reg, rangeStart, rangeEnd);
 
+    this.pendingSPMemAddr = 0;
+    this.pendingDRAMAddr = 0;
     this.dmaQueue = [];
     this.hleTask = null;
   }
 
   reset() {
+    this.pendingSPMemAddr = 0;
+    this.pendingDRAMAddr = 0;
+    this.dmaQueue = [];
     this.hleTask = null;
+    this.hardware.cpu0.removeEvent(kSPDMAEvent);
     this.hardware.cpu0.removeEvent(kHLETaskEvent);
   }
 
