@@ -23,7 +23,7 @@ export const countryAustralia = 0x55; // 'U'
 export const countryScandinavia = 0x57; // 'W'
 export const countryX_PAL = 0x58; // 'X'
 export const countryY_PAL = 0x59; // 'Y'
-export const countryZ_PAL = 0x60; // 'Z'
+export const countryZ_PAL = 0x5A; // 'Z'
 
 export function tvTypeFromCountry(countryId) {
   switch (countryId) {
