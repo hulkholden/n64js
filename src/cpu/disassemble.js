@@ -60,7 +60,7 @@ class Instruction {
   }
 
   // dummy operand - just marks ra as being a dest reg
-  writesRA() { this.dstRegs[cpu0reg.RA] = 1; return ''; }
+  writesRA() { this.dstRegs[cop0gprNames[cpu0reg.RA]] = 1; return ''; }
 
   // cop1 regs
   ft_d(fmt) { const reg = this.cop1RegName(ft, fmt); this.dstRegs[reg] = 1; return this.makeFPRegSpan(reg); }
@@ -218,8 +218,8 @@ function disassembleSpecial(i) {
 }
 
 const cop0Table = [
-  i => `MFC0      ${i.rt} <- ${cop0ControlRegisterNames[fs(i.opcode)]}`,
-  i => `DMFC0     ${i.rt} <- ${cop0ControlRegisterNames[fs(i.opcode)]}`,
+  i => `MFC0      ${i.rt_d} <- ${cop0ControlRegisterNames[fs(i.opcode)]}`,
+  i => `DMFC0     ${i.rt_d} <- ${cop0ControlRegisterNames[fs(i.opcode)]}`,
   disassembleUnknown,
   disassembleUnknown,
   i => `MTC0      ${i.rt} -> ${cop0ControlRegisterNames[fs(i.opcode)]}`,
@@ -484,13 +484,13 @@ const regImmTable = [
   disassembleUnknown,
   disassembleUnknown,
 
-  i => `TGEI      ${i.rs} >= ${i.rt} --> trap `,
-  i => `TGEIU     ${i.rs} >= ${i.rt} --> trap `,
-  i => `TLTI      ${i.rs} < ${i.rt} --> trap `,
-  i => `TLTIU     ${i.rs} < ${i.rt} --> trap `,
-  i => `TEQI      ${i.rs} == ${i.rt} --> trap `,
+  i => `TGEI      ${i.rs} >= ${i.imm} --> trap `,
+  i => `TGEIU     ${i.rs} >= ${i.imm} --> trap `,
+  i => `TLTI      ${i.rs} < ${i.imm} --> trap `,
+  i => `TLTIU     ${i.rs} < ${i.imm} --> trap `,
+  i => `TEQI      ${i.rs} == ${i.imm} --> trap `,
   disassembleUnknown,
-  i => `TNEI      ${i.rs} != ${i.rt} --> trap `,
+  i => `TNEI      ${i.rs} != ${i.imm} --> trap `,
   disassembleUnknown,
 
   i => `BLTZAL    ${i.rs} < 0 --> ${i.branchAddress}${i.writesRA()}`,

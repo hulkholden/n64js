@@ -96,7 +96,7 @@ class Instruction {
   gprName(opFn) { return gprNames[opFn(this.opcode)]; }
 
   // dummy operand - just marks ra as being a dest reg
-  writesRA() { this.dstRegs[GPR_RA] = 1; return ''; }
+  writesRA() { this.dstRegs[gprNames[GPR_RA]] = 1; return ''; }
 
   get imm() { return `0x${toHex(imm(this.opcode), 16)}`; }
 
@@ -192,7 +192,7 @@ const cop2Table = (() => {
   for (let i = 0; i < 32; i++) {
     tbl.push(disassembleUnknown);
   }
-  tbl[0] = i => `MFC2      ${i.rt_d} = ${rd(i.opcode)}[${vmemEl(i.opcode)}]`;
+  tbl[0] = i => `MFC2      ${i.rt_d} = V${rd(i.opcode)}[${vmemEl(i.opcode)}]`;
   tbl[2] = i => `CFC2      ${i.rt_d} = ${i.c2flag}`;
   tbl[4] = i => `MTC2      V${rd(i.opcode)}[${vmemEl(i.opcode)}] = ${i.rt}`;
   tbl[6] = i => `CTC2      ${i.c2flag} = ${i.rt}`;
