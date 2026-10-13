@@ -16,7 +16,7 @@ export function SetOtherModeL(dis, mask, data) {
       text = `gsDPSetRenderMode(${gbi.getRenderModeText(data)});`;
       break;
     default:
-      text = `gsSPSetOtherMode(G_SETOTHERMODE_L, ${toString32(mask)}, ${toString32(data)}`;
+      text = `gsSPSetOtherMode(G_SETOTHERMODE_L, ${toString32(mask)}, ${toString32(data)});`;
       break;
   }
   dis.text(text);
@@ -25,8 +25,6 @@ export function SetOtherModeL(dis, mask, data) {
 export function SetOtherModeH(dis, mask, len, shift, data) {
   let text;
   switch (mask) {
-    case gbi.G_MDSFT_BLENDMASK:
-      break;
     case gbi.G_AD_MASK:
       text = `gsDPSetAlphaDither(${gbi.AlphaDither.nameOf(data)});`;
       break;

@@ -66,7 +66,7 @@ export class GBI0DKR extends GBI0 {
     this.vertexAddress = this.state.rdpSegmentAddress(cmd1);
     this.vertexOffset = 0;
     if (dis) {
-      dis.text(`gsSPSetAddress(${toString32(this.matrixAddress)}, ${toString32(this.vertexAddress)};`);
+      dis.text(`gsSPSetAddress(${toString32(this.matrixAddress)}, ${toString32(this.vertexAddress)});`);
     }
   }
 
