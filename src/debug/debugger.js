@@ -453,12 +453,12 @@ export class Debugger {
     if (instruction) {
       let nextColIdx = 0;
       for (let i in instruction.srcRegs) {
-        if (!Object.hasOwn(registerColours, i)) {
+        if (!registerColours.has(i)) {
           registerColours.set(i, availColours[nextColIdx++]);
         }
       }
       for (let i in instruction.dstRegs) {
-        if (!Object.hasOwn(registerColours, i)) {
+        if (!registerColours.has(i)) {
           registerColours.set(i, availColours[nextColIdx++]);
         }
       }
