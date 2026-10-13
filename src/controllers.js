@@ -176,7 +176,7 @@ export class Controllers {
       return;
     }
     const gp = navigator.getGamepads()[this.activeGamepadidx];
-    if (!gp.connected) {
+    if (!gp || !gp.connected) {
       console.log('gamepad not connected');
       return;
     }
