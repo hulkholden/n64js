@@ -43,6 +43,8 @@ describe('double classification from raw words', () => {
     ['DIV_D', 0x3ff0000000000000n, 0x8000000000000000n, 0, 0xfff0000000000000n, 0x8020, 0],
     ['DIV_D', 0x3ff0000000000000n, 0x8000000000000000n, 0x400, sentinel, 0x8400, 1],
     ['DIV_D', 0n, 0n, 0, 0x7ff7ffffffffffffn, 0x10040, 0],
+    ['DIV_D', 0n, 0x8000000000000000n, 0, 0x7ff7ffffffffffffn, 0x10040, 0],
+    ['DIV_D', 0x8000000000000000n, 0x8000000000000000n, 0, 0x7ff7ffffffffffffn, 0x10040, 0],
     ['ADD_D', 0x7ff8000000000001n, 0x3ff0000000000000n, 0, 0x7ff7ffffffffffffn, 0x10040, 0],
     ['ADD_D', 0x7ff0000000000001n, 0x3ff0000000000000n, 0, sentinel, 0x20000, 1],
     ['ADD_D', 0x7ff0000000000000n, 0xfff0000000000000n, 0, 0x7ff7ffffffffffffn, 0x10040, 0],
