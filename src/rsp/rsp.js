@@ -131,7 +131,7 @@ export class RSP {
         this.vprS16[i * 8 + v] = 0;
       }
     }
-    this.vAcc[0] = 0n;
+    this.vAcc.fill(0n);
 
     this.vuVCOReg[0] = 0;
     this.vuVCCReg[0] = 0;
