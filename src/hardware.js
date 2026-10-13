@@ -224,7 +224,7 @@ export class Hardware {
     // Ensure the rom array buffer is at least 8MB.
     // This helps ensure MemoryRegion.copy won't assert when DMAing from short roms.
     const minLength = 8 * 1024 * 1024;
-    if (Math.max(arrayBuffer.byteLength < minLength)) {
+    if (arrayBuffer.byteLength < minLength) {
       arrayBuffer = arrayBuffer.transfer(minLength);
     }
     const rom = new MemoryRegion(arrayBuffer);
