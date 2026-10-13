@@ -112,6 +112,16 @@ describe('RSP vector dispatch and writeback', () => {
       expect(bytes.slice(register * 16 + 16).every(byte => byte === 0x5a)).toBe(true);
     }
   });
+
+  test('reset clears all eight vector accumulator lanes', () => {
+    for (let lane = 0; lane < 8; lane++) {
+      rsp.setAccS48(lane, BigInt(lane + 1) * 0x1111_2222_3333n);
+    }
+    rsp.reset();
+    for (let lane = 0; lane < 8; lane++) {
+      expect(rsp.getAccS48(lane)).toBe(0n);
+    }
+  });
 });
 
 describe('RSP scalar dispatch', () => {
