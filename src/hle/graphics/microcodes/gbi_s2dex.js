@@ -778,7 +778,7 @@ export class GBI1SDEX extends GBI1 {
       // e404008000000040 gsImmp1(G_RDPHALF_0, 0x00000040);
       // b400000000000000 gsImmp1(G_RDPHALF_1, 0x00000000);
       // b300000004000400 gsImmp1(G_RDPHALF_2, 0x04000400);
-      [s2dex1.Commands.G_RDPHALF_0, this.executeRDPHalf0.bind(this.s2dex)],
+      [s2dex1.Commands.G_RDPHALF_0, this.executeRDPHalf0.bind(this)],
     ]);
   }
 
