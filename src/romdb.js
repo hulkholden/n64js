@@ -579,7 +579,7 @@ export const romdb = {
   '0148cc0991e42ee4': {name:"Pilot Wings 64",                                             save:'Eeprom4k'   },
   'd55aa01a802df546': {name:"Pilot Wings 64",                                             save:'Eeprom4k'   },
   '0d690fec8c43a732': {name:"Pocket Monsters Snap",                                       save:'FlashRam'   },
-  '59825e661dbd98d0': {name:"Pocket Monsters Stadium",                                    save:'FlashRam'   },
+  '59825e661dbd98d0': {name:"Pocket Monsters Stadium",                                    save:'SRAM'       },
   '865877637b0eb85f': {name:"Pocket Monsters Stadium 2",                                  save:'FlashRam'   },
   'ac47477a23ecee44': {name:"Pokemon Puzzle League",                                      save:'FlashRam'   },
   'a753c519524b0fa7': {name:"Pokemon Puzzle League",                                      save:'FlashRam'   },
