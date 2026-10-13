@@ -3,8 +3,8 @@
 const kMaxFrames = 10;
 const kMaxEvents = 10000;
 
-export const TrackAudio = 0;
-export const TrackDefault = 1;
+export const TrackDefault = 0;
+export const TrackAudio = 1;
 
 export class Timeline {
   constructor(getOpsExecuted) {
