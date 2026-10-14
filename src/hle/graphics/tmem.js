@@ -15,6 +15,7 @@ export class TMEM {
     const tmemBuffer = new ArrayBuffer(4096);
     this.tmemData32 = new Int32Array(tmemBuffer);
     this.tmemData = new Uint8Array(tmemBuffer);
+    this.version = 0;
   }
 
   /**
@@ -42,6 +43,7 @@ export class TMEM {
     if (ti.size === gbi.ImageSize.G_IM_SIZ_4b) {
       return;
     }
+    this.version++;
     const ram = getRamU8Array();
     if (canCopyQwords(ti, tile, ram, ramAddress)) {
       const ram32 = new Int32Array(ram.buffer, ram.byteOffset, ram.byteLength >>> 2);
@@ -89,6 +91,7 @@ export class TMEM {
     if (ti.size === gbi.ImageSize.G_IM_SIZ_4b) {
       return;
     }
+    this.version++;
     const ram = getRamU8Array();
     const step = 16 >>> ti.size;
     if (canCopyQwords(ti, tile, ram, ramAddress) && !(ramStride & 3)) {
@@ -124,6 +127,7 @@ export class TMEM {
    * joins the final source row to the first for the filter's extra texels.
    */
   loadBackground(ti, tile, sourceXBytes, sourceY, stride, imageHeight, width, height) {
+    this.version++;
     const ram = getRamU8Array();
     const imageBytes = stride * imageHeight;
     const step = 16 >>> ti.size;
@@ -160,6 +164,7 @@ export class TMEM {
     if (ti.size === gbi.ImageSize.G_IM_SIZ_4b || (lrt >>> 2) !== t0) {
       return;
     }
+    this.version++;
     const ram = getRamU8Array();
     const step = ti.size === gbi.ImageSize.G_IM_SIZ_16b ? 1 : 16 >>> ti.size;
     const sourceStep = ti.size === gbi.ImageSize.G_IM_SIZ_16b ? 2 : 8;

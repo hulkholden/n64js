@@ -10,6 +10,7 @@ export class TMEMTexture {
     this.maxEntries = maxEntries;
     this.entries = new Map();
     this.texture = null;
+    this.tmemVersion = -1;
     this.words = new Int32Array(1024);
     // Count changed-snapshot lookups; unchanged draws bypass the cache.
     this.hits = 0;
@@ -20,7 +21,8 @@ export class TMEMTexture {
   bind(tmem) {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0);
-    if (this.texture && this.matches(tmem.tmemData32)) {
+    if (this.texture && (this.tmemVersion === tmem.version || this.matches(tmem.tmemData32))) {
+      this.tmemVersion = tmem.version;
       gl.bindTexture(gl.TEXTURE_2D, this.texture);
       return;
     }
@@ -54,6 +56,7 @@ export class TMEMTexture {
     }
     this.entries.set(hash, texture);
     this.texture = texture;
+    this.tmemVersion = tmem.version;
     this.words.set(tmem.tmemData32);
   }
 
@@ -72,6 +75,7 @@ export class TMEMTexture {
     }
     this.entries.clear();
     this.texture = null;
+    this.tmemVersion = -1;
     this.hits = this.misses = this.evictions = 0;
   }
 }

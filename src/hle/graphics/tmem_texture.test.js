@@ -15,35 +15,45 @@ function fixture(maxEntries) {
     texSubImage2D: (...args) => { updates.push(args); bound.bytes = args[8].slice(); },
   };
   const gpu = new TMEMTexture(gl, maxEntries), tmem = new TMEM();
-  const load = value => { tmem.tmemData.fill(value); gpu.bind(tmem); return gpu.texture; };
+  const load = value => { tmem.tmemData.fill(value); tmem.version++; gpu.bind(tmem); return gpu.texture; };
   return { gpu, tmem, load, images, updates, deleted, bindings, gl };
 }
 
-test('TMEM uploads exact integer bytes and skips hashing unchanged snapshots', () => {
+test('TMEM uploads exact integer bytes and skips scanning or hashing unchanged snapshots', () => {
   const { gpu, tmem, images, updates, bindings, gl } = fixture();
-  let hashes = 0;
+  let hashes = 0, scans = 0;
   const hash = tmem.hashContents.bind(tmem);
   tmem.hashContents = () => { hashes++; return hash(); };
+  const matches = gpu.matches.bind(gpu);
+  gpu.matches = words => { scans++; return matches(words); };
   tmem.tmemData[0] = 0x81;
+  tmem.version++;
   gpu.bind(tmem);
   expect(images[0]).toEqual([gl.TEXTURE_2D, 0, gl.R8UI, 64, 64, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, tmem.tmemData]);
   expect(bindings).toEqual([100]);
-  gpu.bind(tmem);
+  expect(scans).toBe(0);
+  gpu.bind(tmem); // Unchanged version needs no 4 KiB scan or hash.
+  expect(scans).toBe(0);
   tmem.tmemData.fill(0);
-  tmem.tmemData[0] = 0x81; // An identical reload needs no hash or upload.
+  tmem.tmemData[0] = 0x81; // An identical reload scans once, then skips hashing and uploading.
+  tmem.version++;
   gpu.bind(tmem);
-  expect(bindings).toEqual([100, 100, 100]);
+  expect(scans).toBe(1);
+  gpu.bind(tmem); // Subsequent draw at the new version skips scanning again.
+  expect(scans).toBe(1);
+  expect(bindings).toEqual([100, 100, 100, 100]);
   expect(hashes).toBe(1);
   expect(images).toHaveLength(1);
   expect(updates).toHaveLength(0);
 });
 
-test('TMEM cache detects edits in either bank without explicit invalidation', () => {
+test('TMEM cache detects edits in either bank', () => {
   const { gpu, tmem, images, updates } = fixture();
   gpu.bind(tmem);
   for (const address of [0, 2048, 4095]) {
     const previous = gpu.texture;
     tmem.tmemData[address]++;
+    tmem.version++;
     gpu.bind(tmem);
     expect(gpu.texture).not.toBe(previous);
     expect(gpu.texture.bytes).toEqual(tmem.tmemData);
