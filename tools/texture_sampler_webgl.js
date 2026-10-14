@@ -468,6 +468,7 @@ try {
   for (let bank = 0; bank < 4; bank++) {
     tmem.set([0xff, 0xff], 0x800 + 14 * 8 + bank * 2);
   }
+  state.tmem.version++;
   const font = { physical: true, format: gbi.ImageFormat.G_IM_FMT_IA, size: gbi.ImageSize.G_IM_SIZ_4b,
     tex: { width: 1, height: 1 } };
   check('IA4 font uses opaque RGBA16 palette entry for an even index', WHITE, {
@@ -477,6 +478,7 @@ try {
   for (let bank = 0; bank < 4; bank++) {
     tmem.set([0x80, 0x40], 0x800 + 14 * 8 + bank * 2);
   }
+  state.tmem.version++;
   check('IA4 font uses independent intensity and alpha from IA16 palette', [128, 128, 128, 64], {
     ...font, tlut: gbi.TextureLUT.G_TT_IA16,
   });
@@ -491,6 +493,7 @@ try {
     for (let bank = 0; bank < 4; bank++) {
       tmem.set([0xf8, 0x01], 0x800 + 14 * 8 + bank * 2);
     }
+    state.tmem.version++;
     const rgba = { physical: true, format: gbi.ImageFormat.G_IM_FMT_RGBA, size, tex: { width: 1, height: 1 } };
     check(`${name} uses RGBA16 palette when enabled`, RED, { ...rgba, tlut: gbi.TextureLUT.G_TT_RGBA16 });
     check(`${name} uses intensity when TLUT is disabled`, Array(4).fill(intensity), rgba);
@@ -511,6 +514,7 @@ try {
       tmem[0x800 + i * 8 + bank * 2 + 1] = color & 255;
     }
   }
+  state.tmem.version++;
   const scrolling = { physical: true, format: gbi.ImageFormat.G_IM_FMT_CI, size: gbi.ImageSize.G_IM_SIZ_4b,
     line: 4, tex: { width: 64, height: 64 }, mask: [6, 6], last: [64, 64] };
   // check() normally disables the TLUT; RGBA16 is also the decoder's default.
@@ -541,10 +545,12 @@ try {
   // low-alpha colours before upload. Verify the actual GPU texture samples.
   tmem.fill(0);
   tmem.set([0xf8, 0x00]);
+  state.tmem.version++;
   check('direct upload preserves transparent RGBA16 colour', [255, 0, 0, 0], {
     physical: true, tex: { width: 1, height: 1 },
   });
   tmem.set([0x73, 0x07]);
+  state.tmem.version++;
   check('direct upload preserves low-alpha IA16 precision', [115, 115, 115, 7], {
     physical: true, format: gbi.ImageFormat.G_IM_FMT_IA, tex: { width: 1, height: 1 },
   });
