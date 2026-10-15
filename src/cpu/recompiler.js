@@ -407,6 +407,40 @@ function genSrcRegS32Hi(i) {
   return i === 0 ? '0' : `c.gprS32[${i * 2 + 1}]`;
 }
 
+function genGprS32Lo(i) {
+  return i === 0 ? '0' : `c.gprS32[${i * 2}]`;
+}
+
+function genGprU32Lo(i) {
+  return i === 0 ? '0' : `c.gprU32[${i * 2}]`;
+}
+
+function genGprU32Hi(i) {
+  return i === 0 ? '0' : `c.gprU32[${i * 2 + 1}]`;
+}
+
+// Emit direct constant-indexed typed-array stores instead of calling
+// setRegS64LoHi / setRegS32Extend: those helpers exceed V8's small-function
+// inlining threshold and quickly exhaust the fragment's inlining budget.
+function genSetRegS64LoHi(r, lo, hi) {
+  if (r === 0) {
+    return '';
+  }
+  return `c.gprS32[${r * 2}] = ${lo};\nc.gprS32[${r * 2 + 1}] = ${hi};`;
+}
+
+function genSetRegS32Extend(r, expr) {
+  if (r === 0) {
+    return '';
+  }
+  return `const v = ${expr};\nc.gprS32[${r * 2}] = v;\nc.gprS32[${r * 2 + 1}] = v >> 31;`;
+}
+
+function genSetRegS32Const(r, val) {
+  const v = val | 0;
+  return genSetRegS64LoHi(r, v, v >> 31);
+}
+
 function genIsPositive(ctx, i) {
   const fact = ctx.gprFacts.get(i);
   if (isKnown32(fact)) {
@@ -485,32 +519,120 @@ function generateSLL(ctx) {
   if (ctx.instruction === 0) {
     return generateNOPBoilerplate('NOP', ctx);
   }
-  const impl = `c.execSLL(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  const d = ctx.instr_rd();
+  const t = ctx.instr_rt();
+  const shift = ctx.instr_sa();
+  const tf = ctx.gprFacts.get(t);
+  let impl;
+  if (d === 0) {
+    impl = '';
+  } else if (tf.kind === 'constant64') {
+    impl = genSetRegS32Const(d, Number(BigInt.asIntN(32, tf.value)) << shift);
+  } else if (shift === 0) {
+    impl = d === t && isSigned32(tf) ? '' : genSetRegS32Extend(d, genGprS32Lo(t));
+  } else {
+    impl = genSetRegS32Extend(d, `${genGprS32Lo(t)} << ${shift}`);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateSRL(ctx) {
-  const impl = `c.execSRL(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  const d = ctx.instr_rd();
+  const t = ctx.instr_rt();
+  const shift = ctx.instr_sa();
+  const tf = ctx.gprFacts.get(t);
+  let impl;
+  if (d === 0) {
+    impl = '';
+  } else if (tf.kind === 'constant64') {
+    impl = genSetRegS32Const(d, Number(BigInt.asUintN(32, tf.value)) >>> shift);
+  } else if (shift === 0) {
+    impl = d === t && isSigned32(tf) ? '' : genSetRegS32Extend(d, genGprS32Lo(t));
+  } else {
+    // Non-zero logical right shift clears bit 31, so the high word is 0.
+    impl = genSetRegS64LoHi(d, `${genGprU32Lo(t)} >>> ${shift}`, 0);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateSRA(ctx) {
-  const impl = `c.execSRA(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  const d = ctx.instr_rd();
+  const t = ctx.instr_rt();
+  const shift = ctx.instr_sa();
+  const tf = ctx.gprFacts.get(t);
+  let impl;
+  if (d === 0) {
+    impl = '';
+  } else if (tf.kind === 'constant64') {
+    impl = genSetRegS32Const(d, Number(BigInt.asIntN(32, tf.value >> BigInt(shift))));
+  } else if (shift === 0) {
+    impl = d === t && isSigned32(tf) ? '' : genSetRegS32Extend(d, genGprS32Lo(t));
+  } else if (isSigned32(tf)) {
+    impl = genSetRegS32Extend(d, `${genGprS32Lo(t)} >> ${shift}`);
+  } else if (isUnsigned32(tf)) {
+    impl = genSetRegS64LoHi(d, `${genGprU32Lo(t)} >>> ${shift}`, 0);
+  } else {
+    // VR4300 SRA shifts the full 64-bit register before sign-extending bit 31.
+    impl = genSetRegS32Extend(d, `(${genGprU32Lo(t)} >>> ${shift}) | (${genGprU32Hi(t)} << ${32 - shift})`);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateSLLV(ctx) {
-  const impl = `c.execSLLV(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  const d = ctx.instr_rd();
+  const t = ctx.instr_rt();
+  const s = ctx.instr_rs();
+  const tf = ctx.gprFacts.get(t);
+  let impl;
+  if (d === 0) {
+    impl = '';
+  } else if (s === 0) {
+    impl = d === t && isSigned32(tf) ? '' : genSetRegS32Extend(d, genGprS32Lo(t));
+  } else if (t === 0) {
+    impl = genSetRegS32Const(d, 0);
+  } else {
+    impl = genSetRegS32Extend(d, `${genGprS32Lo(t)} << ${genGprS32Lo(s)}`);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateSRLV(ctx) {
-  const impl = `c.execSRLV(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  const d = ctx.instr_rd();
+  const t = ctx.instr_rt();
+  const s = ctx.instr_rs();
+  const tf = ctx.gprFacts.get(t);
+  let impl;
+  if (d === 0) {
+    impl = '';
+  } else if (s === 0) {
+    impl = d === t && isSigned32(tf) ? '' : genSetRegS32Extend(d, genGprS32Lo(t));
+  } else if (t === 0) {
+    impl = genSetRegS32Const(d, 0);
+  } else {
+    impl = genSetRegS32Extend(d, `(${genGprU32Lo(t)} >>> ${genGprS32Lo(s)}) | 0`);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateSRAV(ctx) {
-  const impl = `c.execSRAV(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  const d = ctx.instr_rd();
+  const t = ctx.instr_rt();
+  const s = ctx.instr_rs();
+  const tf = ctx.gprFacts.get(t);
+  let impl;
+  if (d === 0) {
+    impl = '';
+  } else if (s === 0) {
+    impl = d === t && isSigned32(tf) ? '' : genSetRegS32Extend(d, genGprS32Lo(t));
+  } else if (t === 0) {
+    impl = genSetRegS32Const(d, 0);
+  } else if (isSigned32(tf)) {
+    impl = genSetRegS32Extend(d, `${genGprS32Lo(t)} >> ${genGprS32Lo(s)}`);
+  } else if (isUnsigned32(tf)) {
+    impl = genSetRegS32Extend(d, `(${genGprU32Lo(t)} >>> ${genGprS32Lo(s)}) | 0`);
+  } else {
+    impl = `c.execSRAV(${d}, ${t}, ${s});`;
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -682,7 +804,23 @@ function generateDADD(ctx) {
 }
 
 function generateADDU(ctx) {
-  const impl = `c.execADDU(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const sf = ctx.gprFacts.get(s);
+  const tf = ctx.gprFacts.get(t);
+  let impl;
+  if (d === 0) {
+    impl = '';
+  } else if (sf.kind === 'constant64' && tf.kind === 'constant64') {
+    impl = genSetRegS32Const(d, Number(BigInt.asIntN(32, sf.value + tf.value)));
+  } else if (s === 0 || t === 0) {
+    const src = s === 0 ? t : s;
+    const srcFact = s === 0 ? tf : sf;
+    impl = d === src && isSigned32(srcFact) ? '' : genSetRegS32Extend(d, genGprS32Lo(src));
+  } else {
+    impl = genSetRegS32Extend(d, `(${genGprS32Lo(s)} + ${genGprS32Lo(t)}) | 0`);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -704,7 +842,25 @@ function generateDSUB(ctx) {
 }
 
 function generateSUBU(ctx) {
-  const impl = `c.execSUBU(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const sf = ctx.gprFacts.get(s);
+  const tf = ctx.gprFacts.get(t);
+  let impl;
+  if (d === 0) {
+    impl = '';
+  } else if (s === t) {
+    impl = genSetRegS32Const(d, 0);
+  } else if (sf.kind === 'constant64' && tf.kind === 'constant64') {
+    impl = genSetRegS32Const(d, Number(BigInt.asIntN(32, sf.value - tf.value)));
+  } else if (t === 0) {
+    impl = d === s && isSigned32(sf) ? '' : genSetRegS32Extend(d, genGprS32Lo(s));
+  } else if (s === 0) {
+    impl = genSetRegS32Extend(d, `(-${genGprS32Lo(t)}) | 0`);
+  } else {
+    impl = genSetRegS32Extend(d, `(${genGprS32Lo(s)} - ${genGprS32Lo(t)}) | 0`);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -714,7 +870,22 @@ function generateDSUBU(ctx) {
 }
 
 function generateAND(ctx) {
-  const impl = `c.execAND(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const sf = ctx.gprFacts.get(s);
+  const tf = ctx.gprFacts.get(t);
+  let impl;
+  if (d === 0) {
+    impl = '';
+  } else if (s === 0 || t === 0) {
+    impl = genSetRegS32Const(d, 0);
+  } else if (s === t) {
+    impl = d === s ? '' : genSetRegS64LoHi(d, genGprS32Lo(s), genSrcRegS32Hi(s));
+  } else {
+    const hi = isUnsigned32(sf) || isUnsigned32(tf) ? 0 : `${genSrcRegS32Hi(s)} & ${genSrcRegS32Hi(t)}`;
+    impl = genSetRegS64LoHi(d, `${genGprS32Lo(s)} & ${genGprS32Lo(t)}`, hi);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -722,6 +893,8 @@ function generateOR(ctx) {
   const d = ctx.instr_rd();
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
+  const sf = ctx.gprFacts.get(s);
+  const tf = ctx.gprFacts.get(t);
   let impl;
   if (d === 0) {
     impl = '';
@@ -730,23 +903,59 @@ function generateOR(ctx) {
     if (source === d) {
       impl = '';
     } else if (source === 0) {
-      impl = `c.setRegS64LoHi(${d}, 0, 0);`;
+      impl = genSetRegS32Const(d, 0);
     } else {
-      impl = `c.setRegS64LoHi(${d}, c.getRegS32Lo(${source}), c.gprS32[${source * 2 + 1}]);`;
+      impl = genSetRegS64LoHi(d, genGprS32Lo(source), genSrcRegS32Hi(source));
     }
+  } else if (s === t) {
+    impl = d === s ? '' : genSetRegS64LoHi(d, genGprS32Lo(s), genSrcRegS32Hi(s));
   } else {
-    impl = `c.execOR(${d}, ${t}, ${s});`;
+    const hi = isUnsigned32(sf) && isUnsigned32(tf) ? 0 : `${genSrcRegS32Hi(s)} | ${genSrcRegS32Hi(t)}`;
+    impl = genSetRegS64LoHi(d, `${genGprS32Lo(s)} | ${genGprS32Lo(t)}`, hi);
   }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateXOR(ctx) {
-  const impl = `c.execXOR(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const sf = ctx.gprFacts.get(s);
+  const tf = ctx.gprFacts.get(t);
+  let impl;
+  if (d === 0) {
+    impl = '';
+  } else if (s === t) {
+    impl = genSetRegS32Const(d, 0);
+  } else if (s === 0 || t === 0) {
+    const source = s === 0 ? t : s;
+    impl = source === d ? '' : genSetRegS64LoHi(d, genGprS32Lo(source), genSrcRegS32Hi(source));
+  } else {
+    const hi = isUnsigned32(sf) && isUnsigned32(tf) ? 0 : `${genSrcRegS32Hi(s)} ^ ${genSrcRegS32Hi(t)}`;
+    impl = genSetRegS64LoHi(d, `${genGprS32Lo(s)} ^ ${genGprS32Lo(t)}`, hi);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateNOR(ctx) {
-  const impl = `c.execNOR(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const sf = ctx.gprFacts.get(s);
+  const tf = ctx.gprFacts.get(t);
+  let impl;
+  if (d === 0) {
+    impl = '';
+  } else if (s === 0 && t === 0) {
+    impl = genSetRegS32Const(d, -1);
+  } else if (s === 0 || t === 0 || s === t) {
+    const src = s === 0 ? t : s;
+    const hi = isUnsigned32(ctx.gprFacts.get(src)) ? -1 : `~${genSrcRegS32Hi(src)}`;
+    impl = genSetRegS64LoHi(d, `~${genGprS32Lo(src)}`, hi);
+  } else {
+    const hi = isUnsigned32(sf) && isUnsigned32(tf) ? -1 : `~(${genSrcRegS32Hi(s)} | ${genSrcRegS32Hi(t)})`;
+    impl = genSetRegS64LoHi(d, `~(${genGprS32Lo(s)} | ${genGprS32Lo(t)})`, hi);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -769,7 +978,20 @@ function generateDADDI(ctx) {
 }
 
 function generateADDIU(ctx) {
-  const impl = `c.execADDIU(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  const t = ctx.instr_rt();
+  const s = ctx.instr_rs();
+  const imms = ctx.instr_imms();
+  const sf = ctx.gprFacts.get(s);
+  let impl;
+  if (t === 0) {
+    impl = '';
+  } else if (sf.kind === 'constant64') {
+    impl = genSetRegS32Const(t, Number(BigInt.asIntN(32, sf.value)) + imms);
+  } else if (imms === 0) {
+    impl = t === s && isSigned32(sf) ? '' : genSetRegS32Extend(t, genGprS32Lo(s));
+  } else {
+    impl = genSetRegS32Extend(t, `(${genGprS32Lo(s)} + ${imms}) | 0`);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -885,10 +1107,7 @@ function generateJAL(ctx) {
   const ra = ctx.nextPC + 4;
   // Optimise as sign is known at compile time.
   const ra_hi = (ra & 0x80000000) ? -1 : 0;
-  const impl = dedent(`
-      c.delayPC = ${toString32(addr)};
-      c.setRegS64LoHi(${cpu0reg.RA}, ${toString32(ra)}, ${ra_hi});
-      `);
+  const impl = `c.delayPC = ${toString32(addr)};\n${genSetRegS64LoHi(cpu0reg.RA, toString32(ra), ra_hi)}`;
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
@@ -900,10 +1119,8 @@ function generateJALR(ctx) {
   const ra = ctx.nextPC + 4;
   const ra_hi = (ra & 0x80000000) ? -1 : 0;
   // NB needs to be unsigned
-  const impl = dedent(`
-      c.delayPC = ${genSrcRegU32Lo(s)};
-      c.setRegS64LoHi(${d}, ${toString32(ra)}, ${ra_hi});
-      `);
+  const setLink = genSetRegS64LoHi(d, toString32(ra), ra_hi);
+  const impl = `c.delayPC = ${genSrcRegU32Lo(s)};${setLink ? `\n${setLink}` : ''}`;
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
@@ -1175,8 +1392,18 @@ function generateSLTIU(ctx) {
 }
 
 function generateANDI(ctx) {
-  const impl = ctx.instr_rt() === 0 ? '' :
-    `c.setRegU32Extend(${ctx.instr_rt()}, c.getRegU32Lo(${ctx.instr_rs()}) & ${ctx.instr_imm()});`;
+  const t = ctx.instr_rt();
+  const s = ctx.instr_rs();
+  const imm = ctx.instr_imm();
+  const sf = ctx.gprFacts.get(s);
+  let impl;
+  if (t === 0) {
+    impl = '';
+  } else if (sf.kind === 'constant64') {
+    impl = genSetRegS64LoHi(t, Number(BigInt.asIntN(32, sf.value)) & imm, 0);
+  } else {
+    impl = genSetRegS64LoHi(t, `${genGprS32Lo(s)} & ${imm}`, 0);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -1189,16 +1416,29 @@ function generateXORI(ctx) {
 }
 
 function generateLogicalImmediate(ctx, op) {
+  const t = ctx.instr_rt();
   const s = ctx.instr_rs();
-  // Arguments are evaluated before either destination word is written, including
-  // when rt aliases rs. Logical immediates leave the source high word intact.
-  const impl = ctx.instr_rt() === 0 ? '' :
-    `c.setRegS64LoHi(${ctx.instr_rt()}, c.getRegS32Lo(${s}) ${op} ${ctx.instr_imm()}, c.gprS32[${s * 2 + 1}]);`;
+  const imm = ctx.instr_imm();
+  const sf = ctx.gprFacts.get(s);
+  let impl;
+  if (t === 0) {
+    impl = '';
+  } else if (sf.kind === 'constant64') {
+    const val = op === '|' ? (sf.value | BigInt(imm)) : (sf.value ^ BigInt(imm));
+    impl = genSetRegS64LoHi(t, Number(BigInt.asIntN(32, val)), Number(BigInt.asIntN(32, val >> 32n)));
+  } else if (imm === 0) {
+    impl = t === s ? '' : genSetRegS64LoHi(t, genGprS32Lo(s), genSrcRegS32Hi(s));
+  } else if (t === s) {
+    impl = `c.gprS32[${t * 2}] ${op}= ${imm};`;
+  } else {
+    const hi = isUnsigned32(sf) ? 0 : genSrcRegS32Hi(s);
+    impl = genSetRegS64LoHi(t, `${genGprS32Lo(s)} ${op} ${imm}`, hi);
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateLUI(ctx) {
-  const impl = `c.execLUI(${ctx.instr_rt()}, ${ctx.instr_imm()});`;
+  const impl = genSetRegS32Const(ctx.instr_rt(), ctx.instr_imm() << 16);
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
