@@ -54,6 +54,7 @@ export function runRDPTests(gl) {
   tile.setSize(0, 0, 4, 4);
   state.tmem.tmemData.set([0xf8, 1, 7, 0xc1]); // Red, green
   state.tmem.tmemData.set([0, 0x3f, 0xff, 0xff], 12); // Blue, white (odd-row swap)
+  state.tmem.version++;
   for (const flipped of [false, true]) {
     renderer.newFrame();
     execute([(flipped ? 0xe5000000 : 0xe4000000) | (8 << 12) | 8, 0, 0, 0x04000400]);
@@ -76,6 +77,7 @@ export function runRDPTests(gl) {
   tile.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_16b, 2, 0, 0, 2, 0, 0, 2, 0, 0);
   tile.setSize(0, 0, 28, 0);
   state.tmem.tmemData.set(texels.flatMap(value => [value >>> 8, value & 255]));
+  state.tmem.version++;
   for (const perspective of [false, true]) {
     renderer.newFrame();
     state.rdpOtherModeH = perspective ? gbi.G_TP_MASK : 0;

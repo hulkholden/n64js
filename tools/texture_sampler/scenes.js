@@ -230,6 +230,7 @@ export function createHarness(canvas) {
       gl.clearColor(16 / 255, 24 / 255, 40 / 255, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
       state.tmem.tmemData.fill(0);
+      state.tmem.version++;
       for (const tile of state.tiles) {
         tile.line = 0;
       }

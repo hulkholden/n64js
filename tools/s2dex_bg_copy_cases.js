@@ -90,6 +90,7 @@ export function bgCopyCase({
           }
         }
       }
+      state.tmem.version++;
     },
     expected(x, y) {
       if (!imageW || !imageH) {

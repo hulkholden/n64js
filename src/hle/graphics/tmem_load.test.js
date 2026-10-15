@@ -229,6 +229,22 @@ describe('physical TMEM loading', () => {
     tile.setSize(0, 0, 60, 4);
     tmem.loadTLUT(ti, tile);
     expect(tmem.tmemData).toEqual(new Uint8Array(4096).fill(0xa5));
+    expect(tmem.version).toBe(0);
+  });
+
+  test('loadBlock, loadTile, loadTLUT, and loadBackground advance the TMEM version', () => {
+    configure(Format.G_IM_FMT_RGBA, Size.G_IM_SIZ_16b, 1, 0, 4);
+    tile.setSize(0, 0, 12, 0);
+    expect(tmem.version).toBe(0);
+    tmem.loadBlock(ti, tile);
+    expect(tmem.version).toBe(1);
+    tmem.loadTile(ti, tile);
+    expect(tmem.version).toBe(2);
+    tmem.loadBackground(ti, tile, 0, 0, 8, 2, 4, 2);
+    expect(tmem.version).toBe(3);
+    tile.size = Size.G_IM_SIZ_4b;
+    tmem.loadTLUT(ti, tile);
+    expect(tmem.version).toBe(4);
   });
 });
 

@@ -54,7 +54,11 @@ export function runTMEMSamplingTests(gl) {
     }
     lines.push(`PASS direct TMEM: ${name}`);
   }
-  function write16(address, value) { data[address & 4095] = value >>> 8; data[(address + 1) & 4095] = value; }
+  function write16(address, value) {
+    data[address & 4095] = value >>> 8;
+    data[(address + 1) & 4095] = value;
+    state.tmem.version++;
+  }
   try {
     for (const [format, size] of [[0, 0], [0, 1], [0, 2], [0, 3], [1, 2], [2, 0], [2, 1], [3, 0], [3, 1], [3, 2], [4, 0], [4, 1]]) {
       for (const tlut of size < 2 ? [0, rgba, ia] : [0]) {
@@ -109,6 +113,7 @@ export function runTMEMSamplingTests(gl) {
     second.set(3, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0);
     second.setSize(0, 0, 0, 0);
     data[8] = 0x8f;
+    state.tmem.version++;
     check('second cycle samples an independent tile and format', draw([0, 0], { cycle: gbi.CycleType.G_CYC_2CYCLE }), [136, 136, 136, 255]);
     check('untextured draw disables both tiles', draw([0, 0], { enabled: false }), [0, 0, 0, 255]);
     check('textured draw restores tile sampling', draw([0, 0]), [255, 0, 0, 255]);

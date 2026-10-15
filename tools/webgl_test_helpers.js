@@ -109,6 +109,7 @@ export function loadTestTexture(state, tile, texture, base = 0) {
       data[(address | 2048) + 1] = pixels[source + 3];
     }
   }
+  state.tmem.version++;
 }
 
 export function assertPixels(gl, {
