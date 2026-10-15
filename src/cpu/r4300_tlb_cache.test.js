@@ -51,6 +51,7 @@ function translate(c, method, address) {
 describe('cached TLB lookup', () => {
   test('reuses hits and misses, and keeps colliding virtual pages distinct', () => {
     map(cpu, 7, base);
+    const colliding = base + 0x10000000;
     const lookup = cpu.tlbFindEntryUncached;
     let scans = 0;
     cpu.tlbFindEntryUncached = function (address, asid) {
@@ -62,11 +63,68 @@ describe('cached TLB lookup', () => {
         expect(cpu.translateRead(base + i * 4)).toBe(0x2000 + i * 4);
       }
       expect(scans).toBe(1);
-      expect(cpu.translateReadInternal(base + 0x100000)).toBe(0);
-      expect(cpu.translateReadInternal(base + 0x100004)).toBe(0);
+      expect(cpu.translateReadInternal(colliding)).toBe(0);
+      expect(cpu.translateReadInternal(colliding + 4)).toBe(0);
       expect(scans).toBe(2);
       expect(cpu.translateRead(base)).toBe(0x2000);
       expect(scans).toBe(3);
+    } finally {
+      delete cpu.tlbFindEntryUncached;
+    }
+  });
+
+  test('serves warm valid reads and dirty writes from cached 4 KiB page frames without calling tlbFindEntry', () => {
+    map(cpu, 6, base, 0x87, 0xc3); // Writable even page, read-only odd page.
+    hardware.ram.set32(0x2010, 0x11223344);
+    expect(cpu.translateRead(base)).toBe(0x2000);
+    expect(cpu.translateRead(base + 0x1000)).toBe(0x3000);
+
+    cpu.tlbFindEntry = () => { throw new Error('Unexpected tlbFindEntry on warm page-frame cache hit'); };
+    try {
+      expect(cpu.translateRead(base + 0xffc)).toBe(0x2ffc);
+      expect(cpu.translateWrite(base + 0xffc)).toBe(0x2ffc);
+      expect(cpu.translateReadInternal(base + 0x100)).toBe(0x2100);
+      expect(cpu.readInstructionForValidation(base + 0x10)).toBe(0x11223344);
+      expect(cpu.translateRead(base + 0x1ffc)).toBe(0x3ffc);
+    } finally {
+      delete cpu.tlbFindEntry;
+    }
+
+    // Read-only pages must not populate tlbWriteTags; writes still take the slow path and fault.
+    expect(translate(cpu, 'translateWrite', base + 0x1ffc).result).toBe('Mod E_VEC');
+  });
+
+  test('avoids conflict misses and full-cache flushes across GoldenEye 0x70000000 and 0x7f000000 segments', () => {
+    map(cpu, 1, 0x70000000, 0x1f, 0x1, 0x7fe000);
+    map(cpu, 2, 0x7f01a000, 0xc61f, 0xc65f, 0);
+    map(cpu, 3, 0x7f008000, 0xc51f, 0xc55f, 0);
+    const lookup = cpu.tlbFindEntryUncached;
+    let scans = 0;
+    cpu.tlbFindEntryUncached = function (address, asid) {
+      scans++;
+      return lookup.call(this, address, asid);
+    };
+    try {
+      // Same low 12-bit page offsets (0x01a, 0x008) in 0x70000000 and 0x7f000000.
+      const pages = [0x7001a000, 0x7f01a000, 0x7f01b000, 0x70008000, 0x7f008000, 0x7011a000, 0x7021a000];
+      for (const va of pages) {
+        cpu.translateRead(va);
+      }
+      expect(scans).toBe(pages.length);
+      for (const va of pages) {
+        cpu.translateRead(va + 0x100);
+      }
+      expect(scans).toBe(pages.length);
+
+      // Replacing one 4 KiB TLB entry invalidates only its old and new page pairs.
+      map(cpu, 3, 0x7f020000, 0xd51f, 0xd55f, 0);
+      for (const va of [0x7001a000, 0x7f01a000, 0x7f01b000, 0x70008000, 0x7011a000, 0x7021a000]) {
+        cpu.translateRead(va + 0x200);
+      }
+      expect(scans).toBe(pages.length);
+      expect(cpu.translateReadInternal(0x7f008000)).toBe(0);
+      expect(cpu.translateRead(0x7f020000)).toBe(0x354000);
+      expect(scans).toBe(pages.length + 2);
     } finally {
       delete cpu.tlbFindEntryUncached;
     }
@@ -171,6 +229,7 @@ describe('cached TLB lookup', () => {
                 restoreTranslationState(cpu, initial);
                 const cached = translate(cpu, method, va);
                 restoreTranslationState(cpu, initial);
+                cpu.invalidateTLBCache();
                 cpu.tlbFindEntry = cpu.tlbFindEntryUncached;
                 try {
                   expect(cached).toEqual(translate(cpu, method, va));
@@ -256,6 +315,7 @@ describe('cached translations during execution', () => {
             delete c.tlbFindEntry;
             setup();
             if (!cached) {
+              c.invalidateTLBCache();
               c.tlbFindEntry = c.tlbFindEntryUncached;
             }
             if (compiled) {
