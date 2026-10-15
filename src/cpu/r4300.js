@@ -46,10 +46,28 @@ function tlbCacheSlot(page) {
 const kFragmentLengthLimit = 250;
 
 export const dynarecConfig = {
+  // Minimum instructions compiled before a non-self-loop taken branch ends the
+  // fragment. A value of 2 allows a 2-op entry branch stub (branch + delay
+  // slot) to fold into its target basic block, while keeping traces small
+  // enough for the JS JIT to inline helper calls (rsp.step / c.exec*).
   longFragmentThreshold: 2,
   fragmentLengthLimit: kFragmentLengthLimit,
-  selfLoopCutoff: 'immediate',  // false | 'immediate' | 'unroll'
+  // Controls how branches that return to fragment.entryPC are cut off:
+  // - false: ignore whether a branch targets entryPC; only stop once
+  //   opsCompiled > longFragmentThreshold. Loops shorter than the threshold
+  //   can unroll past entryPC and get cut off mid-iteration on a later branch.
+  // - 'immediate': stop as soon as a back-edge returns to entryPC (once at
+  //   least minSelfLoopOps have been compiled) so the fragment captures a
+  //   whole number of loop iterations and can be wrapped in a do-while loop.
+  // - 'unroll': allow short loops to unroll across multiple back-edges until
+  //   opsCompiled >= minSelfLoopOps, and suppress mid-iteration branch cutoffs
+  //   once the trace has looped through entryPC so it still ends on a clean
+  //   back-edge boundary.
+  selfLoopCutoff: 'immediate',
   minSelfLoopOps: 1,
+  // When true, fragments that end at their own entry state (pc === entryPC and
+  // delayPC === entryDelayPC) are wrapped in a do-while loop in compileFragment
+  // so multiple iterations execute in a single fragment call.
   enableSelfLoop: true,
   maxSelfLoopOps: 0,            // 0 = unlimited (up to nextEventCountdown())
   maxSelfLoopBodyOps: 8,        // 0 = unlimited (up to fragmentLengthLimit)
@@ -3048,10 +3066,19 @@ function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null
   return fragment;
 }
 
-// Stop on self-loop back-edges so compileFragment can wrap the loop body in a
-// do-while loop, and stop on other taken branches once past longFragmentThreshold
-// (default 2, which folds 2-op entry branch stubs into their target block while
-// keeping fragments small enough for JS JIT helper inlining).
+// Decides whether the instruction just appended should terminate the trace at a
+// control-flow change (c.pc !== entryPC + 4).
+//
+// Why this matters:
+// 1. Without self-loop awareness, a loop shorter than longFragmentThreshold
+//    continues recording past its back-edge into a second iteration and then
+//    gets cut off at an internal branch (or the next back-edge) once
+//    opsCompiled > longFragmentThreshold, leaving the fragment ending mid-loop
+//    and ineligible for do-while self-loop compilation.
+// 2. Keeping non-loop fragments bounded by longFragmentThreshold (default 2)
+//    still folds 2-op entry branch stubs (branch + delay slot) into their
+//    target block while keeping compiled functions small enough for the JS JIT
+//    to inline rsp.step() and c.exec*() helper calls.
 function shouldStopOnBranch(fragment, entryPC, c) {
   const branched = c.pc !== entryPC + 4;
   const longFragment = fragment.opsCompiled > dynarecConfig.longFragmentThreshold;
@@ -3062,10 +3089,18 @@ function shouldStopOnBranch(fragment, entryPC, c) {
 
   const reachedMinSelfLoopOps = fragment.opsCompiled >= dynarecConfig.minSelfLoopOps;
   if (dynarecConfig.selfLoopCutoff === 'immediate') {
+    // Stop as soon as the trace returns to entryPC (even if opsCompiled is
+    // still below longFragmentThreshold) so the fragment captures an exact
+    // loop body that compileFragment can wrap in a do-while loop.
     const stopAtSelfLoop = atSelfLoopBackEdge && reachedMinSelfLoopOps;
     return stopAtSelfLoop || (longFragment && branched);
   }
   if (dynarecConfig.selfLoopCutoff === 'unroll') {
+    // When unrolling short loops to at least minSelfLoopOps, only stop at a
+    // self-loop back-edge once minSelfLoopOps is reached. If the loop body
+    // contains internal forward branches and has already looped through
+    // entryPC, suppress normal branch cutoffs up to 2 * minSelfLoopOps so the
+    // trace does not stop mid-iteration before reaching the next back-edge.
     if (atSelfLoopBackEdge) {
       return reachedMinSelfLoopOps;
     }
@@ -3078,6 +3113,10 @@ function shouldStopOnBranch(fragment, entryPC, c) {
   return longFragment && branched;
 }
 
+// A fragment can be wrapped in an internal do-while loop if it ends in the
+// exact same PC and delay-slot state it started in, did not bail out to the
+// interpreter, and its body is short enough (<= maxSelfLoopBodyOps) to stay
+// within the JS JIT's inlining budget.
 function canCompileAsSelfLoop(fragment, c) {
   const withinBodyLimit = dynarecConfig.maxSelfLoopBodyOps === 0 ||
     fragment.opsCompiled <= dynarecConfig.maxSelfLoopBodyOps;
@@ -3089,6 +3128,11 @@ function addOpsExecutedOffset(expr, offsetStr) {
   return offsetStr === '0' ? expr : `${expr} + ${offsetStr}`;
 }
 
+// Wraps a self-looping fragment body in a do-while loop that runs until the
+// next scheduled event deadline (cyclesToFirstEvent) or an early exit.
+// Intra-iteration exits (stuffToDo checks, non-taken loop branches, exceptions,
+// and MFC0 Count cycle syncs) are rewritten to add the completed-iterations
+// instruction count (opsExecuted) to their within-iteration instruction offset.
 function buildSelfLoopBodyCode(fragment) {
   const loopOps = fragment.opsCompiled;
   const rewrittenBody = fragment.bodyCode
