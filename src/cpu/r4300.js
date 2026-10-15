@@ -2944,10 +2944,10 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   generateCodeForOp(fragmentContext);
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
-  // TODO: what is longFragment for? This allows short busy loops to be expanded out but it's not clear if that's desirable.
+  // Allow tiny loops to unroll, but end longer traces at branches to limit generated code size.
   // TODO: the stuffToDo check won't work for fragments interrupted via exceptions. 
   //       would it be better to just always check if the control flow is as expected?
-  const longFragment = fragment.opsCompiled > 8;
+  const longFragment = fragment.opsCompiled > 4;
   if ((longFragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo || fragment.bailedOut) {
     compileFragment(fragment);
     fragment = c.hardware.fragmentCache.lookupFragment(c.pc);
