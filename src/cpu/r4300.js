@@ -1397,22 +1397,25 @@ export class CPU0 {
     this.tlbWriteTags[oddSlot] = -1;
   }
 
+  // Include the current ASID even for global matches: a different ASID
+  // could select an earlier non-global entry. Reading EntryHi here covers
+  // MTC0/DMTC0, TLBR and exception-side updates without setter hooks.
+  tlbCacheTag(page) {
+    return (page << 8) | (this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32);
+  }
+
   tlbFindEntry(address) {
     const page = address >>> 12;
     const slot = tlbCacheSlot(page);
-    // Include the current ASID even for global matches: a different ASID
-    // could select an earlier non-global entry. Reading EntryHi here covers
-    // MTC0/DMTC0, TLBR and exception-side updates without setter hooks.
-    const asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
-    const tag = (page << 8) | asid;
+    const tag = this.tlbCacheTag(page);
     if (this.tlbCacheTags[slot] === tag) {
       return this.tlbCacheEntries[slot];
     }
-    return this.tlbCacheMiss(address, page, slot, asid, tag);
+    return this.tlbCacheMiss(address, page, slot, tag);
   }
 
-  tlbCacheMiss(address, page, slot, asid, tag) {
-    const entry = this.tlbFindEntryUncached(address, asid);
+  tlbCacheMiss(address, page, slot, tag) {
+    const entry = this.tlbFindEntryUncached(address, tag & TLBHI_PIDMASK32);
     this.tlbCacheEntries[slot] = entry;
     this.tlbCacheTags[slot] = tag;
     if (entry) {
@@ -1447,28 +1450,31 @@ export class CPU0 {
     return null;
   }
 
-  translateReadInternal(address) {
+  tryTranslateRead(address) {
     const page = address >>> 12;
     const slot = tlbCacheSlot(page);
-    const asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
-    const tag = (page << 8) | asid;
+    const tag = this.tlbCacheTag(page);
     if (this.tlbReadTags[slot] === tag) {
       return this.tlbPhysPages[slot] | (address & 0xfff);
     }
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
-      return 0;
+      return null;
     }
 
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     if ((entryLo & TLBLO_V) === 0) {
-      return 0;
+      return null;
     }
 
     const phys = odd ? tlb.physOdd : tlb.physEven;
     const offset = address & tlb.offsetMask;
     return phys | offset;
+  }
+
+  translateReadInternal(address) {
+    return this.tryTranslateRead(address) ?? 0;
   }
 
   // Speculative trace validation must not raise exceptions or read devices.
@@ -1482,23 +1488,11 @@ export class CPU0 {
     if (address >= 0x80000000 && address < 0xc0000000) {
       physical = address & 0x1fffffff;
     } else {
-      const page = address >>> 12;
-      const slot = tlbCacheSlot(page);
-      const asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
-      const tag = (page << 8) | asid;
-      if (this.tlbReadTags[slot] === tag) {
-        physical = (this.tlbPhysPages[slot] | (address & 0xfff)) >>> 0;
-      } else {
-        const tlb = this.tlbFindEntry(address);
-        if (!tlb) {
-          return null;
-        }
-        const odd = address & tlb.checkbit;
-        if (((odd ? tlb.pfno : tlb.pfne) & TLBLO_V) === 0) {
-          return null;
-        }
-        physical = ((odd ? tlb.physOdd : tlb.physEven) | (address & tlb.offsetMask)) >>> 0;
+      const translated = this.tryTranslateRead(address);
+      if (translated === null) {
+        return null;
       }
+      physical = translated >>> 0;
     }
     const ram = this.hardware.ram.dataView;
     if (physical > ram.byteLength - 4) {
@@ -1508,14 +1502,7 @@ export class CPU0 {
   }
 
   translateRead(address) {
-    const page = address >>> 12;
-    const slot = tlbCacheSlot(page);
-    const asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
-    const tag = (page << 8) | asid;
-    if (this.tlbReadTags[slot] === tag) {
-      return this.tlbPhysPages[slot] | (address & 0xfff);
-    }
-    return this.translateReadSlow(address);
+    return this.tryTranslateRead(address) ?? this.translateReadSlow(address);
   }
 
   translateReadSlow(address) {
@@ -1525,23 +1512,14 @@ export class CPU0 {
       throw new EmulatedException('TLBL UT_VEC');
     }
 
-    const odd = address & tlb.checkbit;
-    const entryLo = odd ? tlb.pfno : tlb.pfne;
-    if ((entryLo & TLBLO_V) === 0) {
-      this.raiseTLBException(E_VEC, cpu0reg.causeExcCodeTLBL, address);
-      throw new EmulatedException('TLBL E_VEC');
-    }
-
-    const phys = odd ? tlb.physOdd : tlb.physEven;
-    const offset = address & tlb.offsetMask;
-    return phys | offset;
+    this.raiseTLBException(E_VEC, cpu0reg.causeExcCodeTLBL, address);
+    throw new EmulatedException('TLBL E_VEC');
   }
 
   translateWrite(address) {
     const page = address >>> 12;
     const slot = tlbCacheSlot(page);
-    const asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
-    const tag = (page << 8) | asid;
+    const tag = this.tlbCacheTag(page);
     if (this.tlbWriteTags[slot] === tag) {
       return this.tlbPhysPages[slot] | (address & 0xfff);
     }
