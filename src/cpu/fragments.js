@@ -37,6 +37,8 @@ export class Fragment {
     // State used when compiling
     this.bodyCode         = '';
     this.needsDelayCheck  = true;
+    this.entryDelayPC     = null;
+    this.loopedToEntry    = false;
 
     this.cop1statusKnown = false;
     this.usesCop1        = false;
@@ -75,6 +77,8 @@ export class Fragment {
 
     this.bodyCode         = '';
     this.needsDelayCheck  = true;
+    this.entryDelayPC     = null;
+    this.loopedToEntry    = false;
 
     this.cop1statusKnown  = false;
     this.usesCop1         = false;
@@ -152,7 +156,7 @@ export class Fragment {
     }
     // Keep cold targets reaching the global lookup so their hit counts advance.
     // They must not evict an existing hot target from either cache.
-    if (nextFragment) {
+    if (nextFragment && (this.opsCompiled === 0 || opsExecuted <= this.opsCompiled)) {
       this.nextFragments[opsExecuted] = nextFragment;
     }
     return nextFragment;

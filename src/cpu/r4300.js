@@ -45,6 +45,17 @@ function tlbCacheSlot(page) {
 
 const kFragmentLengthLimit = 250;
 
+export const dynarecConfig = {
+  longFragmentThreshold: 2,
+  fragmentLengthLimit: kFragmentLengthLimit,
+  selfLoopCutoff: 'immediate',  // false | 'immediate' | 'unroll'
+  minSelfLoopOps: 1,
+  enableSelfLoop: true,
+  maxSelfLoopOps: 0,            // 0 = unlimited (up to nextEventCountdown())
+  maxSelfLoopBodyOps: 8,        // 0 = unlimited (up to fragmentLengthLimit)
+  requireNullEntryDelay: false,
+};
+
 const UT_VEC          = 0x80000000;
 const XUT_VEC         = 0x80000080;
 const ECC_VEC         = 0x80000100;
@@ -1008,6 +1019,7 @@ export class CPU0 {
             }
           }
 
+          const entryDelayPC = this.delayPC;
           this.branchTarget = null;
           const fragmentGeneration = fragment?.generation;
           executeOp(instruction);
@@ -1026,7 +1038,7 @@ export class CPU0 {
             // this instruction to an empty body still keyed by the old entry PC.
             fragment = this.hardware.fragmentCache.lookupFragment(this.pc);
           } else if (fragment) {
-            fragment = addOpToFragment(fragment, pc, instruction, this);
+            fragment = addOpToFragment(fragment, pc, instruction, this, entryDelayPC);
           } else {
             // If there's no current fragment and we branch backwards, this is possibly a new loop
             if (this.pc < pc) {
@@ -2994,10 +3006,11 @@ function executeFragmentProfiled(fragment, cpu0, eventQueue) {
 // We need just one of these - declare at global scope to avoid generating garbage
 const fragmentContext = new FragmentContext();
 
-function addOpToFragment(fragment, entry_pc, instruction, c) {
+function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null) {
   assert(!fragment.func, `attempting to append op to already-compiled fragment ${toString32(fragment.entryPC)}`);
   if (fragment.opsCompiled === 0) {
     fragmentContext.newFragment();
+    fragment.entryDelayPC = entryDelayPC;
   }
 
   // FIXME: this fires for loops to self.
@@ -3023,9 +3036,29 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   // TODO: what is longFragment for? This allows short busy loops to be expanded out but it's not clear if that's desirable.
   // TODO: the stuffToDo check won't work for fragments interrupted via exceptions. 
   //       would it be better to just always check if the control flow is as expected?
-  const longFragment = fragment.opsCompiled > 8;
-  if ((longFragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo || fragment.bailedOut) {
-    compileFragment(fragment);
+  const longFragment = fragment.opsCompiled > dynarecConfig.longFragmentThreshold;
+  const atSelfLoopBackEdge = c.pc === fragment.entryPC &&
+    c.delayPC === fragment.entryDelayPC &&
+    (!dynarecConfig.requireNullEntryDelay || fragment.entryDelayPC === null);
+  if (atSelfLoopBackEdge) {
+    fragment.loopedToEntry = true;
+  }
+
+  let shouldStopBranch;
+  if (dynarecConfig.selfLoopCutoff === 'immediate') {
+    shouldStopBranch = (atSelfLoopBackEdge && fragment.opsCompiled >= dynarecConfig.minSelfLoopOps) ||
+      (longFragment && c.pc !== entry_pc + 4);
+  } else if (dynarecConfig.selfLoopCutoff === 'unroll') {
+    shouldStopBranch = atSelfLoopBackEdge
+      ? fragment.opsCompiled >= dynarecConfig.minSelfLoopOps
+      : (!fragment.loopedToEntry && longFragment && c.pc !== entry_pc + 4) ||
+        (fragment.loopedToEntry && fragment.opsCompiled > Math.max(dynarecConfig.longFragmentThreshold, dynarecConfig.minSelfLoopOps * 2) && c.pc !== entry_pc + 4);
+  } else {
+    shouldStopBranch = longFragment && c.pc !== entry_pc + 4;
+  }
+
+  if (shouldStopBranch || fragment.opsCompiled >= dynarecConfig.fragmentLengthLimit || c.stuffToDo || fragment.bailedOut) {
+    compileFragment(fragment, c);
     fragment = c.hardware.fragmentCache.lookupFragment(c.pc);
   } else {
     fragment.bodyCode += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`
@@ -3033,7 +3066,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   return fragment;
 }
 
-function compileFragment(fragment) {
+function compileFragment(fragment, c = cpu0) {
   if (performanceProfile.enabled) {
     performanceProfile.counters.fragmentCompilations++;
   }
@@ -3054,13 +3087,33 @@ function compileFragment(fragment) {
     fragmentContext.delayedPCUpdate = 0;
   }
 
-  // Return the number of ops exected
-  fragment.bodyCode += `return ${fragment.opsCompiled};\n`;
+  const isSelfLoop = dynarecConfig.enableSelfLoop &&
+    c.pc === fragment.entryPC &&
+    c.delayPC === fragment.entryDelayPC &&
+    (!dynarecConfig.requireNullEntryDelay || fragment.entryDelayPC === null) &&
+    (dynarecConfig.maxSelfLoopBodyOps === 0 || fragment.opsCompiled <= dynarecConfig.maxSelfLoopBodyOps) &&
+    !fragment.bailedOut;
+
+  let bodyCode;
+  if (isSelfLoop) {
+    const k = fragment.opsCompiled;
+    const rewritten = fragment.bodyCode
+      .replace(/return (\d+);/g, (_, n) => n === '0' ? 'return opsExecuted;' : `return opsExecuted + ${n};`)
+      .replace(/c\.fragmentOps = (\d+);/g, (_, n) => n === '0' ? 'c.fragmentOps = opsExecuted;' : `c.fragmentOps = opsExecuted + ${n};`)
+      .replace(/c\.syncFragmentCycles\((\d+)\);/g, (_, n) => n === '0' ? 'c.syncFragmentCycles(opsExecuted);' : `c.syncFragmentCycles(opsExecuted + ${n});`);
+    const maxOpsExpr = dynarecConfig.maxSelfLoopOps > 0
+      ? `Math.min(c.eventQueue.cyclesToFirstEvent, ${dynarecConfig.maxSelfLoopOps})`
+      : 'c.eventQueue.cyclesToFirstEvent';
+    bodyCode = `const maxOps = ${maxOpsExpr};\nlet opsExecuted = 0;\ndo {\n${rewritten}opsExecuted += ${k};\n} while (opsExecuted + ${k} <= maxOps);\nreturn opsExecuted;\n`;
+  } else {
+    // Return the number of ops executed
+    bodyCode = `${fragment.bodyCode}return ${fragment.opsCompiled};\n`;
+  }
 
   const code = `
   return function fragment_${toString32(fragment.entryPC)}_${fragment.opsCompiled}() {
   ${header}
-  ${fragment.bodyCode}
+  ${bodyCode}
 }`;
 
   // Clear these strings to reduce garbage
@@ -3068,7 +3121,7 @@ function compileFragment(fragment) {
 
   fragment.func = new Function("c", "cpu1", "rsp", code)(cpu0, cpu1, rsp);
   fragment.nextFragments = [];
-  for (let i = 0; i < fragment.opsCompiled; i++) {
+  for (let i = 0; i <= fragment.opsCompiled; i++) {
     fragment.nextFragments.push(undefined);
   }
 }
