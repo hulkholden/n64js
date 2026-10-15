@@ -3033,7 +3033,6 @@ function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null
   generateCodeForOp(fragmentContext);
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
-  // TODO: what is longFragment for? This allows short busy loops to be expanded out but it's not clear if that's desirable.
   // TODO: the stuffToDo check won't work for fragments interrupted via exceptions. 
   //       would it be better to just always check if the control flow is as expected?
   const shouldStopBranch = shouldStopOnBranch(fragment, entry_pc, c);
@@ -3049,6 +3048,10 @@ function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null
   return fragment;
 }
 
+// Stop on self-loop back-edges so compileFragment can wrap the loop body in a
+// do-while loop, and stop on other taken branches once past longFragmentThreshold
+// (default 2, which folds 2-op entry branch stubs into their target block while
+// keeping fragments small enough for JS JIT helper inlining).
 function shouldStopOnBranch(fragment, entryPC, c) {
   const branched = c.pc !== entryPC + 4;
   const longFragment = fragment.opsCompiled > dynarecConfig.longFragmentThreshold;
