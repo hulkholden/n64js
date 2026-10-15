@@ -34,7 +34,14 @@ export function initCPU(hardware) {
 }
 
 const kDebugTLB = false;
-const kTLBCacheSize = 256; // Must be a power of two.
+const kTLBCacheSize = 1024; // Must be a power of two.
+
+function tlbCacheSlot(page) {
+  // Fold bits 15:14 of the 4 KiB page number (address bits 27:26) into the
+  // top of the 10-bit slot index so 16 MiB-aligned segments such as
+  // GoldenEye's 0x70000000 and 0x7f000000 do not alias the same low slots.
+  return (page ^ (page >>> 6)) & (kTLBCacheSize - 1);
+}
 
 const kFragmentLengthLimit = 250;
 
@@ -269,9 +276,9 @@ class TLBEntry {
    * @param {number} entrylo1 
    */
   update(index, pagemask, hi, entrylo0, entrylo1) {
-    // Any entry can become an earlier match for a cached page. Invalidate
-    // every lookup, including cached misses, rather than just this entry.
-    this.cpu.tlbCacheTags.fill(-1);
+    const oldPagemask = this.pagemask;
+    const oldMatches32Bit = this.matches32Bit;
+    const oldVpnBits32 = this.vpnBits32;
     if (kDebugTLB) {
       logger.log(`TLB update: index=${index}, pagemask=${toString32(pagemask)}, entryhi=${toString64(hi)}, entrylo0=${toString32(entrylo0)}, entrylo1=${toString32(entrylo1)}`);
       logger.log(`       ${pageMaskName(pagemask)} Pagesize`);
@@ -304,6 +311,22 @@ class TLBEntry {
     this.physOdd = (this.pfno << 6) & ~this.offsetMask;
 
     this.checkbit = pageMaskCheckbit(this.pagemask);
+
+    // Modifying one TLB entry can only change the first-match outcome for
+    // virtual pages matched by the old or new state of this entry. When both
+    // states use 4 KiB sub-pages, invalidate only those two 4 KiB page pairs
+    // so frequent TLBWR refills (e.g. GoldenEye 0x7f0xxxxx) do not flush the
+    // entire cache.
+    if (oldPagemask === TLBPGMASK_4K && this.pagemask === TLBPGMASK_4K) {
+      if (oldMatches32Bit) {
+        this.cpu.invalidateTLBPagePair(oldVpnBits32 >>> 12);
+      }
+      if (this.matches32Bit) {
+        this.cpu.invalidateTLBPagePair(this.vpnBits32 >>> 12);
+      }
+    } else {
+      this.cpu.invalidateTLBCache();
+    }
   }
 }
 
@@ -425,11 +448,15 @@ export class CPU0 {
     this.multLoU64 = new BigUint64Array(multLoMem);
     this.multLoS64 = new BigInt64Array(multLoMem);
 
-    // Cache first-match lookups at the smallest supported page granularity.
-    // Larger pages still use separate slots per 4 KiB, so an overlapping
-    // smaller entry cannot be hidden by a cached large-page match.
+    // Cache first-match lookups and pre-resolved 4 KiB physical page frames at
+    // the smallest supported page granularity. Larger pages still use separate
+    // slots per 4 KiB, so an overlapping smaller entry cannot be hidden by a
+    // cached large-page match.
     this.tlbCacheTags = new Int32Array(kTLBCacheSize);
     this.tlbCacheEntries = new Array(kTLBCacheSize).fill(null);
+    this.tlbReadTags = new Int32Array(kTLBCacheSize);
+    this.tlbWriteTags = new Int32Array(kTLBCacheSize);
+    this.tlbPhysPages = new Int32Array(kTLBCacheSize);
     this.tlbEntries = [];
     for (let i = 0; i < 32; ++i) {
       this.tlbEntries.push(new TLBEntry(this));
@@ -639,6 +666,7 @@ export class CPU0 {
     for (let i = 0; i < 32; ++i) {
       this.tlbEntries[i].update(i, 0, 0x80000000n, 0, 0);
     }
+    this.invalidateTLBCache();
 
     this.pc = 0;
     this.delayPC = null;
@@ -1352,9 +1380,26 @@ export class CPU0 {
     this.setControlU32(cpu0reg.controlIndex, TLBINX_PROBE);
   }
 
+  invalidateTLBCache() {
+    this.tlbCacheTags.fill(-1);
+    this.tlbReadTags.fill(-1);
+    this.tlbWriteTags.fill(-1);
+  }
+
+  invalidateTLBPagePair(evenPage) {
+    const evenSlot = tlbCacheSlot(evenPage);
+    const oddSlot = evenSlot ^ 1;
+    this.tlbCacheTags[evenSlot] = -1;
+    this.tlbCacheTags[oddSlot] = -1;
+    this.tlbReadTags[evenSlot] = -1;
+    this.tlbReadTags[oddSlot] = -1;
+    this.tlbWriteTags[evenSlot] = -1;
+    this.tlbWriteTags[oddSlot] = -1;
+  }
+
   tlbFindEntry(address) {
     const page = address >>> 12;
-    const slot = page & (kTLBCacheSize - 1);
+    const slot = tlbCacheSlot(page);
     // Include the current ASID even for global matches: a different ASID
     // could select an earlier non-global entry. Reading EntryHi here covers
     // MTC0/DMTC0, TLBR and exception-side updates without setter hooks.
@@ -1363,9 +1408,25 @@ export class CPU0 {
     if (this.tlbCacheTags[slot] === tag) {
       return this.tlbCacheEntries[slot];
     }
+    return this.tlbCacheMiss(address, page, slot, asid, tag);
+  }
+
+  tlbCacheMiss(address, page, slot, asid, tag) {
     const entry = this.tlbFindEntryUncached(address, asid);
     this.tlbCacheEntries[slot] = entry;
     this.tlbCacheTags[slot] = tag;
+    if (entry) {
+      const odd = address & entry.checkbit;
+      const entryLo = odd ? entry.pfno : entry.pfne;
+      if (entryLo & TLBLO_V) {
+        this.tlbPhysPages[slot] = (odd ? entry.physOdd : entry.physEven) | ((page << 12) & entry.offsetMask);
+        this.tlbReadTags[slot] = tag;
+        this.tlbWriteTags[slot] = (entryLo & TLBLO_D) ? tag : -1;
+        return entry;
+      }
+    }
+    this.tlbReadTags[slot] = -1;
+    this.tlbWriteTags[slot] = -1;
     return entry;
   }
 
@@ -1387,6 +1448,13 @@ export class CPU0 {
   }
 
   translateReadInternal(address) {
+    const page = address >>> 12;
+    const slot = tlbCacheSlot(page);
+    const asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
+    const tag = (page << 8) | asid;
+    if (this.tlbReadTags[slot] === tag) {
+      return this.tlbPhysPages[slot] | (address & 0xfff);
+    }
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
       return 0;
@@ -1414,15 +1482,23 @@ export class CPU0 {
     if (address >= 0x80000000 && address < 0xc0000000) {
       physical = address & 0x1fffffff;
     } else {
-      const tlb = this.tlbFindEntry(address);
-      if (!tlb) {
-        return null;
+      const page = address >>> 12;
+      const slot = tlbCacheSlot(page);
+      const asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
+      const tag = (page << 8) | asid;
+      if (this.tlbReadTags[slot] === tag) {
+        physical = (this.tlbPhysPages[slot] | (address & 0xfff)) >>> 0;
+      } else {
+        const tlb = this.tlbFindEntry(address);
+        if (!tlb) {
+          return null;
+        }
+        const odd = address & tlb.checkbit;
+        if (((odd ? tlb.pfno : tlb.pfne) & TLBLO_V) === 0) {
+          return null;
+        }
+        physical = ((odd ? tlb.physOdd : tlb.physEven) | (address & tlb.offsetMask)) >>> 0;
       }
-      const odd = address & tlb.checkbit;
-      if (((odd ? tlb.pfno : tlb.pfne) & TLBLO_V) === 0) {
-        return null;
-      }
-      physical = ((odd ? tlb.physOdd : tlb.physEven) | (address & tlb.offsetMask)) >>> 0;
     }
     const ram = this.hardware.ram.dataView;
     if (physical > ram.byteLength - 4) {
@@ -1432,6 +1508,17 @@ export class CPU0 {
   }
 
   translateRead(address) {
+    const page = address >>> 12;
+    const slot = tlbCacheSlot(page);
+    const asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
+    const tag = (page << 8) | asid;
+    if (this.tlbReadTags[slot] === tag) {
+      return this.tlbPhysPages[slot] | (address & 0xfff);
+    }
+    return this.translateReadSlow(address);
+  }
+
+  translateReadSlow(address) {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
       this.raiseTLBException(UT_VEC, cpu0reg.causeExcCodeTLBL, address);
@@ -1451,6 +1538,17 @@ export class CPU0 {
   }
 
   translateWrite(address) {
+    const page = address >>> 12;
+    const slot = tlbCacheSlot(page);
+    const asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
+    const tag = (page << 8) | asid;
+    if (this.tlbWriteTags[slot] === tag) {
+      return this.tlbPhysPages[slot] | (address & 0xfff);
+    }
+    return this.translateWriteSlow(address);
+  }
+
+  translateWriteSlow(address) {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
       this.raiseTLBException(UT_VEC, cpu0reg.causeExcCodeTLBS, address);
