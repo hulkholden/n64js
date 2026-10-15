@@ -3036,34 +3036,66 @@ function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null
   // TODO: what is longFragment for? This allows short busy loops to be expanded out but it's not clear if that's desirable.
   // TODO: the stuffToDo check won't work for fragments interrupted via exceptions. 
   //       would it be better to just always check if the control flow is as expected?
-  const longFragment = fragment.opsCompiled > dynarecConfig.longFragmentThreshold;
-  const atSelfLoopBackEdge = c.pc === fragment.entryPC &&
-    c.delayPC === fragment.entryDelayPC &&
-    (!dynarecConfig.requireNullEntryDelay || fragment.entryDelayPC === null);
-  if (atSelfLoopBackEdge) {
-    fragment.loopedToEntry = true;
-  }
+  const shouldStopBranch = shouldStopOnBranch(fragment, entry_pc, c);
+  const reachedLengthLimit = fragment.opsCompiled >= dynarecConfig.fragmentLengthLimit;
+  const shouldCompile = shouldStopBranch || reachedLengthLimit || Boolean(c.stuffToDo) || fragment.bailedOut;
 
-  let shouldStopBranch;
-  if (dynarecConfig.selfLoopCutoff === 'immediate') {
-    shouldStopBranch = (atSelfLoopBackEdge && fragment.opsCompiled >= dynarecConfig.minSelfLoopOps) ||
-      (longFragment && c.pc !== entry_pc + 4);
-  } else if (dynarecConfig.selfLoopCutoff === 'unroll') {
-    shouldStopBranch = atSelfLoopBackEdge
-      ? fragment.opsCompiled >= dynarecConfig.minSelfLoopOps
-      : (!fragment.loopedToEntry && longFragment && c.pc !== entry_pc + 4) ||
-        (fragment.loopedToEntry && fragment.opsCompiled > Math.max(dynarecConfig.longFragmentThreshold, dynarecConfig.minSelfLoopOps * 2) && c.pc !== entry_pc + 4);
-  } else {
-    shouldStopBranch = longFragment && c.pc !== entry_pc + 4;
-  }
-
-  if (shouldStopBranch || fragment.opsCompiled >= dynarecConfig.fragmentLengthLimit || c.stuffToDo || fragment.bailedOut) {
+  if (shouldCompile) {
     compileFragment(fragment, c);
     fragment = c.hardware.fragmentCache.lookupFragment(c.pc);
   } else {
     fragment.bodyCode += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`
   }
   return fragment;
+}
+
+function shouldStopOnBranch(fragment, entryPC, c) {
+  const branched = c.pc !== entryPC + 4;
+  const longFragment = fragment.opsCompiled > dynarecConfig.longFragmentThreshold;
+  const atSelfLoopBackEdge = fragment.isAtEntryState(c.pc, c.delayPC, dynarecConfig.requireNullEntryDelay);
+  if (atSelfLoopBackEdge) {
+    fragment.loopedToEntry = true;
+  }
+
+  const reachedMinSelfLoopOps = fragment.opsCompiled >= dynarecConfig.minSelfLoopOps;
+  if (dynarecConfig.selfLoopCutoff === 'immediate') {
+    const stopAtSelfLoop = atSelfLoopBackEdge && reachedMinSelfLoopOps;
+    return stopAtSelfLoop || (longFragment && branched);
+  }
+  if (dynarecConfig.selfLoopCutoff === 'unroll') {
+    if (atSelfLoopBackEdge) {
+      return reachedMinSelfLoopOps;
+    }
+    const unrollBranchThreshold = fragment.loopedToEntry
+      ? Math.max(dynarecConfig.longFragmentThreshold, dynarecConfig.minSelfLoopOps * 2)
+      : dynarecConfig.longFragmentThreshold;
+    const pastUnrollThreshold = fragment.opsCompiled > unrollBranchThreshold;
+    return branched && pastUnrollThreshold;
+  }
+  return longFragment && branched;
+}
+
+function canCompileAsSelfLoop(fragment, c) {
+  const withinBodyLimit = dynarecConfig.maxSelfLoopBodyOps === 0 ||
+    fragment.opsCompiled <= dynarecConfig.maxSelfLoopBodyOps;
+  const loopsToEntry = fragment.isAtEntryState(c.pc, c.delayPC, dynarecConfig.requireNullEntryDelay);
+  return dynarecConfig.enableSelfLoop && loopsToEntry && withinBodyLimit && !fragment.bailedOut;
+}
+
+function addOpsExecutedOffset(expr, offsetStr) {
+  return offsetStr === '0' ? expr : `${expr} + ${offsetStr}`;
+}
+
+function buildSelfLoopBodyCode(fragment) {
+  const loopOps = fragment.opsCompiled;
+  const rewrittenBody = fragment.bodyCode
+    .replace(/return (\d+);/g, (_, n) => `return ${addOpsExecutedOffset('opsExecuted', n)};`)
+    .replace(/c\.fragmentOps = (\d+);/g, (_, n) => `c.fragmentOps = ${addOpsExecutedOffset('opsExecuted', n)};`)
+    .replace(/c\.syncFragmentCycles\((\d+)\);/g, (_, n) => `c.syncFragmentCycles(${addOpsExecutedOffset('opsExecuted', n)});`);
+  const maxOpsExpr = dynarecConfig.maxSelfLoopOps > 0
+    ? `Math.min(c.eventQueue.cyclesToFirstEvent, ${dynarecConfig.maxSelfLoopOps})`
+    : 'c.eventQueue.cyclesToFirstEvent';
+  return `const maxOps = ${maxOpsExpr};\nlet opsExecuted = 0;\ndo {\n${rewrittenBody}opsExecuted += ${loopOps};\n} while (opsExecuted + ${loopOps} <= maxOps);\nreturn opsExecuted;\n`;
 }
 
 function compileFragment(fragment, c = cpu0) {
@@ -3087,28 +3119,9 @@ function compileFragment(fragment, c = cpu0) {
     fragmentContext.delayedPCUpdate = 0;
   }
 
-  const isSelfLoop = dynarecConfig.enableSelfLoop &&
-    c.pc === fragment.entryPC &&
-    c.delayPC === fragment.entryDelayPC &&
-    (!dynarecConfig.requireNullEntryDelay || fragment.entryDelayPC === null) &&
-    (dynarecConfig.maxSelfLoopBodyOps === 0 || fragment.opsCompiled <= dynarecConfig.maxSelfLoopBodyOps) &&
-    !fragment.bailedOut;
-
-  let bodyCode;
-  if (isSelfLoop) {
-    const k = fragment.opsCompiled;
-    const rewritten = fragment.bodyCode
-      .replace(/return (\d+);/g, (_, n) => n === '0' ? 'return opsExecuted;' : `return opsExecuted + ${n};`)
-      .replace(/c\.fragmentOps = (\d+);/g, (_, n) => n === '0' ? 'c.fragmentOps = opsExecuted;' : `c.fragmentOps = opsExecuted + ${n};`)
-      .replace(/c\.syncFragmentCycles\((\d+)\);/g, (_, n) => n === '0' ? 'c.syncFragmentCycles(opsExecuted);' : `c.syncFragmentCycles(opsExecuted + ${n});`);
-    const maxOpsExpr = dynarecConfig.maxSelfLoopOps > 0
-      ? `Math.min(c.eventQueue.cyclesToFirstEvent, ${dynarecConfig.maxSelfLoopOps})`
-      : 'c.eventQueue.cyclesToFirstEvent';
-    bodyCode = `const maxOps = ${maxOpsExpr};\nlet opsExecuted = 0;\ndo {\n${rewritten}opsExecuted += ${k};\n} while (opsExecuted + ${k} <= maxOps);\nreturn opsExecuted;\n`;
-  } else {
-    // Return the number of ops executed
-    bodyCode = `${fragment.bodyCode}return ${fragment.opsCompiled};\n`;
-  }
+  const bodyCode = canCompileAsSelfLoop(fragment, c)
+    ? buildSelfLoopBodyCode(fragment)
+    : `${fragment.bodyCode}return ${fragment.opsCompiled};\n`;
 
   const code = `
   return function fragment_${toString32(fragment.entryPC)}_${fragment.opsCompiled}() {

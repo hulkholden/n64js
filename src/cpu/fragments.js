@@ -124,6 +124,19 @@ export class Fragment {
     return this.func?.toString() ?? this.bodyCode;
   }
 
+  isAtEntryState(pc, delayPC, requireNullEntryDelay = false) {
+    const validEntryDelay = !requireNullEntryDelay || this.entryDelayPC === null;
+    return pc === this.entryPC && delayPC === this.entryDelayPC && validEntryDelay;
+  }
+
+  isUnfinishedTrace() {
+    return this.opsCompiled > 0 && !this.func && !this.cachedFunc;
+  }
+
+  canCacheNextFragmentAt(opsExecuted) {
+    return this.opsCompiled === 0 || opsExecuted <= this.opsCompiled;
+  }
+
   /**
    * Gets the next fragment and caches the results.
    * @param {number} pc The current pc.
@@ -138,7 +151,7 @@ export class Fragment {
     }
     // Reset unfinished traces on reentry. The dispatcher validates pending
     // compiled code immediately before execution.
-    if (nextFragment && nextFragment.opsCompiled > 0 && !nextFragment.func && !nextFragment.cachedFunc) {
+    if (nextFragment?.isUnfinishedTrace()) {
       nextFragment.invalidate();
     }
     return nextFragment;
@@ -156,7 +169,7 @@ export class Fragment {
     }
     // Keep cold targets reaching the global lookup so their hit counts advance.
     // They must not evict an existing hot target from either cache.
-    if (nextFragment && (this.opsCompiled === 0 || opsExecuted <= this.opsCompiled)) {
+    if (nextFragment && this.canCacheNextFragmentAt(opsExecuted)) {
       this.nextFragments[opsExecuted] = nextFragment;
     }
     return nextFragment;
