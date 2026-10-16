@@ -149,6 +149,46 @@ describe('GPR fact generated code', () => {
     expect(ctx.gprFacts.get(1).kind).toBe('unknown64');
     expect(ctx.gprFacts.get(0).value).toBe(0n);
   });
+
+  test('inlines hot 32-bit ALU, shift and bitwise ops with direct word stores and constant folding', () => {
+    const code = generated([
+      iop(decode.OP_LUI, 0, 1, 0x8001),
+      iop(decode.OP_ORI, 1, 1, 0x2345),
+      iop(decode.OP_XORI, 1, 2, 0x0001),
+      iop(decode.OP_ADDIU, 2, 3, -5),
+      iop(decode.OP_ADDIU, 4, 5, 12),
+      special(decode.SPECIAL_ADDU, 4, 5, 6),
+      special(decode.SPECIAL_SUBU, 4, 5, 7),
+      special(decode.SPECIAL_SLL, 0, 4, 8, 3),
+      special(decode.SPECIAL_SRL, 0, 4, 9, 3),
+      special(decode.SPECIAL_SRA, 0, 6, 10, 3),
+      special(decode.SPECIAL_SRA, 0, 11, 12, 3),
+      special(decode.SPECIAL_SLLV, 5, 4, 13),
+      special(decode.SPECIAL_SRLV, 5, 4, 14),
+      special(decode.SPECIAL_SRAV, 5, 6, 15),
+      special(decode.SPECIAL_AND, 8, 9, 16),
+      special(decode.SPECIAL_OR, 8, 9, 17),
+      special(decode.SPECIAL_XOR, 8, 9, 18),
+      special(decode.SPECIAL_NOR, 8, 9, 19),
+      iop(decode.OP_ANDI, 4, 21, 0x00ff),
+      iop(decode.OP_ORI, 21, 21, 0x0f00),
+      iop(decode.OP_ORI, 21, 22, 0x00f0),
+    ]);
+    expect(code).not.toMatch(/c\.exec(LUI|ORI|XORI|ANDI|ADDIU|ADDU|SUBU|SLL|SRL|SRA|SLLV|SRLV|SRAV|AND|OR|XOR|NOR)\b/);
+    expect(code).not.toMatch(/c\.setReg/);
+    // LUI + ORI + XORI + ADDIU fold to compile-time constants.
+    expect(code).toContain('c.gprS32[2] = -2147418112;\n  c.gprS32[3] = -1;');
+    expect(code).toContain('c.gprS32[4] = -2147409084;\n  c.gprS32[5] = -1;');
+    expect(code).toContain('c.gprS32[6] = -2147409089;\n  c.gprS32[7] = -1;');
+    // SRL by non-zero shift clears the upper word without >> 31.
+    expect(code).toContain('c.gprS32[18] = c.gprU32[8] >>> 3;\n  c.gprS32[19] = 0;');
+    // SRA uses a 32-bit shift when proven sign-extended, and a 64-bit funnel shift when unknown64.
+    expect(code).toContain('const v = c.gprS32[12] >> 3;');
+    expect(code).toContain('const v = (c.gprU32[22] >>> 3) | (c.gprU32[23] << 29);');
+    // In-place ORI updates only the low word; zero-extended source folds high word to 0.
+    expect(code).toContain('c.gprS32[42] |= 3840;');
+    expect(code).toContain('c.gprS32[44] = c.gprS32[42] | 240;\n  c.gprS32[45] = 0;');
+  });
 });
 
 describe('mixed-width compiled/interpreted comparisons', () => {
@@ -319,5 +359,59 @@ describe('mixed-width compiled/interpreted comparisons', () => {
     expect(result.gpr[1]).toBe(1n);
     expect(result.pc).toBe(pc + 4);
     expect(result.count).toBe(1);
+  });
+
+  test('inlined 32-bit ALU, shifts, bitwise ops and zero-shift sign extensions match interpreter across 64-bit edge values', async () => {
+    const f = await fixture([
+      iop(decode.OP_LUI, 0, 1, 0x8000),
+      iop(decode.OP_ORI, 1, 1, 0x0001),
+      iop(decode.OP_XORI, 1, 2, 0xffff),
+      iop(decode.OP_ADDIU, 2, 3, -32768),
+      iop(decode.OP_ADDIU, 4, 6, 0),       // Sign-extends full-width r4 into r6.
+      special(decode.SPECIAL_ADDU, 4, 5, 7),
+      special(decode.SPECIAL_SUBU, 4, 5, 8),
+      special(decode.SPECIAL_SUBU, 0, 5, 9),
+      special(decode.SPECIAL_SLL, 0, 4, 10, 5),
+      special(decode.SPECIAL_SRL, 0, 4, 11, 5),
+      special(decode.SPECIAL_SRA, 0, 4, 12, 5), // Full-width SRA on r4.
+      special(decode.SPECIAL_SRA, 0, 6, 13, 5), // Proven sign-extended SRA on r6.
+      special(decode.SPECIAL_SLLV, 5, 4, 14),
+      special(decode.SPECIAL_SRLV, 5, 4, 15),
+      special(decode.SPECIAL_SRAV, 5, 6, 16),
+      special(decode.SPECIAL_NOR, 4, 5, 17),
+    ]);
+    const fragment = f.train();
+    for (const s of values) {
+      for (const t of values) {
+        f.compare(fragment, c => {
+          c.setRegU64(4, s);
+          c.setRegU64(5, t);
+        });
+      }
+    }
+  });
+
+  test('in-place zero-immediate and zero-shift operations still sign-extend unextended 64-bit registers', async () => {
+    for (const op of [
+      iop(decode.OP_ADDIU, 4, 4, 0),
+      special(decode.SPECIAL_ADDU, 4, 0, 4),
+      special(decode.SPECIAL_ADDU, 0, 4, 4),
+      special(decode.SPECIAL_SUBU, 4, 0, 4),
+      special(decode.SPECIAL_SLL, 0, 4, 4, 0),
+      special(decode.SPECIAL_SRL, 0, 4, 4, 0),
+      special(decode.SPECIAL_SRA, 0, 4, 4, 0),
+      special(decode.SPECIAL_SLLV, 0, 4, 4),
+      special(decode.SPECIAL_SRLV, 0, 4, 4),
+      special(decode.SPECIAL_SRAV, 0, 4, 4),
+    ]) {
+      const f = await fixture([op, iop(decode.OP_BNE, 4, 5, 1), iop(decode.OP_SW, 20, 4)]);
+      const fragment = f.train();
+      for (const value of values) {
+        f.compare(fragment, c => {
+          c.setRegU64(4, value);
+          c.setRegU64(5, BigInt.asIntN(32, value));
+        });
+      }
+    }
   });
 });
