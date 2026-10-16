@@ -24,11 +24,13 @@ export const MicrocodeId = Object.freeze({
   GBI0_EARLY: 22,  // Saikyou Habu Shougi: early MoveWord encoding
   F5_NABOO: 23,    // Battle for Naboo (recognized, but HLE is not implemented)
   GBI2_FLX: 24,    // F-Zero X: normal-indexed alpha lighting
+  GBI2_L3DEX: 25,  // L3DEX2 line and wireframe rendering
 });
 
 const microcodeProfiles = new Map([
   [MicrocodeId.GBI0_EARLY, { family: 'GBI0', variant: 'EARLY' }],
   [MicrocodeId.GBI1_L3DEX, { family: 'GBI1', variant: 'L3DEX' }],
+  [MicrocodeId.GBI2_L3DEX, { family: 'GBI2', variant: 'L3DEX' }],
   [MicrocodeId.F5_ROGUE, { family: 'F5', variant: 'ROGUE' }],
   [MicrocodeId.F5_NABOO, { family: 'F5', variant: 'NABOO' }],
   [MicrocodeId.GBI0, { family: 'GBI0', variant: null }],
@@ -124,8 +126,8 @@ function inferUcodeFromString(str) {
   if (str.includes('ZSortp')) {
     return MicrocodeId.ZSORTP;
   }
-  if (str.includes('L3DEX') && !str.includes('fifo') && !str.includes('xbus')) {
-    return MicrocodeId.GBI1_L3DEX;
+  if (str.includes('L3DEX')) {
+    return str.includes('fifo') || str.includes('xbus') ? MicrocodeId.GBI2_L3DEX : MicrocodeId.GBI1_L3DEX;
   }
   if (str.includes('F3DTEX/A')) {
     return MicrocodeId.GBI1_TEXA;

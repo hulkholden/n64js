@@ -4,7 +4,7 @@ import { GBI0, GBI0Early, GBI0GE, GBI0PD, GBI0SE, GBI0WR } from './microcodes/gb
 import { GBI0DKR } from './microcodes/gbi0_dkr.js';
 import { GBI1TEXA } from './microcodes/gbi1_texa.js';
 import { GBI1, GBI1LL } from './microcodes/gbi1.js';
-import { GBI1L3DEX } from './microcodes/gbi_l3dex.js';
+import { GBI1L3DEX, GBI2L3DEX } from './microcodes/gbi_l3dex.js';
 import { GBI2 } from './microcodes/gbi2.js';
 import { GBI2Conker } from './microcodes/gbi2_conker.js';
 import { GBI2FLX } from './microcodes/gbi2_flx.js';
@@ -98,6 +98,8 @@ function createMicrocode(ucode, state, ramDV) {
       return new Turbo3D(state, ramDV);
     case MicrocodeId.GBI1_SDEX:
       return new GBI1SDEX(state, ramDV);
+    case MicrocodeId.GBI2_L3DEX:
+      return new GBI2L3DEX(state, ramDV);
     case MicrocodeId.GBI2:
       return new GBI2(state, ramDV);
     case MicrocodeId.GBI2_FLX:

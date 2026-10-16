@@ -11,6 +11,7 @@ import { runPresentationTests } from './presentation_webgl.js';
 import { runRDPTests } from './rdp_webgl.js';
 import { runAffineProjectionTests } from './affine_projection_webgl.js';
 import { runConkerTests } from './conker_webgl.js';
+import { runL3DEXTests } from './l3dex_webgl.js';
 import { runFogTests, runF3DFLXTests } from './fog_webgl.js';
 import { runBg1cycTests } from './s2dex_bg_1cyc_webgl.js';
 import { runBgCopyTests } from './s2dex_bg_copy_webgl.js';
@@ -820,6 +821,7 @@ try {
     runBg1cycTests,
     runAffineProjectionTests,
     runConkerTests,
+    runL3DEXTests,
     runFogTests,
     runF3DFLXTests,
     runLightColorTests,
