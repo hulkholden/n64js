@@ -150,6 +150,44 @@ export class GBIMicrocode {
     </table></div>`;
   }
 
+  insertMatrix(offset, value, recompute = true) {
+    // RSP matrices store 16 integer halfwords followed by 16 fractions.
+    if (offset > 0x3c || (offset & 3)) {
+      this.warn('MoveWord Matrix invalid offset', toString16(offset));
+      return;
+    }
+    const matrix = recompute ? this.state.getCombinedMatrix() : this.state.combinedMatrix;
+    const first = (offset & 0x1f) >>> 1;
+    for (let i = 0; i < 2; i++) {
+      // Matrix4x4 transposes the N64's row-vector layout on load.
+      const index = ((first + i) % 4) * 4 + ((first + i) >>> 2);
+      const fixed = Math.floor(matrix.elems[index] * 65536) | 0;
+      const half = i === 0 ? value >>> 16 : value & 0xffff;
+      const updated = offset & 0x20 ? (fixed & 0xffff0000) | half : (half << 16) | (fixed & 0xffff);
+      matrix.elems[index] = updated / 65536;
+    }
+  }
+
+  branchZ(cmd0, cmd1, dis, inclusive, branchOnW = false) {
+    const index = (cmd0 & 0xfff) / 2;
+    const address = this.state.rdpSegmentAddress(this.state.rdpHalf1Cmd1);
+    if (dis) {
+      dis.text(`gsSPBranchLess${branchOnW ? 'W' : 'Z'}raw(${toString32(address)}, ${index}, ${toString32(cmd1)});`);
+    }
+    const vertex = this.state.projectedVertices[index];
+    if (!vertex || !vertex.set) {
+      this.warn('BranchZ invalid vertex', index);
+      return;
+    }
+    // F3DEX1 uses BGTZ after subtraction; F3DEX2 uses BGEZ. Preserve
+    // the RSP's signed 32-bit subtraction, including wraparound.
+    const depth = branchOnW ? (Math.floor(vertex.pos.w) << 16) >> 16 : vertex.screenZ;
+    const difference = (depth - cmd1) | 0;
+    if (inclusive ? difference <= 0 : difference < 0) {
+      this.state.branchDisplayList(address);
+    }
+  }
+
   loadViewport(address) {
     // Invert scale.y so that t.x + (y * s.x) produces a coord
     // at the bottom rather than the top of the viewport.
@@ -349,6 +387,7 @@ export class GBIMicrocode {
           // Screen Z is unsigned 16.16, already transformed by the viewport.
           // Undo only the VI mapping, retaining W for the perspective divide.
           const screenZ = (value >>> 0) / 65536.0;
+          vertex.screenZ = value | 0;
           const viTransform = this.renderer.nativeTransform.viTransform;
           vertex.pos.z = (screenZ - viTransform.trans.z) * vertex.pos.w / viTransform.scale.z;
         }
@@ -378,6 +417,11 @@ export class GBIMicrocode {
     const trans = vpTransform.trans;
     const viScale = viTransform.scale;
     const viTrans = viTransform.trans;
+    // Retain depth independently of the renderer's float32 coordinates and
+    // subsequent viewport changes. HLE still uses floating-point projection;
+    // bound its result to the RSP's nonnegative signed screen-depth range.
+    const screenZ = (pos.z / w * scale.z + trans.z) * 65536;
+    vertex.screenZ = Math.max(0, Math.min(0x7fffffff, Math.floor(screenZ))) | 0;
     pos.x = (pos.x * scale.x + w * (trans.x - viTrans.x)) / viScale.x;
     pos.y = (pos.y * scale.y + w * (trans.y - viTrans.y)) / viScale.y;
     pos.z = (pos.z * scale.z + w * (trans.z - viTrans.z)) / viScale.z;

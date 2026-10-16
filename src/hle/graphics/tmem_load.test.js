@@ -54,7 +54,7 @@ describe('TMEM load commands', () => {
     test(`S2DEX ${name} loads using the object texture bounds`, () => {
       tile.setSize(20, 24, 28, 32);
       const s2dex = new S2DEXCommon(state, new DataView(ram.buffer), null);
-      Object.assign(s2dex.texture, { type, image: 0, tileTMEM: 0, texLoadSize: 3, texLoadRows: loadRows });
+      Object.assign(s2dex.texture, { type, image: 0, tileTMEM: 0, flag: 1, mask: 0, texLoadSize: 3, texLoadRows: loadRows });
 
       s2dex.loadTexture();
 

@@ -610,15 +610,70 @@ export class S2DEXCommon {
   }
 
   executeSelectDL(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('gSPSelectDL')
+    const half = this.state.s2dexSelectDL;
+    this.state.s2dexSelectDL = null;
+    const mode = (cmd0 >>> 16) & 0xff;
+    if (!half || half.pc !== this.state.pc - 8 || half.op !== this.state.currentOp - 1 || mode > 1) {
+      this.gbi.warn('gSPSelectDL: missing RDPHalf0 or invalid branch mode');
+      return;
+    }
+    const sid = (half.cmd0 >>> 16) & 0xff;
+    const flag = half.cmd1;
+    const mask = cmd1;
+    const address = this.state.rdpSegmentAddress(((cmd0 & 0xffff) << 16) | (half.cmd0 & 0xffff));
     if (dis) {
-      dis.text(`gSPSelectDL(/* TODO */);`);
+      dis.text(`gSPSelect${mode ? 'Branch' : ''}DL(${toString32(address)}, ${sid}, ${toString32(flag)}, ${toString32(mask)});`);
+    }
+    if (!this.validStatusId(sid) || this.statusMatches(sid, flag, mask)) {
+      return;
+    }
+    this.updateStatus(sid, flag, mask);
+    if (mode === gbi.G_DL_PUSH) {
+      this.state.pushDisplayList(address);
+    } else {
+      this.state.branchDisplayList(address);
+    }
+  }
+
+  saveRDPHalf0(cmd0, cmd1, dis) {
+    this.state.s2dexSelectDL = { cmd0, cmd1, pc: this.state.pc, op: this.state.currentOp };
+    this.state.rdpHalf0Cmd0 = cmd0;
+    this.state.rdpHalf0Cmd1 = cmd1;
+    if (dis) {
+      dis.text(`gsImmp1(G_RDPHALF_0, ${toString32(cmd0)}, ${toString32(cmd1)});`);
+    }
+  }
+
+  validStatusId(sid) {
+    if (sid > 12 || (sid & 3)) {
+      this.gbi.warn('S2DEX invalid status id', sid);
+      return false;
+    }
+    return true;
+  }
+
+  statusMatches(sid, flag, mask) {
+    return ((this.state.s2dexStatus[sid >>> 2] & mask) >>> 0) === (flag >>> 0);
+  }
+
+  updateStatus(sid, flag, mask) {
+    const status = this.state.s2dexStatus;
+    status[sid >>> 2] = (status[sid >>> 2] & ~mask) | (flag & mask);
+  }
+
+  setStatus(sid, value, dis) {
+    if (dis) {
+      dis.text(`gsSPSetStatus(${sid}, ${toString32(value)});`);
+    }
+    if (this.validStatusId(sid)) {
+      this.state.s2dexStatus[sid >>> 2] = value;
     }
   }
 
   executeObjRendermode(cmd0, cmd1, dis) {
+    this.state.s2dexRenderMode = cmd1;
     if (dis) {
-      dis.text(`gSPObjRenderMode(/* ignored */);`);
+      dis.text(`gSPObjRenderMode(${toString32(cmd1)});`);
     }
   }
 
@@ -637,7 +692,17 @@ export class S2DEXCommon {
     const tex = this.texture;
     const tile = this.state.tiles[gbi.G_TX_LOADTILE];
 
-    // TODO: check sid, flag and mask to figure out if the texture is already loaded.
+    // Compare the full flag, not flag & mask: bits outside the mask force a
+    // reload. In particular, a zero flag/mask skips even a type-0 descriptor
+    // (Command & Conquer uses this), without changing any RDP state.
+    if (!this.validStatusId(tex.sid) || this.statusMatches(tex.sid, tex.flag, tex.mask)) {
+      return;
+    }
+    const command = tex.type & 0xff;
+    if (command !== LoadBlock && command !== LoadTile && command !== LoadTLUT) {
+      this.gbi.warnUnimplemented(`load texture type ${tex.type}`);
+      return;
+    }
 
     const ramAddress = this.state.rdpSegmentAddress(tex.image);
 
@@ -661,7 +726,6 @@ export class S2DEXCommon {
     const texelsShift = 2;
     const loadSize = tex.texLoadSize << texelsShift;
 
-    const command = (tex.type >>> 0) & 0xff;
     switch (command) {
       case LoadBlock:
         tile.setSize(0, 0, loadSize, tex.texLoadRows);
@@ -675,64 +739,97 @@ export class S2DEXCommon {
         tile.setSize(0, 0, loadSize, tex.texLoadRows);
         this.state.tmem.loadTLUT(ti, tile);
         break;
-      default:
-        this.gbi.warnUnimplemented(`load texture type ${tex.type}`);
-        break;
     }
+    this.updateStatus(tex.sid, tex.flag, tex.mask);
   }
 
   renderSprite(rotType) {
     const spr = this.sprite;
     const m = this.matrix;
+    const mode = this.state.s2dexRenderMode;
+    const bilerp = (mode & 0x08) !== 0;
+    const shrink1 = (mode & 0x10) !== 0;
+    const shrink = (shrink1 ? 0.5 : 0) + ((mode & 0x20) ? 1 : 0);
+    const trim = 2 * shrink - ((mode & 0x40) ? 3 / 8 : 0);
+    if (spr.imageW <= trim || spr.imageH <= trim) {
+      return;
+    }
 
-    // In theory this should toggle between 0 and 2 for each call.
+    // S2DEX 1.07 and 2.06 use the same correction table. The low three
+    // historical flags (NOTXCLAMP, XLU, ANTIALIAS) do not change their output.
+    // BILERP corrects the half-texel offset; it does not set RDP filtering.
+    // SHRINK removes both borders while keeping the screen origin, and
+    // WIDEN adds 3/8 texel before quarter-pixel quantization.
+    const scaleW = Math.max(1, spr.scaleW * 1024);
+    const scaleH = Math.max(1, spr.scaleH * 1024);
+    const reciprocal = scale => Math.floor(0x80007fff / scale);
+    const extent = (image, scale) => Math.floor((image - trim) * 32 * reciprocal(scale) / 0x1000000);
+    const snap = value => bilerp ? value : value & ~3;
     const tileIdx = 0;
-    const objX0 = spr.objX;
-    const objY0 = spr.objY;
-    const objX1 = spr.objW + objX0;
-    const objY1 = spr.objH + objY0;
-
     const rTile = this.state.tiles[tileIdx];
-    rTile.set(spr.imageFmt, spr.imageSiz, spr.imageStride, spr.imageAdrs, spr.imagePal, gbi.G_TX_CLAMP, 0, 0, gbi.G_TX_CLAMP, 0, 0);
-    rTile.setSize(0, 0, (spr.imageW - 1) << 2, (spr.imageH - 1) << 2);
+    rTile.set(spr.imageFmt, spr.imageSiz, spr.imageStride, spr.imageAdrs, spr.imagePal,
+      gbi.G_TX_CLAMP, 0, 0, gbi.G_TX_CLAMP, 0, 0);
+    rTile.setSize(0, 0, (Math.floor(spr.imageW) - 1) * 4, (Math.floor(spr.imageH) - 1) * 4);
 
-    // Used by Worms
-    const swapX = spr.imageFlags & G_OBJ_FLAG_FLIPS;
-    const swapY = spr.imageFlags & G_OBJ_FLAG_FLIPT;
-    if (swapX || swapY) {
-      this.gbi.warnUnimplemented("swapX/Y");
+    const flipS = (spr.imageFlags & G_OBJ_FLAG_FLIPS) !== 0;
+    const flipT = (spr.imageFlags & G_OBJ_FLAG_FLIPT) !== 0;
+    const origin = shrink - (bilerp ? 0.5 : 0);
+    // Flipped rectangles start at the last 10.5 coordinate inside the image,
+    // not imageW/imageH (which would repeat the clamped edge texel).
+    let s0 = origin, t0 = origin;
+    let s1 = origin + spr.imageW - trim - 1 / 32;
+    let t1 = origin + spr.imageH - trim - 1 / 32;
+    if (flipS) {
+      [s0, s1] = [s1, s0];
     }
-    const s0 = 0;
-    const t0 = 0;
-    const s1 = spr.imageW;
-    const t1 = spr.imageH;
+    if (flipT) {
+      [t0, t1] = [t1, t0];
+    }
 
-    if (rotType == kRenderFullTransform) {
-      const x0 = m.x + (m.a * objX0) + (m.b * objY0);
-      const y0 = m.y + (m.c * objX0) + (m.d * objY0);
-      const x1 = m.x + (m.a * objX1) + (m.b * objY0);
-      const y1 = m.y + (m.c * objX1) + (m.d * objY0);
-      const x2 = m.x + (m.a * objX0) + (m.b * objY1);
-      const y2 = m.y + (m.c * objX0) + (m.d * objY1);
-      const x3 = m.x + (m.a * objX1) + (m.b * objY1);
-      const y3 = m.y + (m.c * objX1) + (m.d * objY1);
-      this.gbi.renderer.texRectRot(tileIdx, x0, y0, x1, y1, x2, y2, x3, y3, s0, t0, s1, t1);
-    } else if (rotType == kRenderPartialTransform) {
-      // TODO: is x1/y1 decremented by 1?
-      const x0 = m.x + (objX0 / m.sx);
-      const y0 = m.y + (objY0 / m.sy);
-      const x1 = m.x + (objX1 / m.sx);
-      const y1 = m.y + (objY1 / m.sy);
-      this.gbi.renderer.texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, false);
-    } else if (rotType == kRenderNoRotation) {
-      // TODO: is x1/y1 decremented by 1?
-      const x0 = objX0;
-      const x1 = objX1;
-      const y0 = objY0;
-      const y1 = objY1;
-      this.gbi.renderer.texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, false);
+    if (rotType === kRenderFullTransform) {
+      const offset = shrink1 ? 0 : -2;
+      const objX0 = spr.objX * 4 + offset;
+      const objY0 = spr.objY * 4 + offset;
+      const objX1 = objX0 + extent(spr.imageW, scaleW);
+      const objY1 = objY0 + extent(spr.imageH, scaleH);
+      const transX = snap(m.x * 4 + (bilerp ? 0 : 1));
+      const transY = snap(m.y * 4 + (bilerp ? 0 : 1));
+      const x = (a, b) => (transX + Math.floor(m.a * a) + Math.floor(m.b * b)) / 4;
+      const y = (a, b) => (transY + Math.floor(m.c * a) + Math.floor(m.d * b)) / 4;
+      this.gbi.renderer.texRectRot(tileIdx,
+        x(objX0, objY0), y(objX0, objY0), x(objX1, objY0), y(objX1, objY0),
+        x(objX0, objY1), y(objX0, objY1), x(objX1, objY1), y(objX1, objY1), s0, t0, s1, t1);
+      return;
     }
+
+    const offset = bilerp ? (shrink1 ? 0 : -2) : 1;
+    let x0, y0, x1, y1;
+    let totalScaleW = scaleW, totalScaleH = scaleH;
+    if (rotType === kRenderPartialTransform) {
+      const baseW = Math.max(1, m.sx * 1024), baseH = Math.max(1, m.sy * 1024);
+      totalScaleW = Math.max(1, Math.floor(baseW * scaleW / 1024));
+      totalScaleH = Math.max(1, Math.floor(baseH * scaleH / 1024));
+      // Retain 16 fractional bits until after adding the scaled extent.
+      const x = Math.floor(spr.objX * 4 * reciprocal(baseW) / 32) + snap(m.x * 4 + offset) * 65536;
+      const y = Math.floor(spr.objY * 4 * reciprocal(baseH) / 32) + snap(m.y * 4 + offset) * 65536;
+      x0 = Math.floor(x / 65536) / 4;
+      y0 = Math.floor(y / 65536) / 4;
+      x1 = Math.floor((x + Math.floor((spr.imageW - trim) * 32 * reciprocal(totalScaleW) / 256)) / 65536) / 4;
+      y1 = Math.floor((y + Math.floor((spr.imageH - trim) * 32 * reciprocal(totalScaleH) / 256)) / 65536) / 4;
+    } else {
+      x0 = snap(spr.objX * 4 + offset) / 4;
+      y0 = snap(spr.objY * 4 + offset) / 4;
+      x1 = x0 + extent(spr.imageW, scaleW) / 4;
+      y1 = y0 + extent(spr.imageH, scaleH) / 4;
+    }
+    const dsdx = (flipS ? -1 : 1) * totalScaleW / 1024;
+    const dtdy = (flipT ? -1 : 1) * totalScaleH / 1024;
+    // The RDP starts T at floor(y0); compensate the fractional scanline.
+    t0 -= (y0 - Math.floor(y0)) * dtdy;
+    this.gbi.renderer.texRect(tileIdx, x0, y0, x1, y1,
+      s0, t0, s0 + (x1 - x0) * dsdx, t0 + (y1 - y0) * dtdy, false);
   }
+
 }
 
 export class GBI1SDEX extends GBI1 {
@@ -778,7 +875,7 @@ export class GBI1SDEX extends GBI1 {
       // e404008000000040 gsImmp1(G_RDPHALF_0, 0x00000040);
       // b400000000000000 gsImmp1(G_RDPHALF_1, 0x00000000);
       // b300000004000400 gsImmp1(G_RDPHALF_2, 0x04000400);
-      [s2dex1.Commands.G_RDPHALF_0, this.executeRDPHalf0.bind(this)],
+      [s2dex1.Commands.G_RDPHALF_0, this.s2dex.saveRDPHalf0.bind(this.s2dex)],
     ]);
   }
 
@@ -790,12 +887,12 @@ export class GBI1SDEX extends GBI1 {
     return super.getHandler(command);
   }
 
-  executeRDPHalf0(cmd0, cmd1, dis) {
-    if (dis) {
-      dis.text(`gsImmp1(G_RDPHALF_0, ${toString32(cmd0)}, ${toString32(cmd1)});`);
+  executeMoveWord(cmd0, cmd1, dis) {
+    if ((cmd0 & 0xff) === gbi.MoveWord.G_MW_FOG) {
+      this.s2dex.setStatus((cmd0 >>> 8) & 0xffff, cmd1, dis);
+      return;
     }
-    this.state.rdpHalf0Cmd0 = cmd0;
-    this.state.rdpHalf0Cmd1 = cmd1;
+    super.executeMoveWord(cmd0, cmd1, dis);
   }
 
   // 0xb3 - replaced base executeRDPHalf2 which 
@@ -815,6 +912,7 @@ export class GBI2SDEX extends GBI2 {
     this.s2dex = new S2DEXCommon(state, ramDV, this);
 
     this.sdexCommands = new Map([
+      [s2dex2.Commands.TextureRectangle, this.executeRDPHalf0.bind(this)],
       [s2dex2.Commands.G_OBJ_RECTANGLE, this.s2dex.executeObjRectangle.bind(this.s2dex)],
       [s2dex2.Commands.G_OBJ_SPRITE, this.s2dex.executeObjSprite.bind(this.s2dex)],
       [s2dex2.Commands.G_SELECT_DL, this.s2dex.executeSelectDL.bind(this.s2dex)],
@@ -845,6 +943,26 @@ export class GBI2SDEX extends GBI2 {
       return fn;
     }
     return super.getHandler(command);
+  }
+
+  executeRDPHalf0(cmd0, cmd1, dis) {
+    const pc = this.state.pc;
+    const end = Math.min(this.state.pcEnd || this.ramDV.byteLength, this.ramDV.byteLength);
+    if (pc && pc + 8 <= end && (this.ramDV.getUint32(pc) >>> 24) === s2dex2.Commands.G_SELECT_DL) {
+      this.s2dex.saveRDPHalf0(cmd0, cmd1, dis);
+    } else {
+      // HALF_0 is also the first word of an ordinary texture rectangle.
+      this.state.s2dexSelectDL = null;
+      this.executeTexRect(cmd0, cmd1, dis);
+    }
+  }
+
+  executeMoveWord(cmd0, cmd1, dis) {
+    if (((cmd0 >>> 16) & 0xff) === gbi.MoveWord.G_MW_FOG) {
+      this.s2dex.setStatus(cmd0 & 0xffff, cmd1, dis);
+      return;
+    }
+    super.executeMoveWord(cmd0, cmd1, dis);
   }
 
   executeMoveMem(cmd0, cmd1, dis) {

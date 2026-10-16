@@ -52,18 +52,7 @@ export class GBI1 extends GBIMicrocode {
 
 
   executeBranchZ(cmd0, cmd1, dis) {
-    const address = this.state.rdpSegmentAddress(this.state.rdpHalf1Cmd1);
-
-    // Examples: AeroGauge.
-    this.warnUnimplemented('BranchLessZ')
-    if (dis) {
-      dis.text(`gsSPBranchLessZ(/* TODO */);`);
-    }
-
-    // FIXME
-    // Just branch all the time for now
-    //if (vtxDepth(cmd.vtx) <= cmd.branchzvalue)
-    this.state.branchDisplayList(address);
+    this.branchZ(cmd0, cmd1, dis, true);
   }
 
   executeClearGeometryMode(cmd0, cmd1, dis) {
@@ -285,7 +274,8 @@ export class GBI1 extends GBIMicrocode {
 
     switch (type) {
       case gbi.MoveWord.G_MW_MATRIX:
-        this.warnUnimplemented('MoveWord Matrix');
+        this.insertMatrix(offset, value);
+        text = `gsSPInsertMatrix(${toString16(offset)}, ${toString32(value)});`;
         break;
       case gbi.MoveWord.G_MW_NUMLIGHT:
         {
@@ -448,4 +438,3 @@ export class GBI1LL extends GBI1 {
     this.vertexStride = 2;
   }
 }
-

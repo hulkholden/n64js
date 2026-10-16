@@ -3,6 +3,8 @@ import { Vector4 } from '../../graphics/Vector4.js';
 export class ProjectedVertex {
   constructor() {
     this.pos = new Vector4();
+    // Viewport-space 16.16 depth, before the float32 VI/rendering transform.
+    this.screenZ = 0;
     this.color = 0;
     this.u = 0;
     this.v = 0;
