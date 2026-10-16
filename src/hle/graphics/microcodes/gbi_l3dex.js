@@ -1,8 +1,51 @@
 import { GBI1 } from './gbi1.js';
+import { GBI2 } from './gbi2.js';
+
+function lineMicrocode(Base) {
+  return class extends Base {
+    executeLines(dis, capacity, emit) {
+      const tb = this.triangleBuffer;
+      tb.reset();
+      // Bound commands too: clipped/degenerate lines consume no buffer capacity.
+      const count = this.state.executeBatch(dis ? 1 : Math.floor(tb.maxTris / capacity), (cmd0, cmd1) => {
+        emit(cmd0, cmd1);
+        return tb.hasCapacity(capacity);
+      });
+      this.state.currentOp += count - 1;
+      this.renderer.flushTris(tb, { lines: true });
+    }
+
+    pushEdges(word, dis, width = 0) {
+      const v0 = (word >>> 17) & 0x7f;
+      const v1 = (word >>> 9) & 0x7f;
+      const v2 = (word >>> 1) & 0x7f;
+      dis?.text(`gsSP1Triangle(${v0}, ${v1}, ${v2}, 0); // wireframe, width ${width}`);
+      this.pushLine(v0, v1, width, v0);
+      this.pushLine(v1, v2, width, v0);
+      this.pushLine(v2, v0, width, v0);
+    }
+
+    pushLine(i0, i1, width, flatIndex) {
+      if (i0 === i1) {
+        return;
+      }
+      const verts = this.state.projectedVertices;
+      if (!verts[i0]?.set || !verts[i1]?.set || (!this.state.geometryMode.shadeSmooth && !verts[flatIndex]?.set)) {
+        this.warn('L3DEX line references an unloaded vertex');
+        return;
+      }
+      const flatColor = this.state.geometryMode.shadeSmooth ? null : verts[flatIndex].color;
+      const { viWidth, viHeight } = this.renderer.nativeTransform;
+      // N64 line width is 1.5 pixels plus a signed half-pixel increment.
+      appendLine(this.triangleBuffer, verts[i0], verts[i1], 1.5 + width * 0.5,
+        viWidth, viHeight, flatColor);
+    }
+  };
+}
 
 // L3DEX shares F3DEX's state commands, but B5 is a two-vertex line and
 // TRI1/TRI2 draw triangle edges. The low byte of B5 is signed width, not a vertex.
-export class GBI1L3DEX extends GBI1 {
+export class GBI1L3DEX extends lineMicrocode(GBI1) {
   executeLine3D(cmd0, cmd1, dis) {
     this.executeLines(dis, 2, (cmd0, cmd1) => {
       const v0 = (cmd1 >>> 17) & 0x7f;
@@ -23,42 +66,37 @@ export class GBI1L3DEX extends GBI1 {
       this.pushEdges(cmd1, dis);
     });
   }
+}
 
-  executeLines(dis, capacity, emit) {
-    const tb = this.triangleBuffer;
-    tb.reset();
-    const count = this.state.executeBatch(dis ? 1 : 0, (cmd0, cmd1) => {
-      emit(cmd0, cmd1);
-      return tb.hasCapacity(capacity);
+// L3DEX2 keeps the GBI2 state commands, but moves Line3D operands to cmd0.
+// TRI1/TRI2 draw edges with a signed width in cmd1's high byte.
+// Operand reference: https://github.com/gonetz/GLideN64/blob/master/src/uCodes/L3DEX2.cpp
+export class GBI2L3DEX extends lineMicrocode(GBI2) {
+  executeLine3D(cmd0, cmd1, dis) {
+    this.executeLines(dis, 2, (cmd0) => {
+      const v0 = (cmd0 >>> 17) & 0x7f;
+      const v1 = (cmd0 >>> 9) & 0x7f;
+      const width = (cmd0 << 24) >> 24;
+      dis?.text(`gsSPLineW3D(${v0}, ${v1}, ${width}, 0);`);
+      this.pushLine(v0, v1, width, v0);
     });
-    this.state.currentOp += count - 1;
-    this.renderer.flushTris(tb, { lines: true });
   }
 
-  pushEdges(word, dis) {
-    const v0 = (word >>> 17) & 0x7f;
-    const v1 = (word >>> 9) & 0x7f;
-    const v2 = (word >>> 1) & 0x7f;
-    dis?.text(`gsSP1Triangle(${v0}, ${v1}, ${v2}, 0); // wireframe`);
-    this.pushLine(v0, v1, 0, v0);
-    this.pushLine(v1, v2, 0, v0);
-    this.pushLine(v2, v0, 0, v0);
+  executeTri1(cmd0, cmd1, dis) {
+    this.executeLines(dis, 6, (cmd0, cmd1) => this.pushEdges(cmd0, dis, cmd1 >> 24));
   }
 
-  pushLine(i0, i1, width, flatIndex) {
-    if (i0 === i1) {
-      return;
-    }
-    const verts = this.state.projectedVertices;
-    if (!verts[i0]?.set || !verts[i1]?.set || (!this.state.geometryMode.shadeSmooth && !verts[flatIndex]?.set)) {
-      this.warn('L3DEX line references an unloaded vertex');
-      return;
-    }
-    const flatColor = this.state.geometryMode.shadeSmooth ? null : verts[flatIndex].color;
-    const { viWidth, viHeight } = this.renderer.nativeTransform;
-    // N64 line width is 1.5 pixels plus a signed half-pixel increment.
-    appendLine(this.triangleBuffer, verts[i0], verts[i1], 1.5 + width * 0.5,
-      viWidth, viHeight, flatColor);
+  executeTri2(cmd0, cmd1, dis) {
+    this.executeLines(dis, 12, (cmd0, cmd1) => {
+      const width = cmd1 >> 24;
+      this.pushEdges(cmd0, dis, width);
+      this.pushEdges(cmd1, dis, width);
+    });
+  }
+
+  executeQuad(cmd0, cmd1, dis) {
+    // L3DEX2 has no QUAD command; do not inherit F3DEX2's filled triangles.
+    this.executeNoop(cmd0, cmd1, dis);
   }
 }
 

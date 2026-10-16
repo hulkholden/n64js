@@ -10,7 +10,7 @@ function harness(commands, version = 'RSP Gfx ucode L3DEX 1.23', hash = 0x8eb562
   const ram = new DataView(new ArrayBuffer(0x1000));
   const state = new RSPState();
   state.reset(ram, 8);
-  commands.concat([[0xb8000000, 0]]).forEach(([a, b], i) => {
+  commands.concat([[version.includes('fifo') ? 0xdf000000 : 0xb8000000, 0]]).forEach(([a, b], i) => {
     ram.setUint32(8 + i * 8, a);
     ram.setUint32(12 + i * 8, b);
   });
@@ -18,7 +18,7 @@ function harness(commands, version = 'RSP Gfx ucode L3DEX 1.23', hash = 0x8eb562
   microcode.renderer = new NullRenderer(state);
   const draws = [];
   microcode.renderer.flushTris = (tb, options) => {
-    draws.push({ positions: [...tb.positions.slice(0, tb.numTris * 12)], tris: tb.numTris, options });
+    draws.push({ colors: [...tb.colours.slice(0, tb.numTris * 3)], positions: [...tb.positions.slice(0, tb.numTris * 12)], tris: tb.numTris, options });
     tb.reset();
   };
   for (let i = 0; i < 8; ++i) {
@@ -26,7 +26,9 @@ function harness(commands, version = 'RSP Gfx ucode L3DEX 1.23', hash = 0x8eb562
     v.set = true;
     v.pos.set(i % 2 ? 0.5 : -0.5, i < 2 ? 0 : 0.5, 0, 1);
   }
-  return { state, microcode, draws };
+  const warnings = [];
+  microcode.warn = message => warnings.push(message);
+  return { state, microcode, draws, warnings };
 }
 
 describe('L3DEX commands', () => {
@@ -123,4 +125,112 @@ test('line draws disable texture and face culling without affecting the next tri
   expect(culling).toEqual([['disable', 'cull'], ['enable', 'cull']]);
   expect(draws).toEqual([['triangles', 0, 6], ['triangles', 0, 3]]);
   expect(state.geometryMode.texture).toBe(1);
+});
+
+const l3dex2 = 'RSP Gfx ucode L3DEX       fifo 2.04  Yoshitaka Yasumoto 1998 Nintendo.';
+
+describe('L3DEX2 commands', () => {
+  test('decodes the captured NASCAR packet from cmd0 and leaves subsequent state commands intact', () => {
+    for (const debug of [false, true]) {
+      const text = [];
+      const disassembler = debug ? { begin() {}, end() {}, text: value => text.push(value), rgba8888: value => String(value) } : null;
+      const { state, microcode, draws, warnings } = harness([
+        [0x08000200, 0], // NASCAR 2000: vertices 0 and 1, default width.
+        [0x08000201, 0xffffffff], // cmd1 is unused, including its high byte.
+        [0xfa000000, 0x12345678], // SetPrimColor must not be consumed by batching.
+        [0x080002ff, 0], // signed -1 => one pixel.
+      ], l3dex2);
+      executeDisplayList(state, microcode, { disassembler });
+      const positions = draws.flatMap(draw => draw.positions);
+      expect(positions[1]).toBeCloseTo(1.5 / 240);
+      expect(positions[25]).toBeCloseTo(2 / 240);
+      expect(positions[49]).toBeCloseTo(1 / 240);
+      expect(draws.reduce((n, draw) => n + draw.tris, 0)).toBe(6);
+      expect(draws.every(draw => draw.options.lines)).toBe(true);
+      expect(state.primColor).toBe(0x12345678);
+      expect(state.currentOp).toBe(5);
+      expect(state.pc).toBe(0);
+      expect(warnings).toEqual([]);
+      if (debug) {
+        expect(text).toContain('gsSPLineW3D(0, 1, -1, 0);');
+      }
+    }
+  });
+
+  test('retains seven-bit indices, endpoint order and flat/smooth colors', () => {
+    for (const smooth of [false, true]) {
+      const { state, microcode, draws } = harness([[0x083e0401, 0]], l3dex2);
+      const last = state.projectedVertices[31];
+      last.set = true;
+      last.pos.set(-0.5, 0.5, 0, 1);
+      last.color = 0xff0000ff;
+      state.projectedVertices[2].pos.set(0.5, 0.5, 0, 1);
+      state.projectedVertices[2].color = 0xffff0000;
+      state.geometryMode.shadeSmooth = smooth;
+      executeDisplayList(state, microcode);
+      expect(draws[0].positions[0]).toBe(-0.5);
+      expect(draws[0].positions[8]).toBe(0.5);
+      expect(draws[0].colors).toEqual(smooth
+        ? [0xff0000ff, 0xff0000ff, 0xffff0000, 0xffff0000, 0xff0000ff, 0xffff0000]
+        : Array(6).fill(0xff0000ff));
+    }
+  });
+
+  test('skips nonpositive widths and validates unloaded/out-of-range endpoints', () => {
+    const { state, microcode, draws, warnings } = harness([
+      [0x080002fd, 0], [0x08000280, 0], // zero and negative pixel widths
+      [0x08fefe00, 0], // repeated invalid indices are degenerate
+      [0x08001000, 0], // vertex 8 is not loaded
+      [0x08fe0000, 0], // vertex 127 is outside the cache
+      [0x0800027f, 0], // largest positive width: 65 pixels
+    ], l3dex2);
+    executeDisplayList(state, microcode);
+    expect(draws.reduce((n, draw) => n + draw.tris, 0)).toBe(2);
+    expect(draws[0].positions[1]).toBeCloseTo(65 / 240);
+    expect(warnings).toEqual(Array(2).fill('L3DEX line references an unloaded vertex'));
+    expect(state.currentOp).toBe(7);
+  });
+
+  test('TRI1/TRI2 emit wireframe edges with signed widths and each triangle’s flat color', () => {
+    const { state, microcode, draws } = harness([
+      [0x05000204, 0x01000000],
+      [0x06000204, 0xff020604],
+      [0x07000204, 0x00020604], // QUAD is not a filled primitive in L3DEX2.
+    ], l3dex2);
+    state.projectedVertices[0].color = 0xff0000ff;
+    state.projectedVertices[1].color = 0xffff0000;
+    executeDisplayList(state, microcode);
+    expect(draws.map(draw => draw.tris)).toEqual([6, 12]);
+    expect(draws[0].positions[1]).toBeCloseTo(2 / 240);
+    expect(draws[1].positions[1]).toBeCloseTo(1 / 240);
+    expect(draws[1].colors.slice(0, 18)).toEqual(Array(18).fill(0xff0000ff));
+    expect(draws[1].colors.slice(18)).toEqual(Array(18).fill(0xffff0000));
+    expect(state.currentOp).toBe(4);
+  });
+
+  test('batches within capacity and respects debugger bailAfter', () => {
+    const commands = Array.from({ length: 70 }, () => [0x08000200, 0]);
+    const { state, microcode, draws } = harness(commands, l3dex2);
+    executeDisplayList(state, microcode, { bailAfter: 34 });
+    expect(draws.map(draw => draw.tris)).toEqual([64, 6]);
+    expect(state.currentOp).toBe(34);
+    expect(state.pc).toBe(8 + 35 * 8);
+    executeDisplayList(state, microcode);
+    expect(draws.reduce((n, draw) => n + draw.tris, 0)).toBe(140);
+  });
+
+  test('degenerate batches still yield to the display-list command limit', () => {
+    const { state, microcode } = harness(Array.from({ length: 100 }, () => [0x08000000, 0]), l3dex2);
+    expect(() => executeDisplayList(state, microcode, { commandLimit: 1 })).toThrow('command limit');
+    expect(state.currentOp).toBe(32);
+  });
+
+  test('ordinary F3DEX2 retains filled TRI1/TRI2/QUAD dispatch', () => {
+    const { state, microcode, draws } = harness([
+      [0x05000204, 0], [0x06000204, 0x00020604], [0x07000204, 0x00020604],
+    ], 'RSP Gfx ucode F3DEX fifo 2.04');
+    executeDisplayList(state, microcode);
+    expect(draws.map(draw => draw.tris)).toEqual([1, 2, 2]);
+    expect(draws.every(draw => draw.options === undefined)).toBe(true);
+  });
 });

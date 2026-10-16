@@ -28,6 +28,9 @@ describe('microcode identification', () => {
   test('uses version fragments to identify families when the hash is unknown', () => {
     for (const [version, id, family, variant] of [
       ['RSP Gfx ucode L3DEX 1.23', MicrocodeId.GBI1_L3DEX, 'GBI1', 'L3DEX'],
+      ['RSP Gfx ucode L3DEX       fifo 2.04  Yoshitaka Yasumoto 1998 Nintendo.', MicrocodeId.GBI2_L3DEX, 'GBI2', 'L3DEX'],
+      ['RSP Gfx ucode L3DEX       fifo 2.07  Yoshitaka Yasumoto 1999 Nintendo.', MicrocodeId.GBI2_L3DEX, 'GBI2', 'L3DEX'],
+      ['RSP Gfx ucode L3DEX xbus 2.04', MicrocodeId.GBI2_L3DEX, 'GBI2', 'L3DEX'],
       ['RSP Gfx ucode F3DEX 1.0', MicrocodeId.GBI1, 'GBI1', null],
       ['RSP Gfx ucode F3DEX fifo 2.0', MicrocodeId.GBI2, 'GBI2', null],
       ['RSP Gfx ucode F3DFLX.Rej  fifo 2.03F Yoshitaka Yasumoto 1998 Nintendo.', MicrocodeId.GBI2_FLX, 'GBI2', 'F3DFLX'],
