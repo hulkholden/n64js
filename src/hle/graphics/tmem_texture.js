@@ -1,6 +1,6 @@
 // Cache physical TMEM snapshots shared by both texture slots. The default
 // budget holds 16 MiB of texels, allocated on demand. Hash matches are trusted;
-// only the current snapshot has a CPU copy, to skip hashing unchanged draws.
+// unchanged draws check tmem.version to skip hashing.
 export class TMEMTexture {
   constructor(gl, maxEntries = 4096) {
     if (!Number.isInteger(maxEntries) || maxEntries < 1) {
@@ -11,7 +11,6 @@ export class TMEMTexture {
     this.entries = new Map();
     this.texture = null;
     this.tmemVersion = -1;
-    this.words = new Int32Array(1024);
     // Count changed-snapshot lookups; unchanged draws bypass the cache.
     this.hits = 0;
     this.misses = 0;
@@ -21,8 +20,7 @@ export class TMEMTexture {
   bind(tmem) {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0);
-    if (this.texture && (this.tmemVersion === tmem.version || this.matches(tmem.tmemData32))) {
-      this.tmemVersion = tmem.version;
+    if (this.texture && this.tmemVersion === tmem.version) {
       gl.bindTexture(gl.TEXTURE_2D, this.texture);
       return;
     }
@@ -57,16 +55,6 @@ export class TMEMTexture {
     this.entries.set(hash, texture);
     this.texture = texture;
     this.tmemVersion = tmem.version;
-    this.words.set(tmem.tmemData32);
-  }
-
-  matches(words) {
-    for (let i = 0; i < this.words.length; i++) {
-      if (this.words[i] !== words[i]) {
-        return false;
-      }
-    }
-    return true;
   }
 
   reset() {
