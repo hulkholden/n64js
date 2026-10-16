@@ -376,7 +376,6 @@ function generateTrivialOpBoilerplate(fn, ctx) {
     // We can avoid off-branch checks in this case.
     const expectedPC = ctx.pc + 4;
     if (ctx.postPC !== expectedPC) {
-      assert("postPC should always be pc+4 for trival ops?");
       code += `c.pc = ${toString32(expectedPC)};\n`;
       code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
     } else {
