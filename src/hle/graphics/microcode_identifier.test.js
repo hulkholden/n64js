@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
+import { MemoryRegion } from '../../memory/memory_region.js';
+import { RSPTask } from '../rsp_task.js';
+import { TaskOffsets } from '../rsp_task_constants.js';
+import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microcode_identifier.js';
 
 describe('microcode identification', () => {
   test('identifies Naboo without selecting the Indiana Jones skip path or GBI0 fallback', () => {
@@ -69,4 +72,100 @@ describe('microcode identification', () => {
       });
     }
   });
+
+  test('evaluates prefixHash lazily only when primary hash and version do not match', () => {
+    let prefixCalls = 0;
+    const prefixHash = () => {
+      prefixCalls++;
+      return 0xeb70fcb5;
+    };
+
+    // Known hash override: does not call prefixHash.
+    expect(identifyMicrocode('', 0x23f92542, prefixHash)).toMatchObject({
+      id: MicrocodeId.GBI0_GE, detection: 'hash',
+    });
+    expect(prefixCalls).toBe(0);
+
+    // Known version string: does not call prefixHash.
+    expect(identifyMicrocode('RSP Gfx ucode F3DEX fifo 2.0', 0x12345678, prefixHash)).toMatchObject({
+      id: MicrocodeId.GBI2, detection: 'string',
+    });
+    expect(prefixCalls).toBe(0);
+
+    // Unknown hash and version: calls prefixHash once and identifies HVQM2.
+    expect(identifyMicrocode('', 0x12345678, prefixHash)).toMatchObject({
+      id: MicrocodeId.HVQM2, detection: 'hash',
+    });
+    expect(prefixCalls).toBe(1);
+  });
+
+  test('RSPTask memoizes version string and microcode hashes until loadUcode', () => {
+    const ram = new Uint8Array(0x4000);
+    const enc = new TextEncoder();
+    const v1 = enc.encode('RSP Gfx ucode F3DEX 1.21\0');
+    const v2 = enc.encode('RSP Gfx ucode S2DEX fifo 2.08\0');
+    ram.set([1, 2, 3, 4], 0x100);
+    ram.set(v1, 0x200);
+    ram.set([5, 6, 7, 8], 0x1000);
+    ram.set(v2, 0x2000);
+
+    const taskMem = new MemoryRegion(new ArrayBuffer(0x40));
+    taskMem.set32(TaskOffsets.ucodePtr, 0x80000100);
+    taskMem.set32(TaskOffsets.ucodeSize, 4);
+    taskMem.set32(TaskOffsets.ucodeDataPtr, 0x80000200);
+    taskMem.set32(TaskOffsets.ucodeDataSize, v1.length);
+
+    let dataReads = 0;
+    let codeReads = 0;
+    const task = new RSPTask(ram, taskMem);
+    const origDataByte = task.dataByte.bind(task);
+    const origCodeByte = task.codeByte.bind(task);
+    task.dataByte = offset => {
+      dataReads++;
+      return origDataByte(offset);
+    };
+    task.codeByte = offset => {
+      codeReads++;
+      return origCodeByte(offset);
+    };
+
+    const version1 = task.detectVersionString();
+    expect(version1).toBe('RSP Gfx ucode F3DEX 1.21');
+    const firstDataReads = dataReads;
+    expect(firstDataReads).toBeGreaterThan(0);
+    expect(task.detectVersionString()).toBe(version1);
+    expect(dataReads).toBe(firstDataReads);
+
+    const hash1 = task.computeMicrocodeHash();
+    expect(codeReads).toBe(4);
+    expect(task.computeMicrocodeHash()).toBe(hash1);
+    expect(codeReads).toBe(4);
+
+    // Prefix hash on a short task is also memoized without reading bytes.
+    expect(task.computeMicrocodeHash(microcodePrefixLength)).toBeNull();
+    expect(task.computeMicrocodeHash(microcodePrefixLength)).toBeNull();
+    expect(codeReads).toBe(4);
+
+    // A shorter prefix length is computed once and memoized.
+    const prefix2 = task.computeMicrocodeHash(2);
+    expect(codeReads).toBe(6);
+    expect(task.computeMicrocodeHash(2)).toBe(prefix2);
+    expect(codeReads).toBe(6);
+
+    // loadUcode invalidates memoized version and hashes.
+    task.loadUcode(0x80001000, 4, 0x80002000, v2.length);
+    const version2 = task.detectVersionString();
+    expect(version2).toBe('RSP Gfx ucode S2DEX fifo 2.08');
+    const secondDataReads = dataReads;
+    expect(secondDataReads).toBeGreaterThan(firstDataReads);
+    expect(task.detectVersionString()).toBe(version2);
+    expect(dataReads).toBe(secondDataReads);
+
+    const hash2 = task.computeMicrocodeHash();
+    expect(hash2).not.toBe(hash1);
+    expect(codeReads).toBe(10);
+    expect(task.computeMicrocodeHash()).toBe(hash2);
+    expect(codeReads).toBe(10);
+  });
 });
+

@@ -275,7 +275,7 @@ class N64Shader {
  */
 export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill, noNearClipping = false, blender = 0, constantFogColor = false) {
   // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
-  let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? (`${mux0.toString(16) + mux1.toString(16)}_${cycleType}`) : cycleType.toString();
+  let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? `${mux0 >>> 0}_${mux1 >>> 0}_${cycleType}` : cycleType.toString();
   const enableAlphaThreshold = (alphaCompare & gbi.AlphaCompare.G_AC_THRESHOLD) !== 0;
   if (enableAlphaThreshold) {
     stateText += `_alphaCompare${alphaCompare}`;
