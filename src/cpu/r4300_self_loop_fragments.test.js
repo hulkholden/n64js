@@ -6,7 +6,10 @@ import {
   DEFAULT_PC,
   JR_RA,
   compileFragmentAt,
+  compileOp,
   createTestEmulator,
+  iop,
+  jump,
 } from './test_helpers.js';
 
 afterEach(() => {
@@ -44,6 +47,121 @@ function captureState(cpu, h) {
 }
 
 describe('self-looping fragments and self-loop cutoff', () => {
+  for (const [name, branch] of [
+    ['J', jump(DEFAULT_PC)],
+    ['BEQ unconditional', iop(4, 0, 0, -1)],
+    ['BEQ', iop(4, 9, 10, -1)],
+    ['BNE', iop(5, 8, 9, -1)],
+  ]) {
+    test(`${name} with a traced non-NOP delay slot preserves execution and deadlines without idle-skip attempts`, async () => {
+      const words = [branch, ADDIU_T0_1, JR_RA, 0];
+      for (const cycles of [1, 2, 3, 11, 12, 19]) {
+        const states = [];
+        for (const compiled of [false, true]) {
+          const { e, cpu, h, entry } = await createLoopFixture(words);
+          const prepare = () => {
+            // Enter the delay slot with the branch back-edge already pending.
+            cpu.pc = entry + 4;
+            cpu.delayPC = entry;
+            cpu.setRegS32Extend(8, 0);
+            cpu.setRegS32Extend(9, 5);
+            cpu.setRegS32Extend(10, 5);
+            cpu.setRegS32Extend(31, entry + 8);
+          };
+          prepare();
+          if (compiled) {
+            const fragment = compileFragmentAt(cpu, entry + 4, 2);
+            expect(fragment.getCode()).not.toContain('do {');
+            expect(fragment.getCode()).not.toContain('speedHack');
+          }
+          prepare();
+          cpu.controlCountValue = 0;
+          cpu.opsExecuted = 0;
+          setPerformanceProfiling(true);
+          cpu.run(cycles);
+          expect(e.fatalError()).toBeNull();
+          if (compiled) {
+            expect(performanceProfile.counters.speedHackAttempts).toBe(0);
+          }
+          states.push(captureState(cpu, h));
+          setPerformanceProfiling(false);
+        }
+        expect(states[1]).toEqual(states[0]);
+      }
+    });
+
+    test(`${name} keeps the runtime idle-skip check when its delay slot is unobserved`, () => {
+      expect(compileOp(branch).getCode()).toContain('c.speedHack()');
+    });
+
+    test(`${name} keeps the runtime idle-skip check for a traced NOP delay slot`, async () => {
+      const { cpu, h, entry } = await createLoopFixture([branch, 0]);
+      cpu.pc = entry + 4;
+      cpu.delayPC = entry;
+      cpu.setRegS32Extend(9, 5);
+      cpu.setRegS32Extend(10, 5);
+      // Keep the RSP active during training so no time is skipped.
+      h.rsp.halted = false;
+      const fragment = compileFragmentAt(cpu, entry + 4, 2);
+      expect(fragment.getCode()).toContain('c.speedHack()');
+      expect(fragment.getCode()).not.toContain('do {');
+    });
+  }
+
+  test('a rotated self-loop preserves active RSP stepping and delay-slot exceptions', async () => {
+    const states = [];
+    for (const compiled of [false, true]) {
+      // Chase a pointer in the delay slot; the third load is misaligned.
+      const { e, cpu, h, entry } = await createLoopFixture([jump(DEFAULT_PC), iop(0x23, 16, 16)]);
+      h.ram.set32(0x3000, 0x80003004);
+      h.ram.set32(0x3004, 0x7fffffff);
+      cpu.pc = entry + 4;
+      cpu.delayPC = entry;
+      cpu.setRegS32Extend(16, 0x80003000);
+      if (compiled) {
+        const fragment = compileFragmentAt(cpu, entry + 4, 2);
+        expect(fragment.getCode()).not.toContain('do {');
+      }
+      cpu.pc = entry + 4;
+      cpu.delayPC = entry;
+      cpu.controlCountValue = 0;
+      cpu.opsExecuted = 0;
+      cpu.setRegS32Extend(16, 0x80003000);
+      // RSP scalar ADDIU r1,r1,1 instructions continue alongside the CPU.
+      for (let pc = 0; pc < 24; pc += 4) {
+        h.rsp.imem.set32(pc, iop(9, 1, 1, 1));
+      }
+      h.rsp.halted = false;
+      cpu.run(6);
+      expect(e.fatalError()).toBeNull();
+      expect(cpu.getControlU32(regs.controlCause)).toBe(0x80000010);
+      expect(cpu.getControlU32(regs.controlEPC)).toBe(entry);
+      expect(h.rsp.getRegS32(1)).toBe(6);
+      states.push({ ...captureState(cpu, h), rspPC: h.rsp.pc });
+    }
+    expect(states[1]).toEqual(states[0]);
+  });
+
+  test('changing a traced delay slot to NOP invalidates the loop and restores idle skipping', async () => {
+    const { cpu, h, entry } = await createLoopFixture([jump(DEFAULT_PC), ADDIU_T0_1]);
+    cpu.pc = entry + 4;
+    cpu.delayPC = entry;
+    const fragment = compileFragmentAt(cpu, entry + 4, 2);
+    expect(fragment.getCode()).not.toContain('speedHack');
+
+    h.ram.set32((entry & 0x7fffff) + 4, 0);
+    h.fragmentCache.invalidateIndex(entry + 4);
+    expect(fragment.func).toBeUndefined();
+    cpu.pc = entry + 4;
+    cpu.delayPC = entry;
+    // Stop at an external deadline so a NOP loop can safely use the idle skip.
+    cpu.addEvent('test deadline', 100, () => cpu.breakExecution());
+    setPerformanceProfiling(true);
+    cpu.run(10);
+    expect(performanceProfile.counters.speedHackActivations).toBeGreaterThan(0);
+    expect(performanceProfile.counters.speedHackSkippedCycles).toBeGreaterThan(0);
+  });
+
   test('multi-iteration self-loop matches interpreted execution across deadlines, early exits, MFC0 Count, interrupts, and exceptions', async () => {
     // 6-op loop at 0x80001000:
     //   0x80001000: ADDIU t0, t0, 1         (0x25080001)

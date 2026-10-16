@@ -1120,14 +1120,26 @@ function generateDCTC2(ctx) {
   return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise Cop Unusable exception.
 }
 
+function generateSpeedHack(ctx) {
+  // Retain cycle synchronization and the fragment boundary even when the
+  // shortcut is omitted: active RSP instructions can schedule new events.
+  ctx.bailOut = true;
+  // A rotated self-loop can already contain its branch's delay slot. If that
+  // recorded instruction is non-NOP, speedHack would always reject it. Omitting
+  // the call avoids repeatedly reading guest memory to rediscover that fact.
+  // Use only traced instructions: they participate in I-cache invalidation and
+  // revalidation. An unobserved delay slot still needs the runtime check.
+  const index = ctx.fragment.instructionPCs.lastIndexOf(ctx.pc + 4);
+  return index >= 0 && ctx.fragment.instructionWords[index] !== 0 ? '' : 'c.speedHack();\n';
+}
+
 // Jump
 function generateJ(ctx) {
   // TODO: can this call execJ? It would need reworking to use branchTarget.
   const addr = jumpAddress(ctx.pc, ctx.instruction);
   let impl = '';
   if (kSpeedHackEnabled && addr === ctx.pc) {
-    impl += 'c.speedHack();\n';
-    ctx.bailOut = true;
+    impl += generateSpeedHack(ctx);
   }
   impl += 'c.delayPC = ' + toString32(addr) + ';';
   return generateBranchOpBoilerplate(impl, ctx, false);
@@ -1173,15 +1185,13 @@ function generateBEQ(ctx) {
 
   if (s === t) {
     if (kSpeedHackEnabled && off === -1) {
-      impl += 'c.speedHack();\n';
-      ctx.bailOut = true;
+      impl += generateSpeedHack(ctx);
     }
     impl += `c.delayPC = ${toString32(addr)};\n`;
   } else {
     impl += `if (${genEquality(ctx, s, t, true)}) {\n`;
     if (kSpeedHackEnabled && off === -1) {
-      impl += '  c.speedHack();\n';
-      ctx.bailOut = true;
+      impl += generateSpeedHack(ctx);
     }
     impl += `  c.delayPC = ${toString32(addr)};\n`;
     impl += '} else {\n';
@@ -1216,8 +1226,7 @@ function generateBNE(ctx) {
   let impl = '';
   impl += `if (${genEquality(ctx, s, t, false)}) {\n`;
   if (kSpeedHackEnabled && off === -1) {
-    impl += '  c.speedHack();\n';
-    ctx.bailOut = true;
+    impl += generateSpeedHack(ctx);
   }
   impl += `  c.delayPC = ${toString32(addr)};\n`;
   impl += '} else {\n';
