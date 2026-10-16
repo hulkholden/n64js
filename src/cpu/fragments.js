@@ -27,6 +27,7 @@ export class Fragment {
     this.cachedFunc       = undefined;
     this.instructionPCs   = [];
     this.instructionWords = [];
+    this.traceSteps       = [];
     this.cacheBuckets     = new Set();
     this.opsCompiled      = 0;
     this.executionCount   = 0;
@@ -37,6 +38,7 @@ export class Fragment {
     // State used when compiling
     this.bodyCode         = '';
     this.needsDelayCheck  = true;
+    this.entryDelayPC     = null;
 
     this.cop1statusKnown = false;
     this.usesCop1        = false;
@@ -67,6 +69,7 @@ export class Fragment {
     this.cachedFunc       = undefined;
     this.instructionPCs   = [];
     this.instructionWords = [];
+    this.traceSteps       = [];
     this.opsCompiled      = 0;
     this.executionCount   = 0;
     this.bailedOut        = false;
@@ -75,6 +78,7 @@ export class Fragment {
 
     this.bodyCode         = '';
     this.needsDelayCheck  = true;
+    this.entryDelayPC     = null;
 
     this.cop1statusKnown  = false;
     this.usesCop1         = false;
@@ -85,11 +89,14 @@ export class Fragment {
     this.maxPC = Math.max(this.maxPC, pc + 4);
   }
 
-  recordInstruction(pc, instruction) {
+  recordInstruction(pc, instruction, postPC = pc + 4, nextPC = postPC) {
     this.updateMinMax(pc);
     this.instructionPCs.push(pc);
     this.instructionWords.push(instruction >>> 0);
+    const step = { pc, instruction, postPC, nextPC };
+    this.traceSteps.push(step);
     this.trackInstruction(pc);
+    return step;
   }
 
   trackInstruction(pc) {
@@ -120,6 +127,18 @@ export class Fragment {
     return this.func?.toString() ?? this.bodyCode;
   }
 
+  isAtEntryState(pc, delayPC) {
+    return pc === this.entryPC && delayPC === this.entryDelayPC;
+  }
+
+  isUnfinishedTrace() {
+    return this.opsCompiled > 0 && !this.func && !this.cachedFunc;
+  }
+
+  canCacheNextFragmentAt(opsExecuted) {
+    return this.opsCompiled === 0 || opsExecuted <= this.opsCompiled;
+  }
+
   /**
    * Gets the next fragment and caches the results.
    * @param {number} pc The current pc.
@@ -134,7 +153,7 @@ export class Fragment {
     }
     // Reset unfinished traces on reentry. The dispatcher validates pending
     // compiled code immediately before execution.
-    if (nextFragment && nextFragment.opsCompiled > 0 && !nextFragment.func && !nextFragment.cachedFunc) {
+    if (nextFragment?.isUnfinishedTrace()) {
       nextFragment.invalidate();
     }
     return nextFragment;
@@ -152,7 +171,7 @@ export class Fragment {
     }
     // Keep cold targets reaching the global lookup so their hit counts advance.
     // They must not evict an existing hot target from either cache.
-    if (nextFragment) {
+    if (nextFragment && this.canCacheNextFragmentAt(opsExecuted)) {
       this.nextFragments[opsExecuted] = nextFragment;
     }
     return nextFragment;

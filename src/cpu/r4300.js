@@ -44,6 +44,15 @@ function tlbCacheSlot(page) {
 }
 
 const kFragmentLengthLimit = 250;
+// Minimum instructions compiled before a non-self-loop taken branch is allowed
+// to end the fragment. A value of 3 lets a 2-op entry branch stub (branch +
+// delay slot) trace through into its target basic block, while keeping traces
+// small enough for the JS JIT to inline helper calls (rsp.step / c.exec*).
+const kMinOpsBeforeBranchStop = 3;
+// Maximum instructions in a self-looping fragment body that will be wrapped in
+// an internal do-while loop. Keeping loop bodies <= 8 ops stays within the JS
+// JIT's inlining budget.
+const kMaxSelfLoopBodyOps = 8;
 
 const UT_VEC          = 0x80000000;
 const XUT_VEC         = 0x80000080;
@@ -1008,6 +1017,7 @@ export class CPU0 {
             }
           }
 
+          const entryDelayPC = this.delayPC;
           this.branchTarget = null;
           const fragmentGeneration = fragment?.generation;
           executeOp(instruction);
@@ -1026,7 +1036,7 @@ export class CPU0 {
             // this instruction to an empty body still keyed by the old entry PC.
             fragment = this.hardware.fragmentCache.lookupFragment(this.pc);
           } else if (fragment) {
-            fragment = addOpToFragment(fragment, pc, instruction, this);
+            fragment = addOpToFragment(fragment, pc, instruction, this, entryDelayPC);
           } else {
             // If there's no current fragment and we branch backwards, this is possibly a new loop
             if (this.pc < pc) {
@@ -2994,10 +3004,11 @@ function executeFragmentProfiled(fragment, cpu0, eventQueue) {
 // We need just one of these - declare at global scope to avoid generating garbage
 const fragmentContext = new FragmentContext();
 
-function addOpToFragment(fragment, entry_pc, instruction, c) {
+function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null) {
   assert(!fragment.func, `attempting to append op to already-compiled fragment ${toString32(fragment.entryPC)}`);
   if (fragment.opsCompiled === 0) {
     fragmentContext.newFragment();
+    fragment.entryDelayPC = entryDelayPC;
   }
 
   // FIXME: this fires for loops to self.
@@ -3006,34 +3017,102 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   // }
 
   fragment.opsCompiled++;
-  fragment.recordInstruction(entry_pc, instruction);
-
-  // TODO: can we avoid the stuffToDo check? Throw exception?
-  // TODO: we shouldn't need to set pc for every instruction - this is just to ensure delayedPCUpdate is flushed.
-  fragment.bodyCode += 'rsp.step();\n';
-  fragment.bodyCode += `if (c.stuffToDo) { c.pc = ${entry_pc}; return ${fragment.opsCompiled - 1}; }\n`;
-  fragment.bodyCode += `\n`;
-
-  const curPC = entry_pc;
-  const postPC = c.pc;
-  fragmentContext.set(fragment, curPC, instruction, postPC, c.nextPC);
-  generateCodeForOp(fragmentContext);
+  const step = fragment.recordInstruction(entry_pc, instruction, c.pc, c.nextPC);
+  emitTraceStep(fragment, step, fragmentContext);
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
-  // TODO: what is longFragment for? This allows short busy loops to be expanded out but it's not clear if that's desirable.
   // TODO: the stuffToDo check won't work for fragments interrupted via exceptions. 
   //       would it be better to just always check if the control flow is as expected?
-  const longFragment = fragment.opsCompiled > 8;
-  if ((longFragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo || fragment.bailedOut) {
-    compileFragment(fragment);
+  const shouldStopBranch = shouldStopOnBranch(fragment, entry_pc, c);
+  const reachedLengthLimit = fragment.opsCompiled >= kFragmentLengthLimit;
+  const shouldCompile = shouldStopBranch || reachedLengthLimit || Boolean(c.stuffToDo) || fragment.bailedOut;
+
+  if (shouldCompile) {
+    compileFragment(fragment, c);
     fragment = c.hardware.fragmentCache.lookupFragment(c.pc);
   } else {
-    fragment.bodyCode += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`
+    fragment.bodyCode += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`;
   }
   return fragment;
 }
 
-function compileFragment(fragment) {
+function emitTraceStep(fragment, step, ctx) {
+  ctx.set(fragment, step.pc, step.instruction, step.postPC, step.nextPC);
+
+  // TODO: can we avoid the stuffToDo check? Throw exception?
+  // TODO: we shouldn't need to set pc for every instruction - this is just to ensure delayedPCUpdate is flushed.
+  fragment.bodyCode += 'rsp.step();\n';
+  fragment.bodyCode += `if (c.stuffToDo) { c.pc = ${step.pc}; ${ctx.genReturnOps(fragment.opsCompiled - 1)} }\n`;
+  fragment.bodyCode += '\n';
+
+  generateCodeForOp(ctx);
+}
+
+function flushDelayedPCUpdate(fragment, ctx) {
+  // Check if the last op has a delayed pc update, and do it now.
+  if (ctx.delayedPCUpdate !== 0) {
+    fragment.bodyCode += `c.pc = ${toString32(ctx.delayedPCUpdate)};\n`;
+    ctx.delayedPCUpdate = 0;
+  }
+}
+
+// Decides whether the instruction just appended should terminate the trace due
+// to control flow (returning to the fragment's entry state or taking a branch).
+//
+// Why these two conditions work together:
+// 1. atSelfLoopBackEdge: stops as soon as execution returns to the fragment's
+//    entry state (pc === entryPC && delayPC === entryDelayPC) so the fragment
+//    captures a single complete loop iteration that compileFragment can wrap in
+//    a do-while loop. This also catches rotated loops entered at their bottom
+//    branch test (2-op branch + delay slot -> loop top -> sequential fall-
+//    through back to entryPC, where branched is false).
+// 2. canStopAtBranch && branched: for non-self-loop branches, requires at least
+//    kMinOpsBeforeBranchStop (3) instructions so 2-op entry branch stubs
+//    (branch + delay slot) trace through into their target block while keeping
+//    compiled functions small enough for the JS JIT to inline rsp.step() and
+//    c.exec*() helper calls.
+function shouldStopOnBranch(fragment, entryPC, c) {
+  const atSelfLoopBackEdge = fragment.isAtEntryState(c.pc, c.delayPC);
+  const canStopAtBranch = fragment.opsCompiled >= kMinOpsBeforeBranchStop;
+  const branched = c.pc !== entryPC + 4;
+  return atSelfLoopBackEdge || (canStopAtBranch && branched);
+}
+
+// A fragment can be wrapped in an internal do-while loop if it ends in the
+// exact same PC and delay-slot state it started in, did not bail out to the
+// interpreter, and its body is short enough (<= kMaxSelfLoopBodyOps) to stay
+// within the JS JIT's inlining budget.
+function canCompileAsSelfLoop(fragment, c) {
+  const loopsToEntry = fragment.isAtEntryState(c.pc, c.delayPC);
+  const withinBodyLimit = fragment.opsCompiled <= kMaxSelfLoopBodyOps;
+  return loopsToEntry && withinBodyLimit && !fragment.bailedOut;
+}
+
+// Wraps a self-looping fragment body in a do-while loop that runs until the
+// next scheduled event deadline (cyclesToFirstEvent) or an early exit.
+// Re-emitting the recorded trace steps with opsCounterVar = 'opsExecuted' lets
+// FragmentContext generate intra-iteration exits (stuffToDo checks, non-taken
+// loop branches, exceptions, and MFC0 Count cycle syncs) directly in terms of
+// opsExecuted + stepOffset without string post-processing.
+function buildSelfLoopBodyCode(fragment) {
+  const loopOps = fragment.opsCompiled;
+  fragment.bodyCode = '';
+  fragment.needsDelayCheck = true;
+  fragment.cop1statusKnown = false;
+  fragment.usesCop1 = false;
+  fragmentContext.newFragment('opsExecuted');
+
+  for (let i = 0; i < fragment.traceSteps.length; i++) {
+    fragment.opsCompiled = i + 1;
+    emitTraceStep(fragment, fragment.traceSteps[i], fragmentContext);
+  }
+  flushDelayedPCUpdate(fragment, fragmentContext);
+  fragmentContext.opsCounterVar = null;
+
+  return `const maxOps = c.eventQueue.cyclesToFirstEvent;\nlet opsExecuted = 0;\ndo {\n${fragment.bodyCode}opsExecuted += ${loopOps};\n} while (opsExecuted + ${loopOps} <= maxOps);\nreturn opsExecuted;\n`;
+}
+
+function compileFragment(fragment, c = cpu0) {
   if (performanceProfile.enabled) {
     performanceProfile.counters.fragmentCompilations++;
   }
@@ -3048,27 +3127,25 @@ function compileFragment(fragment) {
     header += `const FPCSR_C = ${toString32(FPCSR_C)};\n`;
   }
 
-  // Check if the last op has a delayed pc update, and do it now.
-  if (fragmentContext.delayedPCUpdate !== 0) {
-    fragment.bodyCode += `c.pc = ${toString32(fragmentContext.delayedPCUpdate)};\n`;
-    fragmentContext.delayedPCUpdate = 0;
-  }
+  flushDelayedPCUpdate(fragment, fragmentContext);
 
-  // Return the number of ops exected
-  fragment.bodyCode += `return ${fragment.opsCompiled};\n`;
+  const bodyCode = canCompileAsSelfLoop(fragment, c)
+    ? buildSelfLoopBodyCode(fragment)
+    : `${fragment.bodyCode}${fragmentContext.genReturnOps(fragment.opsCompiled)}\n`;
 
   const code = `
   return function fragment_${toString32(fragment.entryPC)}_${fragment.opsCompiled}() {
   ${header}
-  ${fragment.bodyCode}
+  ${bodyCode}
 }`;
 
-  // Clear these strings to reduce garbage
+  // Clear these strings and recorded steps to reduce garbage
   fragment.bodyCode = '';
+  fragment.traceSteps = [];
 
   fragment.func = new Function("c", "cpu1", "rsp", code)(cpu0, cpu1, rsp);
   fragment.nextFragments = [];
-  for (let i = 0; i < fragment.opsCompiled; i++) {
+  for (let i = 0; i <= fragment.opsCompiled; i++) {
     fragment.nextFragments.push(undefined);
   }
 }

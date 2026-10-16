@@ -52,6 +52,7 @@ export class FragmentContext {
     this.gprFacts = new GPRFacts();
     this.forwardedComparison = null;
     this.pendingComparison = null;
+    this.opsCounterVar = null;
   }
 
   genAssert(test, msg) {
@@ -60,17 +61,42 @@ export class FragmentContext {
     }
     return '';
   }
+
+  // Formats an instruction count relative to the start of the fragment, or
+  // relative to opsCounterVar (e.g. 'opsExecuted + 3') when emitting the body
+  // of a multi-iteration self-looping fragment.
+  opsCountExpr(opsInIteration) {
+    if (!this.opsCounterVar) {
+      return `${opsInIteration}`;
+    }
+    return opsInIteration === 0
+      ? this.opsCounterVar
+      : `${this.opsCounterVar} + ${opsInIteration}`;
+  }
+
+  genReturnOps(opsInIteration = this.fragment.opsCompiled) {
+    return `return ${this.opsCountExpr(opsInIteration)};`;
+  }
+
+  genSetFragmentOps(opsInIteration = this.fragment.opsCompiled - 1) {
+    return `c.fragmentOps = ${this.opsCountExpr(opsInIteration)};`;
+  }
+
+  genSyncFragmentCycles(opsInIteration = this.fragment.opsCompiled - 1) {
+    return `c.syncFragmentCycles(${this.opsCountExpr(opsInIteration)});`;
+  }
   
-  newFragment() {
+  newFragment(opsCounterVar = null) {
     this.delayedPCUpdate = 0;
     this.gprFacts.reset();
     this.forwardedComparison = null;
+    this.opsCounterVar = opsCounterVar;
   }
 
   set(fragment, pc, instruction, postPC, nextPC) {
     // Also cover direct code-generation callers and invalidated/rebuilt traces.
     if (this.fragment !== fragment || fragment.opsCompiled <= 1) {
-      this.newFragment();
+      this.newFragment(this.opsCounterVar);
     }
     this.fragment = fragment;
     this.pc = pc;
@@ -136,12 +162,12 @@ export function generateCodeForOp(ctx) {
 
   // Timer-changing operations, including idle-loop skips, need current event time.
   if (ctx.bailOut) {
-    fn_code = `c.syncFragmentCycles(${ctx.fragment.opsCompiled - 1});\n${fn_code}`;
+    fn_code = `${ctx.genSyncFragmentCycles()}\n${fn_code}`;
   }
 
   // If this operation throws, run() must still charge the preceding instructions.
   if (!ctx.isTrivial) {
-    fn_code = `c.fragmentOps = ${ctx.fragment.opsCompiled - 1};\n${fn_code}`;
+    fn_code = `${ctx.genSetFragmentOps()}\n${fn_code}`;
   }
 
   ctx.fragment.needsDelayCheck = ctx.needsDelayCheck;
@@ -152,7 +178,7 @@ export function generateCodeForOp(ctx) {
 
   const sync = n64js.getSyncFlow();
   if (sync) {
-    fn_code = `if (!n64js.checkSyncState(sync, ${toString32(ctx.pc)})) { return ${ctx.fragment.opsCompiled}; }\n${fn_code}`;
+    fn_code = `if (!n64js.checkSyncState(sync, ${toString32(ctx.pc)})) { ${ctx.genReturnOps(ctx.fragment.opsCompiled - 1)} }\n${fn_code}`;
   }
 
   const dasm = disassembleInstruction(ctx.pc, ctx.instruction, false);
@@ -245,10 +271,10 @@ function generateGenericOpBoilerplate(fn, ctx) {
 
   // If bailOut is set, always return immediately.
   if (ctx.bailOut) {
-    code += `return ${ctx.fragment.opsCompiled};\n`;
+    code += `${ctx.genReturnOps()}\n`;
   } else {
-    code += `if (c.stuffToDo) { return ${ctx.fragment.opsCompiled}; }\n`;
-    code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
+    code += `if (c.stuffToDo) { ${ctx.genReturnOps()} }\n`;
+    code += `if (c.pc !== ${toString32(ctx.postPC)}) { ${ctx.genReturnOps()} }\n`;
   }
 
   return code;
@@ -306,9 +332,9 @@ function generateMemoryAccessBoilerplate(fn, ctx, effects = conservativeMemoryEf
 
   // If bailOut is set, always return immediately
   assert(!ctx.bailOut, "Not expecting bailOut to be set for memory access");
-  code += `if (c.stuffToDo) { return ${ctx.fragment.opsCompiled}; }\n`;
+  code += `if (c.stuffToDo) { ${ctx.genReturnOps()} }\n`;
   if (needsPCGuard) {
-    code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
+    code += `if (c.pc !== ${toString32(ctx.postPC)}) { ${ctx.genReturnOps()} }\n`;
   }
   return code;
 }
@@ -334,10 +360,10 @@ function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
 
   // If bailOut is set, always return immediately
   if (ctx.bailOut) {
-    code += `return ${ctx.fragment.opsCompiled};\n`;
+    code += `${ctx.genReturnOps()}\n`;
   } else {
     if (need_pc_test) {
-      code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
+      code += `if (c.pc !== ${toString32(ctx.postPC)}) { ${ctx.genReturnOps()} }\n`;
     } else {
       code += '// Skipping pc test\n';
     }
@@ -369,7 +395,7 @@ function generateTrivialOpBoilerplate(fn, ctx) {
   if (ctx.needsDelayCheck) {
     code += `if (c.delayPC !== null) { c.pc = c.delayPC; c.delayPC = null; } else { c.pc = ${toString32(ctx.pc + 4)}; }\n`;
     // Might happen: delay op from previous instruction takes effect
-    code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
+    code += `if (c.pc !== ${toString32(ctx.postPC)}) { ${ctx.genReturnOps()} }\n`;
   } else {
     code += ctx.genAssert('c.delayPC === null', 'delay pc should be null');
 
@@ -378,7 +404,7 @@ function generateTrivialOpBoilerplate(fn, ctx) {
     if (ctx.postPC !== expectedPC) {
       assert("postPC should always be pc+4 for trival ops?");
       code += `c.pc = ${toString32(expectedPC)};\n`;
-      code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
+      code += `if (c.pc !== ${toString32(ctx.postPC)}) { ${ctx.genReturnOps()} }\n`;
     } else {
       code += '// Delaying pc update\n';
       ctx.delayedPCUpdate = expectedPC;
@@ -1046,7 +1072,7 @@ function generateCop0TimingSync(ctx, write) {
     ctx.bailOut = true;
     return ''; // The bailout preflight synchronizes both Count and event time.
   }
-  return `c.syncFragmentCycles(${ctx.fragment.opsCompiled - 1});\n`;
+  return `${ctx.genSyncFragmentCycles()}\n`;
 }
 
 function generateTLB(ctx) {
