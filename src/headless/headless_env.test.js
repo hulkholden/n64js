@@ -328,7 +328,7 @@ describe('headless graphics execution', () => {
       // The next ordinary T3DUX task returns to HLE, even with the same hash.
       hardware.ram.u8[0x4029] = 1;
       hardware.ram.set32(0x402c, 0x5000);
-      startRSPTask(emulator);
+      startAndCompleteRSPTask(emulator);
       expect(hardware.rsp.halted).toBe(true);
       expect(loaded.map(info => info.hash)).toEqual(executeGraphics ? [hash] : []);
     });
@@ -390,7 +390,7 @@ describe('headless graphics execution', () => {
     }
     prepareGraphicsTask(emulator);
     setGraphicsCommands(emulator, [[0xe9000000, 0], [0xdf000000, 0]]);
-    startRSPTask(emulator);
+    startAndCompleteRSPTask(emulator);
     expect(hardware.rsp.halted).toBe(true);
     expect(loaded.map(info => info.id)).toEqual(executeGraphics ? [MicrocodeId.GBI2] : []);
     expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(MI_INTR_DP);
@@ -461,7 +461,7 @@ describe('headless graphics execution', () => {
       [0xfa000000, 0x12345678],
       [0xb8000000, 0],
     ]);
-    expect(() => startRSPTask(emulator)).toThrow('Unsupported graphics microcode: HVQM2');
+    expect(() => startAndCompleteRSPTask(emulator)).toThrow('Unsupported graphics microcode: HVQM2');
     expect(loaded.map(info => info.id)).toEqual([MicrocodeId.GBI2]);
     expect(hardware.graphics.state.primColor).toBe(0);
     expect(hardware.sp_reg.getU32(SP_STATUS_REG) & (SP_STATUS_TASKDONE | SP_STATUS_BROKE)).toBe(0);
@@ -539,7 +539,7 @@ describe('headless graphics execution', () => {
     hardware.ram.set32(0x7004, 0x24090000 | SP_CLR_HALT);
     hardware.ram.set32(0x7008, 0xad090000 | SP_STATUS_REG);
 
-    expect(() => runCycles(emulator, 10)).toThrow('HLE display-list command limit');
+    expect(() => runCycles(emulator, 1100)).toThrow('HLE display-list command limit');
     expect(halted).toHaveLength(1);
     expect(halted[0].details.error.name).toBe('DisplayListLimitError');
     expect(halted[0].details.error.message).toContain('1000000');
@@ -592,7 +592,7 @@ describe('headless graphics execution', () => {
     const { cpu0, hardware } = emulator;
     prepareGraphicsTask(emulator);
     setGraphicsCommands(emulator, [[0xe9000000, 0], [0xdf000000, 0]]);
-    startRSPTask(emulator);
+    startAndCompleteRSPTask(emulator);
 
     // These games divide profiling measurements by the DP clock counter after
     // their first completed list. A permanently zero clock raises Invalid.
@@ -672,7 +672,7 @@ describe('headless graphics execution', () => {
         hardware.ram.set32(0x7004, 0x24090000 | SP_CLR_HALT);
         hardware.ram.set32(0x7008, 0xad090000 | SP_STATUS_REG);
 
-        expect(() => runCycles(emulator, 10)).toThrow(`Unsupported graphics microcode: ${family}`);
+        expect(() => runCycles(emulator, 1100)).toThrow(`Unsupported graphics microcode: ${family}`);
         expect(halted).toHaveLength(1);
         expect(halted[0].details.error).toMatchObject({ name: 'UnsupportedMicrocodeError' });
         expect(halted[0].details.error.message).toContain(version);
@@ -906,7 +906,7 @@ describe('headless graphics execution', () => {
       hardware.ram.set32(0x7004, 0x24090000 | SP_CLR_HALT); // addiu t1, zero, SP_CLR_HALT
       hardware.ram.set32(0x7008, 0xad090000 | SP_STATUS_REG); // sw t1, SP_STATUS_REG(t0)
 
-      expect(() => runCycles(emulator, 10)).toThrow(/Unknown display list op/);
+      expect(() => runCycles(emulator, 1100)).toThrow(/Unknown display list op/);
       expect(halted).toHaveLength(1);
       expect(emulator.fatalError()).toBe(halted[0].message);
       expect(halted[0].details.error).toBeInstanceOf(Error);
@@ -1088,7 +1088,7 @@ describe('audio dispatch logging', () => {
 });
 
 describe('HLE graphics completion timing', () => {
-  test('lets the submitting CPU publish its next task before SP completion', async () => {
+  test('lets the submitting CPU publish its next task before SP and DP completion', async () => {
     const emulator = await createEmulator({ executeGraphics: true });
     const { cpu0, hardware } = emulator;
     prepareGraphicsTask(emulator);
@@ -1098,8 +1098,8 @@ describe('HLE graphics completion timing', () => {
     cpu0.pc = 0x80007000;
     cpu0.setControlU32(controlStatus, 0);
     cpu0.cop1ControlChanged();
-    // Start the task, then advance a producer's task pointer. Completing SP
-    // inside the status write lets a guest completion thread see the old slot.
+    // Start the task, then advance a producer's task pointer. Completing SP or
+    // DP inside the status write lets a guest completion thread see the old slot.
     [
       0x3c08a404, // lui t0, 0xa404
       0x24090001, // addiu t1, zero, SP_CLR_HALT
@@ -1110,35 +1110,104 @@ describe('HLE graphics completion timing', () => {
     ].forEach((word, i) => hardware.ram.set32(0x7000 + i * 4, word));
     hardware.ram.set32(0x80, 1);
     const completions = [];
-    let dp = 0;
+    const dp = [];
     hardware.miRegDevice.interruptSP = () => completions.push(hardware.ram.getU32(0x80));
-    hardware.miRegDevice.interruptDP = () => { dp++; };
+    hardware.miRegDevice.interruptDP = () => dp.push(hardware.ram.getU32(0x80));
 
     runCycles(emulator, 100);
     expect(hardware.ram.getU32(0x80)).toBe(2);
-    expect(dp).toBe(1);
+    expect(dp).toEqual([]);
     expect(completions).toEqual([]);
     const completeBits = SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT;
     expect(hardware.sp_reg.getU32(SP_STATUS_REG) & completeBits).toBe(0);
     runCycles(emulator, 1000);
     expect(completions).toEqual([2]);
+    expect(dp).toEqual([2]);
     expect(hardware.sp_reg.getU32(SP_STATUS_REG) & completeBits).toBe(completeBits);
     runCycles(emulator, 1000);
     expect(completions).toEqual([2]);
-    expect(dp).toBe(1);
+    expect(dp).toEqual([2]);
   });
 
-  test('reset cancels completion of an already consumed list', async () => {
+  test('reset cancels a queued list before it executes', async () => {
     const emulator = await createEmulator({ executeGraphics: true });
     const { hardware, cpu0 } = emulator;
     prepareGraphicsTask(emulator);
-    setGraphicsCommands(emulator, [[0xdf000000, 0]]);
+    setGraphicsCommands(emulator, [[0xfa000000, 0x12345678], [0xe9000000, 0], [0xdf000000, 0]]);
+    const loads = [];
+    hardware.onMicrocodeLoad = info => loads.push(info);
     startRSPTask(emulator);
+    expect(loads).toEqual([]);
     expect(hardware.spRegDevice.hleTask).not.toBeNull();
     hardware.reset();
     cpu0.eventQueue.incrementCount(2000);
+    expect(loads).toEqual([]);
+    expect(hardware.graphics.state.primColor).toBe(0);
     expect(hardware.spRegDevice.hleTask).toBeNull();
     expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(0);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(0);
+  });
+
+  test('the CPU sees final SP completion when handling FullSync from a consumed list', async () => {
+    const emulator = await createEmulator({ executeGraphics: true });
+    const { hardware, cpu0 } = emulator;
+    prepareGraphicsTask(emulator);
+    setGraphicsCommands(emulator, [[0xe9000000, 0], [0xdf000000, 0]]);
+    hardware.sp_mem.set32(0xfc0 + TaskOffsets.type, 1);
+    hardware.mi_reg.set32(MI_INTR_MASK_REG, MI_INTR_DP);
+    cpu0.setControlU32(controlStatus, 0x401); // IE and the RCP interrupt mask.
+    cpu0.statusRegisterChanged();
+    cpu0.pc = 0x80007000;
+    [
+      0x3c08a404, // lui t0, 0xa404
+      0x24090001, // addiu t1, zero, SP_CLR_HALT
+      0xad090010, // sw t1, SP_STATUS(t0)
+      0x3c088000, // lui t0, 0x8000
+      0x24090002, // addiu t1, zero, 2
+      0xad090080, // publish the producer's next task
+      0x1000ffff, // wait for the interrupt
+      0,
+    ].forEach((word, i) => hardware.ram.set32(0x7000 + i * 4, word));
+    // A real guest interrupt handler observes SP status and the producer slot.
+    // Immediate DP with delayed SP enters here while the task is still busy.
+    [
+      0x3c08a404, // lui t0, 0xa404
+      0x8d090010, // lw t1, SP_STATUS(t0)
+      0x3c0a8000, // lui t2, 0x8000
+      0xad490084, // save observed SP status
+      0x8d4b0080, // read the producer slot
+      0xad4b0088, // save observed slot
+      0x1000ffff,
+      0,
+    ].forEach((word, i) => hardware.ram.set32(0x180 + i * 4, word));
+    runCycles(emulator, 1500);
+    const completeBits = SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT;
+    expect(hardware.ram.getU32(0x84) & completeBits).toBe(completeBits);
+    expect(hardware.ram.getU32(0x88)).toBe(2);
+  });
+
+  test('halts a queued list before execution and resumes it exactly once', async () => {
+    const emulator = await createEmulator({ executeGraphics: true });
+    const { hardware, cpu0 } = emulator;
+    prepareGraphicsTask(emulator);
+    setGraphicsCommands(emulator, [[0xfa000000, 0x12345678], [0xe9000000, 0], [0xdf000000, 0]]);
+    const loads = [];
+    hardware.onMicrocodeLoad = info => loads.push(info);
+    let dp = 0;
+    hardware.miRegDevice.interruptDP = () => { dp++; };
+    startRSPTask(emulator);
+    hardware.spRegDevice.spUpdateStatus(SP_SET_HALT);
+    cpu0.eventQueue.incrementCount(2000);
+    expect(loads).toEqual([]);
+    expect(hardware.graphics.state.primColor).toBe(0);
+    expect(dp).toBe(0);
+    hardware.spRegDevice.spUpdateStatus(SP_CLR_HALT);
+    cpu0.eventQueue.incrementCount(2000);
+    expect(loads).toHaveLength(1);
+    expect(hardware.graphics.state.primColor).toBe(0x12345678);
+    expect(dp).toBe(1);
+    expect(hardware.spRegDevice.hleTask).toBeNull();
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(SP_STATUS_TASKDONE);
   });
 });
 
@@ -1158,7 +1227,7 @@ describe('HLE display-list producer waits', () => {
     let dp = 0;
     hardware.miRegDevice.interruptDP = () => { dp++; };
     startRSPTask(emulator);
-    expect(dp).toBe(1);
+    expect(dp).toBe(0);
     expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(0);
     runCycles(emulator, 2000);
     expect(dp).toBe(1);
@@ -1189,6 +1258,7 @@ describe('HLE display-list producer waits', () => {
     ]);
     hardware.spRegDevice.spUpdateStatus(SP_SET_INTR_BREAK);
     startRSPTask(emulator);
+    runCycles(emulator, 1000);
     return { emulator, tasks, loads };
   }
 
