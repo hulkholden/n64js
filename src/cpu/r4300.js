@@ -44,15 +44,22 @@ function tlbCacheSlot(page) {
 }
 
 const kFragmentLengthLimit = 250;
-// Minimum instructions compiled before a non-self-loop taken branch is allowed
-// to end the fragment. A value of 3 lets a 2-op entry branch stub (branch +
-// delay slot) trace through into its target basic block, while keeping traces
-// small enough for the JS JIT to inline helper calls (rsp.step / c.exec*).
+// Minimum instructions compiled before a non-self-loop taken backward branch
+// (c.pc <= entryPC) is allowed to end the fragment. A value of 3 lets a 2-op
+// entry branch stub (branch + delay slot) trace through into its target basic
+// block while still stopping preheader traces at the first inner-loop back-edge.
 const kMinOpsBeforeBranchStop = 3;
+// Minimum instructions compiled before a taken forward branch (c.pc > entryPC)
+// is allowed to end the fragment. Using a higher threshold than backward
+// branches lets short if/else diamonds inside loops trace through to the loop
+// latch and back-edge instead of shattering the loop before its back-edge, while
+// still keeping non-loop traces small enough for JS JIT helper inlining.
+const kMinOpsBeforeForwardBranchStop = 9;
 // Maximum instructions in a self-looping fragment body that will be wrapped in
-// an internal do-while loop. Keeping loop bodies <= 8 ops stays within the JS
-// JIT's inlining budget.
-const kMaxSelfLoopBodyOps = 8;
+// an internal do-while loop. Allowing up to 16 ops covers multi-branch inner
+// loops (such as 9-11 instruction polling/traversal loops) while staying within
+// the JS JIT's inlining budget.
+const kMaxSelfLoopBodyOps = 16;
 
 const UT_VEC          = 0x80000000;
 const XUT_VEC         = 0x80000080;
@@ -3023,7 +3030,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
   // TODO: the stuffToDo check won't work for fragments interrupted via exceptions. 
   //       would it be better to just always check if the control flow is as expected?
-  const shouldStopBranch = shouldStopOnBranch(fragment, entry_pc, c);
+  const shouldStopBranch = shouldStopOnBranch(fragment, entry_pc, c, entryDelayPC);
   const reachedLengthLimit = fragment.opsCompiled >= kFragmentLengthLimit;
   const shouldCompile = shouldStopBranch || reachedLengthLimit || Boolean(c.stuffToDo) || fragment.bailedOut;
 
@@ -3059,23 +3066,33 @@ function flushDelayedPCUpdate(fragment, ctx) {
 // Decides whether the instruction just appended should terminate the trace due
 // to control flow (returning to the fragment's entry state or taking a branch).
 //
-// Why these two conditions work together:
+// Why these conditions work together:
 // 1. atSelfLoopBackEdge: stops as soon as execution returns to the fragment's
 //    entry state (pc === entryPC && delayPC === entryDelayPC) so the fragment
 //    captures a single complete loop iteration that compileFragment can wrap in
 //    a do-while loop. This also catches rotated loops entered at their bottom
 //    branch test (2-op branch + delay slot -> loop top -> sequential fall-
-//    through back to entryPC, where branched is false).
-// 2. canStopAtBranch && branched: for non-self-loop branches, requires at least
-//    kMinOpsBeforeBranchStop (3) instructions so 2-op entry branch stubs
-//    (branch + delay slot) trace through into their target block while keeping
-//    compiled functions small enough for the JS JIT to inline rsp.step() and
-//    c.exec*() helper calls.
-function shouldStopOnBranch(fragment, entryPC, c) {
+//    through back to entryPC, where fellThrough is true).
+// 2. fellThrough: sequential execution (pc === entryPC + 4) and untaken
+//    Branch-Likely instructions (which annul their delay slot when not in a
+//    delay slot themselves, advancing pc to entryPC + 8) are fall-throughs, not
+//    taken branches, and must not stop the trace unless they land back at the
+//    fragment's entry state.
+// 3. Taken non-self-loop branches: backward branches (pc <= entryPC, such as
+//    an inner loop back-edge reached from a preheader) stop after at least
+//    kMinOpsBeforeBranchStop (3) instructions so 2-op entry branch stubs trace
+//    into their target block; forward branches (pc > entryPC, such as an
+//    internal if/else diamond inside a loop) require at least
+//    kMinOpsBeforeForwardBranchStop (9) instructions so multi-branch loop
+//    bodies can reach their back-edge before stopping.
+function shouldStopOnBranch(fragment, entryPC, c, entryDelayPC) {
   const atSelfLoopBackEdge = fragment.isAtEntryState(c.pc, c.delayPC);
-  const canStopAtBranch = fragment.opsCompiled >= kMinOpsBeforeBranchStop;
-  const branched = c.pc !== entryPC + 4;
-  return atSelfLoopBackEdge || (canStopAtBranch && branched);
+  const fellThrough = c.pc === entryPC + 4 || (entryDelayPC === null && c.pc === entryPC + 8);
+  if (atSelfLoopBackEdge || fellThrough) {
+    return atSelfLoopBackEdge;
+  }
+  const minOps = c.pc <= entryPC ? kMinOpsBeforeBranchStop : kMinOpsBeforeForwardBranchStop;
+  return fragment.opsCompiled >= minOps;
 }
 
 // A fragment can be wrapped in an internal do-while loop if it ends in the
