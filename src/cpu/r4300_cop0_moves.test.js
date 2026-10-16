@@ -1,10 +1,14 @@
 import { describe, expect, spyOn, test } from 'bun:test';
-import { createHeadlessEmulator } from '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
-import { Fragment } from './fragments.js';
-import { FragmentContext, generateCodeForOp } from './recompiler.js';
+import * as decode from './decode.js';
+import {
+  DEFAULT_PC,
+  copMove,
+  createOpRunner,
+  createTestCPU,
+  resetGPRsWithSentinel,
+} from './test_helpers.js';
 
-const pc = 0x80001000;
 const invalidRegisters = [7, 21, 22, 23, 24, 25, 31];
 const values = [
   0n, 1n, 0xffffffffffffffffn, 0x7fffffffn, 0x80000000n,
@@ -17,40 +21,24 @@ for (let bit = 0n; bit < 32n; bit++) {
 }
 
 async function createCPU() {
-  const { cpu0 } = await createHeadlessEmulator({
-    romBuffer: new ArrayBuffer(0x1000),
-    rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
-  });
-  n64js.getSyncFlow = () => null;
-  cpu0.setRandomSource(() => 0.5);
-  return cpu0;
+  const cpu = await createTestCPU();
+  cpu.setRandomSource(() => 0.5);
+  return cpu;
 }
 
 function instruction(compiled, transfer, rt, fs) {
-  const word = 0x40000000 | (transfer << 21) | (rt << 16) | (fs << 11);
-  let run;
-  if (compiled) {
-    const fragment = new Fragment(pc);
-    fragment.opsCompiled = 1;
-    const ctx = new FragmentContext();
-    ctx.set(fragment, pc, word, pc + 4, pc + 4);
-    generateCodeForOp(ctx);
-    run = new Function('c', fragment.bodyCode);
-  } else {
-    run = () => n64js.executeOp(word);
-  }
+  const run = createOpRunner(compiled, copMove(decode.OP_COP0, transfer, rt, fs));
   return cpu => {
-    cpu.pc = pc;
+    cpu.pc = DEFAULT_PC;
     cpu.delayPC = null;
-    cpu.nextPC = pc + 4;
+    cpu.nextPC = DEFAULT_PC + 4;
     cpu.fragmentCycles = 0;
     run(cpu);
   };
 }
 
 function prepare(cpu) {
-  cpu.gprU64.fill(0x13579bdf2468ace0n);
-  cpu.gprU64[0] = 0n;
+  resetGPRsWithSentinel(cpu);
   cpu.controlRegU64.fill(0xabcdef0198765432n);
   cpu.setControlU64(regs.controlStatus, 0x1234567820008001n);
   cpu.setControlU64(regs.controlCause, 0x8000n);

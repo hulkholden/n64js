@@ -1,31 +1,27 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator } from '../headless/headless_env.js';
-import { setPerformanceProfiling, performanceProfile } from '../debug/performance_profile.js';
+import { performanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
 import * as regs from './cpu0reg.js';
+import {
+  ADDIU_T0_1,
+  DEFAULT_PC,
+  JR_RA,
+  compileFragmentAt,
+  createTestEmulator,
+} from './test_helpers.js';
 
 afterEach(() => {
   setPerformanceProfiling(false);
 });
 
-async function createTestCPU(words, entry = 0x80001000) {
-  const e = await createHeadlessEmulator({
-    romBuffer: new ArrayBuffer(0x1000),
-    rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
-  });
+async function createLoopFixture(words, entry = DEFAULT_PC) {
+  const e = await createTestEmulator();
   const { cpu0: cpu, hardware: h } = e;
-  n64js.getSyncFlow = () => null;
   cpu.reset();
   cpu.setRandomSource(() => 0.5);
   cpu.setControlU32(regs.controlStatus, 0x20000000);
   cpu.cop1ControlChanged();
   words.forEach((word, i) => h.ram.set32((entry & 0x7fffff) + i * 4, word));
   return { e, cpu, h, entry };
-}
-
-function warmFragment(h, entry) {
-  for (let i = 0; i < 499; i++) {
-    h.fragmentCache.lookupFragment(entry);
-  }
 }
 
 function captureState(cpu, h) {
@@ -60,24 +56,23 @@ describe('self-looping fragments and self-loop cutoff', () => {
     //   0x8000101c: JR    ra                (0x03e00008)
     //   0x80001020: NOP                     (0x00000000)
     const words = [
-      0x25080001,
+      ADDIU_T0_1,
       0x110a0004,
       0x400b4800,
       0xae0b0000,
       0x1509fffb,
       0x26100004,
       0x258c0063,
-      0x03e00008,
+      JR_RA,
       0x00000000,
     ];
 
     for (const scenario of ['normal-exit', 'early-branch-exit', 'event-deadline', 'compare-interrupt', 'exception-iter-3', 'rsp-break-iter-4']) {
       const states = [];
       for (const compiled of [false, true]) {
-        const { e, cpu, h, entry } = await createTestCPU(words);
+        const { e, cpu, h, entry } = await createLoopFixture(words);
 
         if (compiled) {
-          warmFragment(h, entry);
           cpu.pc = entry;
           cpu.delayPC = null;
           cpu.setRegS32Extend(8, 0);          // t0 = 0
@@ -85,9 +80,7 @@ describe('self-looping fragments and self-loop cutoff', () => {
           cpu.setRegS32Extend(10, 999);       // t2 = 999 (don't take early branch during training)
           cpu.setRegS32Extend(16, 0x80003000);// s0
           cpu.setRegS32Extend(31, entry);     // ra
-          cpu.run(6);
-          const frag = h.fragmentCache.fragments.get(entry);
-          expect(frag?.func).toBeFunction();
+          const frag = compileFragmentAt(cpu, entry, 6);
           expect(frag.opsCompiled).toBe(6);
           expect(frag.getCode()).toContain('do {');
         }
@@ -150,28 +143,25 @@ describe('self-looping fragments and self-loop cutoff', () => {
     //   0x80001010: JR    ra                (0x03e00008)
     //   0x80001014: NOP                     (0x00000000)
     const words = [
-      0x25080001,
+      ADDIU_T0_1,
       0x254a0003,
       0x1509fffd,
       0x256b0005,
-      0x03e00008,
+      JR_RA,
       0x00000000,
     ];
-    const loopEntry = 0x80001008;
+    const loopEntry = DEFAULT_PC + 8;
 
     const states = [];
     for (const compiled of [false, true]) {
-      const { e, cpu, h } = await createTestCPU(words, 0x80001000);
+      const { e, cpu, h } = await createLoopFixture(words, DEFAULT_PC);
 
       if (compiled) {
-        warmFragment(h, loopEntry);
         cpu.pc = loopEntry;
         cpu.delayPC = null;
         cpu.setRegS32Extend(8, 0);    // t0 = 0
         cpu.setRegS32Extend(9, 10);   // t1 = 10
-        cpu.run(4);
-        const frag = h.fragmentCache.fragments.get(loopEntry);
-        expect(frag?.func).toBeFunction();
+        const frag = compileFragmentAt(cpu, loopEntry, 4);
         expect(frag.opsCompiled).toBe(4);
         expect(frag.getCode()).toContain('do {');
       }

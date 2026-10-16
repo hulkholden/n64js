@@ -1,9 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator } from '../headless/headless_env.js';
+import { MI_INTR_MASK_REG, MI_INTR_PI } from '../devices/mi.js';
 import * as regs from './cpu0reg.js';
-import { MI_INTR_PI, MI_INTR_MASK_REG } from '../devices/mi.js';
+import {
+  DEFAULT_PC,
+  compileFragmentAt,
+  createTestEmulator,
+} from './test_helpers.js';
 
-const pc = 0x80001000;
 const resumePC = 0x80002000;
 const interruptVector = 0x80000180;
 const cycles = 16;
@@ -13,19 +16,15 @@ const ERL = 4;
 const IM_RCP = 0x400;
 
 async function executeReturn(compiled, status, pending = true) {
-  const emulator = await createHeadlessEmulator({
-    romBuffer: new ArrayBuffer(0x1000),
-    rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
-  });
+  const emulator = await createTestEmulator();
   const { cpu0: cpu, hardware } = emulator;
-  n64js.getSyncFlow = () => null;
-  hardware.ram.set32(pc & 0x7fffff, 0x42000018); // ERET
+  hardware.ram.set32(DEFAULT_PC & 0x7fffff, 0x42000018); // ERET
   hardware.ram.set32(resumePC & 0x7fffff, 0x24020001); // ADDIU v0, zero, 1
 
   function prepare(status, pending) {
     cpu.reset();
     hardware.mi_reg.clear();
-    cpu.pc = pc;
+    cpu.pc = DEFAULT_PC;
     cpu.setControlU32(regs.controlStatus, status);
     cpu.setControlU32(regs.controlEPC, resumePC);
     cpu.setControlU32(regs.controlErrorEPC, resumePC);
@@ -44,16 +43,11 @@ async function executeReturn(compiled, status, pending = true) {
     // Train the real compiler with no pending interrupt, then replay the same
     // trace with an interrupt already asserted while EXL/ERL masks delivery.
     prepare(IM_RCP | IE | EXL, false);
-    for (let i = 0; i < 499; i++) {
-      hardware.fragmentCache.lookupFragment(pc);
-    }
-    cpu.run(cycles);
-    fragment = hardware.fragmentCache.fragments.get(pc);
-    expect(fragment?.func).toBeFunction();
+    fragment = compileFragmentAt(cpu, DEFAULT_PC, cycles);
   }
   prepare(status, pending);
   if (compiled) {
-    hardware.fragmentCache.fragments.set(pc, fragment);
+    hardware.fragmentCache.fragments.set(DEFAULT_PC, fragment);
   }
   const count = cpu.controlCountValue;
   cpu.run(cycles);

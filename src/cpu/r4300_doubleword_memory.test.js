@@ -1,40 +1,29 @@
 import { beforeEach, describe, expect, spyOn, test } from 'bun:test';
-import { createHeadlessEmulator } from '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
-import { OP_LD, OP_SD, OP_LDC1, OP_SDC1 } from './decode.js';
-import { Fragment } from './fragments.js';
-import { FragmentContext, generateCodeForOp } from './recompiler.js';
+import { OP_LD, OP_LDC1, OP_SD, OP_SDC1 } from './decode.js';
+import {
+  DEFAULT_PC,
+  createOpRunner,
+  createTestEmulator,
+  iop,
+  writeTLBEntry,
+} from './test_helpers.js';
 
-const pc = 0x80001000;
 const value = 0x89abcdef76543210n;
-let emulator, cpu, hardware;
+let cpu, hardware;
 
 beforeEach(async () => {
-  emulator = await createHeadlessEmulator({
-    romBuffer: new ArrayBuffer(0x1000),
-    rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
-  });
-  ({ cpu0: cpu, hardware } = emulator);
+  ({ cpu0: cpu, hardware } = await createTestEmulator());
   cpu.reset();
   cpu.setControlU32(regs.controlStatus, 0);
-  n64js.getSyncFlow = () => null;
 });
 
 function execute(compiled, opcode, rt = 2, base = 4, offset = 0, delaySlot = false) {
-  cpu.pc = pc;
-  cpu.delayPC = delaySlot ? pc + 0x100 : null;
-  cpu.nextPC = cpu.delayPC ?? pc + 4;
-  const word = ((opcode << 26) | (base << 21) | (rt << 16) | (offset & 0xffff)) >>> 0;
-  if (compiled) {
-    const fragment = new Fragment(pc);
-    fragment.opsCompiled = 1;
-    const ctx = new FragmentContext();
-    ctx.set(fragment, pc, word, cpu.nextPC, cpu.nextPC);
-    generateCodeForOp(ctx);
-    new Function('c', fragment.bodyCode)(cpu);
-  } else {
-    n64js.executeOp(word);
-  }
+  cpu.pc = DEFAULT_PC;
+  cpu.delayPC = delaySlot ? DEFAULT_PC + 0x100 : null;
+  cpu.nextPC = cpu.delayPC ?? DEFAULT_PC + 4;
+  const word = iop(opcode, base, rt, offset);
+  createOpRunner(compiled, word, { postPC: cpu.nextPC, nextPC: cpu.nextPC })(cpu);
 }
 
 for (const compiled of [false, true]) {
@@ -111,12 +100,7 @@ for (const compiled of [false, true]) {
     });
 
     test('loads and stores through a mapped TLB page', () => {
-      cpu.setControlU32(regs.controlIndex, 0);
-      cpu.setControlU32(regs.controlPageMask, 0);
-      cpu.setControlU32(regs.controlEntryHi, 0x00402000);
-      cpu.setControlU32(regs.controlEntryLo0, (0x2000 >>> 6) | 7);
-      cpu.setControlU32(regs.controlEntryLo1, (0x3000 >>> 6) | 7);
-      cpu.tlbWriteIndex();
+      writeTLBEntry(cpu, 0, 0x00402000, (0x2000 >>> 6) | 7, (0x3000 >>> 6) | 7);
       cpu.setRegS32Extend(4, 0x00403000);
       cpu.setRegU64(2, value);
       execute(compiled, OP_SD);
@@ -142,7 +126,7 @@ for (const compiled of [false, true]) {
             expect(cpu.getControlU32(regs.controlCause) & 0x7c).toBe(cause);
             expect(cpu.getControlU32(regs.controlCause) >>> 31).toBe(delaySlot ? 1 : 0);
             expect(cpu.getControlU32(regs.controlBadVAddr)).toBe(address);
-            expect(cpu.getControlU32(regs.controlEPC)).toBe(delaySlot ? pc - 4 : pc);
+            expect(cpu.getControlU32(regs.controlEPC)).toBe(delaySlot ? DEFAULT_PC - 4 : DEFAULT_PC);
           }
         });
       }

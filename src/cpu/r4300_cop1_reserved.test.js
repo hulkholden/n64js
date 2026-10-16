@@ -1,15 +1,16 @@
 import { describe, expect, test } from 'bun:test';
-import '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
+import {
+  DEFAULT_PC,
+  compileOp,
+  createTestHardware,
+  resetTestHardware,
+} from './test_helpers.js';
 
-const { Hardware } = await import('../hardware.js');
-const { initCPU } = await import('./r4300.js');
-const { Fragment } = await import('./fragments.js');
-const { FragmentContext, generateCodeForOp } = await import('./recompiler.js');
-const hardware = new Hardware({ save: 'Eeprom4k' }, { headless: true });
-const c = hardware.cpu0;
+const hardware = createTestHardware();
+const cpu = hardware.cpu0;
 const fpu = hardware.cpu1;
-const pc = 0x80001000;
+
 // Match the systemtest reserved-COP1 matrix: rs values, branch conditions,
 // and undefined functions in S/D/W/L formats (231 encodings in total).
 const reservedRS = [3, 7, 9, 10, 11, 12, 13, 14, 15, 18, 19, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31];
@@ -29,26 +30,20 @@ for (const fmt of [16, 17, 20, 21]) {
 }
 
 function execute(word, compiled, usable, delay) {
-  initCPU(hardware);
-  c.reset();
+  resetTestHardware(hardware);
   fpu.reset();
-  c.setControlU32(regs.controlStatus, usable ? 0x20000000 : 0);
-  c.cop1ControlChanged();
-  c.pc = pc;
-  c.delayPC = delay ? pc + 0x80 : null;
-  c.nextPC = c.delayPC ?? pc + 4;
+  cpu.setControlU32(regs.controlStatus, usable ? 0x20000000 : 0);
+  cpu.cop1ControlChanged();
+  cpu.pc = DEFAULT_PC;
+  cpu.delayPC = delay ? DEFAULT_PC + 0x80 : null;
+  cpu.nextPC = cpu.delayPC ?? DEFAULT_PC + 4;
   fpu.control[31] = 0;
-  n64js.getSyncFlow = () => null;
   if (compiled) {
-    const fragment = new Fragment(pc);
-    fragment.opsCompiled = 1;
-    const ctx = new FragmentContext();
-    ctx.set(fragment, pc, word, c.nextPC, c.nextPC);
-    generateCodeForOp(ctx);
-    new Function('c', 'cpu1', 'SR_CU1', fragment.bodyCode)(c, fpu, 0x20000000);
+    const fragment = compileOp(word, { postPC: cpu.nextPC, nextPC: cpu.nextPC });
+    new Function('c', 'cpu1', 'SR_CU1', fragment.bodyCode)(cpu, fpu, 0x20000000);
   } else {
     n64js.executeOp(word);
-    c.pc = c.nextPC;
+    cpu.pc = cpu.nextPC;
   }
 }
 
@@ -60,10 +55,10 @@ for (const compiled of [false, true]) {
           for (const delay of [false, true]) {
             execute(word, compiled, usable, delay);
             const cause = (usable ? 15 << 2 : (1 << 28) | (11 << 2)) | (delay ? 0x80000000 : 0);
-            expect(c.getControlU32(regs.controlCause)).toBe(cause >>> 0);
-            expect(c.getControlU32(regs.controlEPC)).toBe(delay ? pc - 4 : pc);
-            expect(c.getControlU32(regs.controlStatus) & 2).toBe(2);
-            expect(c.pc).toBe(0x80000180);
+            expect(cpu.getControlU32(regs.controlCause)).toBe(cause >>> 0);
+            expect(cpu.getControlU32(regs.controlEPC)).toBe(delay ? DEFAULT_PC - 4 : DEFAULT_PC);
+            expect(cpu.getControlU32(regs.controlStatus) & 2).toBe(2);
+            expect(cpu.pc).toBe(0x80000180);
             expect(fpu.control[31]).toBe(usable ? 0x20000 : 0);
           }
         }
