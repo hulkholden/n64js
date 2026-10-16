@@ -93,17 +93,26 @@ const hvqm2SP1PrefixHash = 0xeb70fcb5;
  * family handler. Hash overrides take precedence over version-string inference.
  * @param {string} version The unmodified microcode version string.
  * @param {number} hash The unsigned hash computed by RSPTask.computeMicrocodeHash.
- * @param {?number} prefixHash The hash of the first microcodePrefixLength bytes.
+ * @param {?number|function(): ?number} [prefixHash=null] The hash of the first microcodePrefixLength bytes, or a callback to compute it lazily.
  * @returns {{id: number, family: string, variant: ?string, version: string,
  *   hash: number, detection: 'hash'|'string'|'fallback'}}
  */
 export function identifyMicrocode(version, hash, prefixHash = null) {
-  let id = prefixHash === hvqm2SP1PrefixHash ? MicrocodeId.HVQM2 : ucodeOverrides.get(hash);
+  let id = ucodeOverrides.get(hash);
   let detection = 'hash';
   if (id === undefined) {
     id = inferUcodeFromString(version);
-    detection = id === undefined ? 'fallback' : 'string';
-    id ??= MicrocodeId.GBI0;
+    if (id !== undefined) {
+      detection = 'string';
+    } else {
+      const resolvedPrefixHash = typeof prefixHash === 'function' ? prefixHash() : prefixHash;
+      if (resolvedPrefixHash === hvqm2SP1PrefixHash) {
+        id = MicrocodeId.HVQM2;
+      } else {
+        id = MicrocodeId.GBI0;
+        detection = 'fallback';
+      }
+    }
   }
   return { id, ...microcodeProfiles.get(id), version, hash, detection };
 }

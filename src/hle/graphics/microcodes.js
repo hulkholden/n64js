@@ -45,7 +45,7 @@ export function create(task, state, ramDV, onMicrocodeLoad = null) {
   }
 
   const hash = task.computeMicrocodeHash();
-  const info = identifyMicrocode(version, hash, task.computeMicrocodeHash(microcodePrefixLength));
+  const info = identifyMicrocode(version, hash, () => task.computeMicrocodeHash(microcodePrefixLength));
   logMicrocode(version, info.id);
   // Check in-list loads as well as the initial task dispatch.
   assertHLESupported(info);

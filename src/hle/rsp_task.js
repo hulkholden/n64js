@@ -13,7 +13,7 @@ const M_AUDTASK = 2;
 const M_VIDTASK = 3;
 const M_JPGTASK = 4;
 
-class RSPTask {
+export class RSPTask {
   /**
    * Constructs a new RSPTask instance.
    * @param {Uint8Array} ram_u8 Main memory.
@@ -29,6 +29,11 @@ class RSPTask {
     this.codeDataSize = taskMem.getU32(TaskOffsets.ucodeDataSize);
 
     this.dataPtr = taskMem.getU32(TaskOffsets.dataPtr);
+
+    this.versionString = undefined;
+    this.microcodeHash = undefined;
+    this.microcodePrefixLength = undefined;
+    this.microcodePrefixHash = undefined;
   }
 
   dumpCode() {
@@ -53,6 +58,10 @@ class RSPTask {
     this.codeSize = this.clampCodeSize(codeSize);
     this.codeDataAddr = codeDataAddr & TASK_ADDRESS_MASK;
     this.codeDataSize = codeDataSize;
+    this.versionString = undefined;
+    this.microcodeHash = undefined;
+    this.microcodePrefixLength = undefined;
+    this.microcodePrefixHash = undefined;
   }
 
   clampCodeSize(val) {
@@ -73,6 +82,9 @@ class RSPTask {
   }
 
   detectVersionString() {
+    if (this.versionString !== undefined) {
+      return this.versionString;
+    }
     const r = 'R'.charCodeAt(0);
     const s = 'S'.charCodeAt(0);
     const p = 'P'.charCodeAt(0);
@@ -91,21 +103,38 @@ class RSPTask {
             str += String.fromCharCode(c);
           }
         }
+        this.versionString = str;
         return str;
       }
     }
+    this.versionString = '';
     return '';
   }
 
   computeMicrocodeHash(length = this.codeSize) {
+    const isFullLength = length === this.codeSize;
+    if (isFullLength && this.microcodeHash !== undefined) {
+      return this.microcodeHash;
+    }
+    if (!isFullLength && this.microcodePrefixLength === length) {
+      return this.microcodePrefixHash;
+    }
     // A short task cannot supply a complete identification prefix.
     if (length > this.codeSize) {
+      this.microcodePrefixLength = length;
+      this.microcodePrefixHash = null;
       return null;
     }
     let c = 0;
     for (let i = 0; i < length; ++i) {
       // Best hash ever!
       c = ((c * 17) + this.codeByte(i)) >>> 0;
+    }
+    if (isFullLength) {
+      this.microcodeHash = c;
+    } else {
+      this.microcodePrefixLength = length;
+      this.microcodePrefixHash = c;
     }
     return c;
   }

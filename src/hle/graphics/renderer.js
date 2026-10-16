@@ -68,6 +68,8 @@ export class Renderer extends RendererBase {
     this.fillFillColorUniform = gl.getUniformLocation(this.fillShaderProgram, "uFillColor");
     this.fillRectVA = this.initFillRectVA(this.fillShaderProgram);
     this.debugClearVA = this.initClearVA(this.fillShaderProgram);
+
+    this.currentShader = new CurrentShader();
   }
 
   get frameBuffer() { return this.renderTargets.current.framebuffer; }
@@ -97,6 +99,7 @@ export class Renderer extends RendererBase {
   }
 
   reset() {
+    this.currentShader?.reset();
     this.resetCPUFramebuffers();
     this.renderTargets.reset();
     this.tmemTexture?.reset();
@@ -114,6 +117,7 @@ export class Renderer extends RendererBase {
   }
 
   newFrame() {
+    this.currentShader?.reset();
     const gl = this.gl;
     this.renderTargets.beginFrame(this.state.ramDV);
     // Render everything to the back buffer. This prevents horrible flickering
@@ -604,15 +608,13 @@ export class Renderer extends RendererBase {
   }
 
   getCurrentN64Shader(noNearClipping = false) {
-    const mux0 = this.state.combine.hi;
-    const mux1 = this.state.combine.lo;
-    const cycleType = this.state.getCycleType();
-
-    const alphaCompare = this.state.getAlphaCompareType();
-    const enableAlphaCvgKill = this.state.getAntiAliasEnabled() && this.state.getCoverageTimesAlpha();
-
-    return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill,
-      noNearClipping, this.state.rdpOtherModeL >>> 16, this.usesConstantFogColor());
+    this.currentShader ??= new CurrentShader();
+    return this.currentShader.getOrCreate(
+      this.gl,
+      this.state,
+      Boolean(noNearClipping),
+      this.usesConstantFogColor(),
+    );
   }
 
   bindTile(tile, texGenEnabled, uniforms) {
@@ -770,6 +772,62 @@ export class Renderer extends RendererBase {
     }
     loggedBlendModes.set(activeBlendMode, true);
     n64js.warn(`Unhandled blend mode: ${toString16(activeBlendMode)} = ${gbi.blendOpText(activeBlendMode)}, alphaCvgSel ${alphaCvgSel}, cvgXAlpha ${cvgXAlpha}`);
+  }
+}
+
+class CurrentShader {
+  constructor() {
+    this.reset();
+  }
+
+  reset() {
+    this.shader = null;
+    this.mux0 = 0;
+    this.mux1 = 0;
+    this.cycleType = 0;
+    this.rdpOtherModeL = 0;
+    this.rdpOtherModeH = 0;
+    this.alphaCompare = 0;
+    this.enableAlphaCvgKill = false;
+    this.noNearClipping = false;
+    this.constantFogColor = false;
+  }
+
+  getOrCreate(gl, state, noNearClipping, constantFogColor) {
+    const mux0 = state.combine.hi >>> 0;
+    const mux1 = state.combine.lo >>> 0;
+    const cycleType = state.getCycleType();
+    const rdpOtherModeL = state.rdpOtherModeL >>> 0;
+    const rdpOtherModeH = state.rdpOtherModeH >>> 0;
+    const alphaCompare = state.getAlphaCompareType();
+    const enableAlphaCvgKill = state.getAntiAliasEnabled() && state.getCoverageTimesAlpha();
+
+    if (this.shader &&
+      this.mux0 === mux0 &&
+      this.mux1 === mux1 &&
+      this.cycleType === cycleType &&
+      this.rdpOtherModeL === rdpOtherModeL &&
+      this.rdpOtherModeH === rdpOtherModeH &&
+      this.alphaCompare === alphaCompare &&
+      this.enableAlphaCvgKill === enableAlphaCvgKill &&
+      this.noNearClipping === noNearClipping &&
+      this.constantFogColor === constantFogColor) {
+      return this.shader;
+    }
+
+    const shader = shaders.getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill,
+      noNearClipping, rdpOtherModeL >>> 16, constantFogColor);
+    this.shader = shader;
+    this.mux0 = mux0;
+    this.mux1 = mux1;
+    this.cycleType = cycleType;
+    this.rdpOtherModeL = rdpOtherModeL;
+    this.rdpOtherModeH = rdpOtherModeH;
+    this.alphaCompare = alphaCompare;
+    this.enableAlphaCvgKill = enableAlphaCvgKill;
+    this.noNearClipping = noNearClipping;
+    this.constantFogColor = constantFogColor;
+    return shader;
   }
 }
 

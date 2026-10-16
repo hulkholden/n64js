@@ -36,7 +36,7 @@ export const graphics = {
 
 // Returns false for LLE or a continuation for asynchronous HLE completion.
 export function dispatchGraphicsTask(hardware, mode, task) {
-  const microcode = identifyMicrocode(task.detectVersionString(), task.computeMicrocodeHash(), task.computeMicrocodeHash(microcodePrefixLength));
+  const microcode = identifyMicrocode(task.detectVersionString(), task.computeMicrocodeHash(), () => task.computeMicrocodeHash(microcodePrefixLength));
   hardware.onGraphicsTask?.({ ...microcode });
   // Yakouchuu II submits its HVQM2 video decoder as a graphics task. Its input
   // is compressed video, not a display list; let the RSP write the decoded
@@ -57,7 +57,7 @@ export function dispatchGraphicsTask(hardware, mode, task) {
 
   // Reject other unsupported protocols even when headless graphics are skipped.
   microcodes.assertHLESupported(microcode);
-  const ev = hardware.timeline.startEvent(`HLE Task ${task.detectVersionString()}`);
+  const ev = hardware.timeline.startEvent(`HLE Task ${microcode.version}`);
   let continuation = null;
 
   // TODO: implement Factor 5's Indiana Jones microcode. Its linked display
