@@ -3037,18 +3037,8 @@ function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null
   // }
 
   fragment.opsCompiled++;
-  fragment.recordInstruction(entry_pc, instruction);
-
-  // TODO: can we avoid the stuffToDo check? Throw exception?
-  // TODO: we shouldn't need to set pc for every instruction - this is just to ensure delayedPCUpdate is flushed.
-  fragment.bodyCode += 'rsp.step();\n';
-  fragment.bodyCode += `if (c.stuffToDo) { c.pc = ${entry_pc}; return ${fragment.opsCompiled - 1}; }\n`;
-  fragment.bodyCode += `\n`;
-
-  const curPC = entry_pc;
-  const postPC = c.pc;
-  fragmentContext.set(fragment, curPC, instruction, postPC, c.nextPC);
-  generateCodeForOp(fragmentContext);
+  const step = fragment.recordInstruction(entry_pc, instruction, c.pc, c.nextPC);
+  emitTraceStep(fragment, step, fragmentContext);
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
   // TODO: the stuffToDo check won't work for fragments interrupted via exceptions. 
@@ -3061,9 +3051,29 @@ function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null
     compileFragment(fragment, c);
     fragment = c.hardware.fragmentCache.lookupFragment(c.pc);
   } else {
-    fragment.bodyCode += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`
+    fragment.bodyCode += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`;
   }
   return fragment;
+}
+
+function emitTraceStep(fragment, step, ctx) {
+  ctx.set(fragment, step.pc, step.instruction, step.postPC, step.nextPC);
+
+  // TODO: can we avoid the stuffToDo check? Throw exception?
+  // TODO: we shouldn't need to set pc for every instruction - this is just to ensure delayedPCUpdate is flushed.
+  fragment.bodyCode += 'rsp.step();\n';
+  fragment.bodyCode += `if (c.stuffToDo) { c.pc = ${step.pc}; ${ctx.genReturnOps(fragment.opsCompiled - 1)} }\n`;
+  fragment.bodyCode += '\n';
+
+  generateCodeForOp(ctx);
+}
+
+function flushDelayedPCUpdate(fragment, ctx) {
+  // Check if the last op has a delayed pc update, and do it now.
+  if (ctx.delayedPCUpdate !== 0) {
+    fragment.bodyCode += `c.pc = ${toString32(ctx.delayedPCUpdate)};\n`;
+    ctx.delayedPCUpdate = 0;
+  }
 }
 
 // Decides whether the instruction just appended should terminate the trace at a
@@ -3124,25 +3134,31 @@ function canCompileAsSelfLoop(fragment, c) {
   return dynarecConfig.enableSelfLoop && loopsToEntry && withinBodyLimit && !fragment.bailedOut;
 }
 
-function addOpsExecutedOffset(expr, offsetStr) {
-  return offsetStr === '0' ? expr : `${expr} + ${offsetStr}`;
-}
-
 // Wraps a self-looping fragment body in a do-while loop that runs until the
 // next scheduled event deadline (cyclesToFirstEvent) or an early exit.
-// Intra-iteration exits (stuffToDo checks, non-taken loop branches, exceptions,
-// and MFC0 Count cycle syncs) are rewritten to add the completed-iterations
-// instruction count (opsExecuted) to their within-iteration instruction offset.
+// Re-emitting the recorded trace steps with opsCounterVar = 'opsExecuted' lets
+// FragmentContext generate intra-iteration exits (stuffToDo checks, non-taken
+// loop branches, exceptions, and MFC0 Count cycle syncs) directly in terms of
+// opsExecuted + stepOffset without string post-processing.
 function buildSelfLoopBodyCode(fragment) {
   const loopOps = fragment.opsCompiled;
-  const rewrittenBody = fragment.bodyCode
-    .replace(/return (\d+);/g, (_, n) => `return ${addOpsExecutedOffset('opsExecuted', n)};`)
-    .replace(/c\.fragmentOps = (\d+);/g, (_, n) => `c.fragmentOps = ${addOpsExecutedOffset('opsExecuted', n)};`)
-    .replace(/c\.syncFragmentCycles\((\d+)\);/g, (_, n) => `c.syncFragmentCycles(${addOpsExecutedOffset('opsExecuted', n)});`);
+  fragment.bodyCode = '';
+  fragment.needsDelayCheck = true;
+  fragment.cop1statusKnown = false;
+  fragment.usesCop1 = false;
+  fragmentContext.newFragment('opsExecuted');
+
+  for (let i = 0; i < fragment.traceSteps.length; i++) {
+    fragment.opsCompiled = i + 1;
+    emitTraceStep(fragment, fragment.traceSteps[i], fragmentContext);
+  }
+  flushDelayedPCUpdate(fragment, fragmentContext);
+  fragmentContext.opsCounterVar = null;
+
   const maxOpsExpr = dynarecConfig.maxSelfLoopOps > 0
     ? `Math.min(c.eventQueue.cyclesToFirstEvent, ${dynarecConfig.maxSelfLoopOps})`
     : 'c.eventQueue.cyclesToFirstEvent';
-  return `const maxOps = ${maxOpsExpr};\nlet opsExecuted = 0;\ndo {\n${rewrittenBody}opsExecuted += ${loopOps};\n} while (opsExecuted + ${loopOps} <= maxOps);\nreturn opsExecuted;\n`;
+  return `const maxOps = ${maxOpsExpr};\nlet opsExecuted = 0;\ndo {\n${fragment.bodyCode}opsExecuted += ${loopOps};\n} while (opsExecuted + ${loopOps} <= maxOps);\nreturn opsExecuted;\n`;
 }
 
 function compileFragment(fragment, c = cpu0) {
@@ -3160,15 +3176,11 @@ function compileFragment(fragment, c = cpu0) {
     header += `const FPCSR_C = ${toString32(FPCSR_C)};\n`;
   }
 
-  // Check if the last op has a delayed pc update, and do it now.
-  if (fragmentContext.delayedPCUpdate !== 0) {
-    fragment.bodyCode += `c.pc = ${toString32(fragmentContext.delayedPCUpdate)};\n`;
-    fragmentContext.delayedPCUpdate = 0;
-  }
+  flushDelayedPCUpdate(fragment, fragmentContext);
 
   const bodyCode = canCompileAsSelfLoop(fragment, c)
     ? buildSelfLoopBodyCode(fragment)
-    : `${fragment.bodyCode}return ${fragment.opsCompiled};\n`;
+    : `${fragment.bodyCode}${fragmentContext.genReturnOps(fragment.opsCompiled)}\n`;
 
   const code = `
   return function fragment_${toString32(fragment.entryPC)}_${fragment.opsCompiled}() {
@@ -3176,8 +3188,9 @@ function compileFragment(fragment, c = cpu0) {
   ${bodyCode}
 }`;
 
-  // Clear these strings to reduce garbage
+  // Clear these strings and recorded steps to reduce garbage
   fragment.bodyCode = '';
+  fragment.traceSteps = [];
 
   fragment.func = new Function("c", "cpu1", "rsp", code)(cpu0, cpu1, rsp);
   fragment.nextFragments = [];

@@ -27,6 +27,7 @@ export class Fragment {
     this.cachedFunc       = undefined;
     this.instructionPCs   = [];
     this.instructionWords = [];
+    this.traceSteps       = [];
     this.cacheBuckets     = new Set();
     this.opsCompiled      = 0;
     this.executionCount   = 0;
@@ -69,6 +70,7 @@ export class Fragment {
     this.cachedFunc       = undefined;
     this.instructionPCs   = [];
     this.instructionWords = [];
+    this.traceSteps       = [];
     this.opsCompiled      = 0;
     this.executionCount   = 0;
     this.bailedOut        = false;
@@ -89,11 +91,14 @@ export class Fragment {
     this.maxPC = Math.max(this.maxPC, pc + 4);
   }
 
-  recordInstruction(pc, instruction) {
+  recordInstruction(pc, instruction, postPC = pc + 4, nextPC = postPC) {
     this.updateMinMax(pc);
     this.instructionPCs.push(pc);
     this.instructionWords.push(instruction >>> 0);
+    const step = { pc, instruction, postPC, nextPC };
+    this.traceSteps.push(step);
     this.trackInstruction(pc);
+    return step;
   }
 
   trackInstruction(pc) {
