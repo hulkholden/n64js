@@ -19,30 +19,28 @@ function fixture(maxEntries) {
   return { gpu, tmem, load, images, updates, deleted, bindings, gl };
 }
 
-test('TMEM uploads exact integer bytes and skips scanning or hashing unchanged snapshots', () => {
+test('TMEM uploads exact integer bytes and skips hashing unchanged snapshots', () => {
   const { gpu, tmem, images, updates, bindings, gl } = fixture();
-  let hashes = 0, scans = 0;
+  let hashes = 0;
   const hash = tmem.hashContents.bind(tmem);
   tmem.hashContents = () => { hashes++; return hash(); };
-  const matches = gpu.matches.bind(gpu);
-  gpu.matches = words => { scans++; return matches(words); };
   tmem.tmemData[0] = 0x81;
   tmem.version++;
   gpu.bind(tmem);
   expect(images[0]).toEqual([gl.TEXTURE_2D, 0, gl.R8UI, 64, 64, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, tmem.tmemData]);
   expect(bindings).toEqual([100]);
-  expect(scans).toBe(0);
-  gpu.bind(tmem); // Unchanged version needs no 4 KiB scan or hash.
-  expect(scans).toBe(0);
+  expect(hashes).toBe(1);
+  gpu.bind(tmem); // Unchanged version needs no hash or upload.
+  expect(hashes).toBe(1);
   tmem.tmemData.fill(0);
-  tmem.tmemData[0] = 0x81; // An identical reload scans once, then skips hashing and uploading.
+  tmem.tmemData[0] = 0x81; // An identical reload hashes once and hits the cache without uploading.
   tmem.version++;
   gpu.bind(tmem);
-  expect(scans).toBe(1);
-  gpu.bind(tmem); // Subsequent draw at the new version skips scanning again.
-  expect(scans).toBe(1);
+  expect(hashes).toBe(2);
+  expect(gpu.hits).toBe(1);
+  gpu.bind(tmem); // Subsequent draw at the new version skips hashing again.
+  expect(hashes).toBe(2);
   expect(bindings).toEqual([100, 100, 100, 100]);
-  expect(hashes).toBe(1);
   expect(images).toHaveLength(1);
   expect(updates).toHaveLength(0);
 });
