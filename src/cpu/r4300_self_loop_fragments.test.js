@@ -1,13 +1,9 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from '../headless/headless_env.js';
 import { setPerformanceProfiling, performanceProfile } from '../debug/performance_profile.js';
-import { dynarecConfig } from './r4300.js';
 import * as regs from './cpu0reg.js';
 
-const defaultConfig = { ...dynarecConfig };
-
 afterEach(() => {
-  Object.assign(dynarecConfig, defaultConfig);
   setPerformanceProfiling(false);
 });
 
@@ -78,12 +74,6 @@ describe('self-looping fragments and self-loop cutoff', () => {
     for (const scenario of ['normal-exit', 'early-branch-exit', 'event-deadline', 'compare-interrupt', 'exception-iter-3', 'rsp-break-iter-4']) {
       const states = [];
       for (const compiled of [false, true]) {
-        Object.assign(dynarecConfig, {
-          ...defaultConfig,
-          selfLoopCutoff: 'immediate',
-          minSelfLoopOps: 1,
-          enableSelfLoop: true,
-        });
         const { e, cpu, h, entry } = await createTestCPU(words);
 
         if (compiled) {
@@ -111,9 +101,6 @@ describe('self-looping fragments and self-loop cutoff', () => {
         cpu.setRegS32Extend(9, 6);            // t1 = 6 iterations
         cpu.setRegS32Extend(10, scenario === 'early-branch-exit' ? 4 : 999);
         cpu.setRegS32Extend(12, 0);           // t4 = 0
-        // For exception-iter-3, start s0 at 0x80002ff9 so iter 1..3 fault or set s0 so iter 1 works?
-        // Wait: s0 increments by 4 each iter, so to fault only on iter 3, let's test overflow or TLB miss!
-        // With unmapped address 0x0000fff8, iter 1 accesses 0x80003000, etc. Instead let's use Compare or unaligned base via ADDIU?
         cpu.setRegS32Extend(16, scenario === 'exception-iter-3' ? 0x7ffffff8 : 0x80003000);
         cpu.setRegS32Extend(31, 0x80001018);
 
@@ -154,72 +141,59 @@ describe('self-looping fragments and self-loop cutoff', () => {
     }
   });
 
-  test('multi-block loop with internal forward branch stops cleanly at entryPC instead of mid-iteration', async () => {
-    // 7-op loop at 0x80001000 with an internal taken forward branch at op 3:
-    //   0x80001000: ADDIU t0, t0, 1         (0x25080001) - op 1
-    //   0x80001004: ANDI  t2, t0, 1         (0x310a0001) - op 2
-    //   0x80001008: BNE   t2, r0, skip      (0x15400002 -> 0x80001014) - op 3 (internal forward branch)
-    //   0x8000100c: ADDIU t3, t3, 10        (0x256b000a) - op 4 (delay slot)
-    //   0x80001010: ADDIU t3, t3, 100       (0x256b0064) - skipped when t2 != 0
-    //   0x80001014: ADDIU t4, t4, 1         (0x258c0001) - op 5 (skip target)
-    //   0x80001018: BNE   t0, t1, loop      (0x1509fff9 -> 0x80001000) - op 6 (back-edge branch)
-    //   0x8000101c: ADDIU t5, t5, 3         (0x25ad0003) - op 7 (delay slot -> pc = 0x80001000)
-    //   0x80001020: JR    ra                (0x03e00008)
-    //   0x80001024: NOP                     (0x00000000)
+  test('rotated loop entered at its 2-op branch test traces across the back-edge and stops when falling through to entryPC', async () => {
+    // Classic compiler while-loop layout entered at test (0x80001008):
+    //   0x80001000: ADDIU t0, t0, 1         (0x25080001) - loop body op 1
+    //   0x80001004: ADDIU t2, t2, 3         (0x254a0003) - loop body op 2 (falls through to 0x80001008)
+    //   0x80001008: BNE   t0, t1, 0x80001000(0x1509fffd) - entryPC: 2-op branch stub back to loop top
+    //   0x8000100c: ADDIU t3, t3, 5         (0x256b0005) - delay slot
+    //   0x80001010: JR    ra                (0x03e00008)
+    //   0x80001014: NOP                     (0x00000000)
     const words = [
       0x25080001,
-      0x310a0001,
-      0x15400002,
-      0x256b000a,
-      0x256b0064,
-      0x258c0001,
-      0x1509fff9,
-      0x25ad0003,
+      0x254a0003,
+      0x1509fffd,
+      0x256b0005,
       0x03e00008,
       0x00000000,
     ];
+    const loopEntry = 0x80001008;
 
-    for (const cfg of [
-      { selfLoopCutoff: 'immediate', minSelfLoopOps: 1, enableSelfLoop: true, minOpsBeforeBranchStop: 9, expectedOps: 7 },
-      { selfLoopCutoff: 'immediate', minSelfLoopOps: 1, enableSelfLoop: true, minOpsBeforeBranchStop: 17, expectedOps: 7 },
-      { selfLoopCutoff: 'unroll', minSelfLoopOps: 14, enableSelfLoop: true, maxSelfLoopBodyOps: 0, minOpsBeforeBranchStop: 9, expectedOps: 14 },
-    ]) {
-      const states = [];
-      for (const compiled of [false, true]) {
-        Object.assign(dynarecConfig, { ...defaultConfig, ...cfg });
-        const { e, cpu, h, entry } = await createTestCPU(words);
+    const states = [];
+    for (const compiled of [false, true]) {
+      const { e, cpu, h } = await createTestCPU(words, 0x80001000);
 
-        if (compiled) {
-          warmFragment(h, entry);
-          cpu.pc = entry;
-          cpu.delayPC = null;
-          cpu.setRegS32Extend(8, 0);   // t0 = 0 (iter 1 has t0=1 -> t2=1,iter 2 if unrolled also needs t2=1 if we use t2=1)
-          // Wait: so iter 2 also takes the forward branch during training, let's replace ANDI t2, t0, 1 with ORI t2, r0, 1 during training or test both paths!
-          h.ram.set32((entry & 0x7fffff) + 4, 0x340a0001); // ORI t2, r0, 1
-          cpu.setRegS32Extend(9, 10);  // t1 = 10
-          cpu.run(cfg.expectedOps);
-          const frag = h.fragmentCache.fragments.get(entry);
-          expect(frag?.func).toBeFunction();
-          expect(frag.opsCompiled).toBe(cfg.expectedOps);
-          expect(frag.getCode()).toContain('do {');
-        } else {
-          h.ram.set32((entry & 0x7fffff) + 4, 0x340a0001);
-        }
-
-        cpu.pc = entry;
+      if (compiled) {
+        warmFragment(h, loopEntry);
+        cpu.pc = loopEntry;
         cpu.delayPC = null;
-        cpu.controlCountValue = 0;
-        cpu.setRegS32Extend(8, 0);
-        cpu.setRegS32Extend(9, 8);
-        cpu.setRegS32Extend(11, 0);
-        cpu.setRegS32Extend(12, 0);
-        cpu.setRegS32Extend(13, 0);
-        cpu.setRegS32Extend(31, 0x80001020);
-        cpu.run(8 * 7 + 2);
-        expect(e.fatalError()).toBeNull();
-        states.push(captureState(cpu, h));
+        cpu.setRegS32Extend(8, 0);    // t0 = 0
+        cpu.setRegS32Extend(9, 10);   // t1 = 10
+        cpu.run(4);
+        const frag = h.fragmentCache.fragments.get(loopEntry);
+        expect(frag?.func).toBeFunction();
+        expect(frag.opsCompiled).toBe(4);
+        expect(frag.getCode()).toContain('do {');
       }
-      expect(states[1]).toEqual(states[0]);
+
+      cpu.pc = loopEntry;
+      cpu.delayPC = null;
+      cpu.controlCountValue = 0;
+      cpu.setRegS32Extend(8, 0);      // t0 = 0
+      cpu.setRegS32Extend(9, 8);      // t1 = 8
+      cpu.setRegS32Extend(10, 0);     // t2 = 0
+      cpu.setRegS32Extend(11, 0);     // t3 = 0
+      cpu.setRegS32Extend(31, 0x80001010);
+      setPerformanceProfiling(true);
+      cpu.run(9 * 4);
+      expect(e.fatalError()).toBeNull();
+      if (compiled) {
+        // 8 full 4-op rotations (t0 = 0..7 -> 1..8) + final 2-op exit branch when t0 == 8 = 34 ops in 1 fragment run
+        expect(performanceProfile.counters.fragmentRuns).toBe(1);
+        expect(performanceProfile.counters.compiledOps).toBe(34);
+      }
+      states.push(captureState(cpu, h));
     }
+    expect(states[1]).toEqual(states[0]);
   });
 });

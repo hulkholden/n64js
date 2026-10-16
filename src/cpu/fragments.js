@@ -39,7 +39,6 @@ export class Fragment {
     this.bodyCode         = '';
     this.needsDelayCheck  = true;
     this.entryDelayPC     = null;
-    this.loopedToEntry    = false;
 
     this.cop1statusKnown = false;
     this.usesCop1        = false;
@@ -80,7 +79,6 @@ export class Fragment {
     this.bodyCode         = '';
     this.needsDelayCheck  = true;
     this.entryDelayPC     = null;
-    this.loopedToEntry    = false;
 
     this.cop1statusKnown  = false;
     this.usesCop1         = false;
@@ -129,9 +127,8 @@ export class Fragment {
     return this.func?.toString() ?? this.bodyCode;
   }
 
-  isAtEntryState(pc, delayPC, requireNullEntryDelay = false) {
-    const validEntryDelay = !requireNullEntryDelay || this.entryDelayPC === null;
-    return pc === this.entryPC && delayPC === this.entryDelayPC && validEntryDelay;
+  isAtEntryState(pc, delayPC) {
+    return pc === this.entryPC && delayPC === this.entryDelayPC;
   }
 
   isUnfinishedTrace() {
