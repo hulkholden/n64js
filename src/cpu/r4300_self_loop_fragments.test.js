@@ -180,9 +180,9 @@ describe('self-looping fragments and self-loop cutoff', () => {
     ];
 
     for (const cfg of [
-      { selfLoopCutoff: 'immediate', minSelfLoopOps: 1, enableSelfLoop: true, longFragmentThreshold: 8, expectedOps: 7 },
-      { selfLoopCutoff: 'immediate', minSelfLoopOps: 1, enableSelfLoop: true, longFragmentThreshold: 16, expectedOps: 7 },
-      { selfLoopCutoff: 'unroll', minSelfLoopOps: 14, enableSelfLoop: true, maxSelfLoopBodyOps: 0, longFragmentThreshold: 8, expectedOps: 14 },
+      { selfLoopCutoff: 'immediate', minSelfLoopOps: 1, enableSelfLoop: true, minOpsBeforeBranchStop: 9, expectedOps: 7 },
+      { selfLoopCutoff: 'immediate', minSelfLoopOps: 1, enableSelfLoop: true, minOpsBeforeBranchStop: 17, expectedOps: 7 },
+      { selfLoopCutoff: 'unroll', minSelfLoopOps: 14, enableSelfLoop: true, maxSelfLoopBodyOps: 0, minOpsBeforeBranchStop: 9, expectedOps: 14 },
     ]) {
       const states = [];
       for (const compiled of [false, true]) {

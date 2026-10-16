@@ -46,15 +46,16 @@ function tlbCacheSlot(page) {
 const kFragmentLengthLimit = 250;
 
 export const dynarecConfig = {
-  // Minimum instructions compiled before a non-self-loop taken branch ends the
-  // fragment. A value of 2 allows a 2-op entry branch stub (branch + delay
-  // slot) to fold into its target basic block, while keeping traces small
-  // enough for the JS JIT to inline helper calls (rsp.step / c.exec*).
-  longFragmentThreshold: 2,
+  // Minimum instructions compiled before a non-self-loop taken branch is
+  // allowed to end the fragment. A value of 3 lets a 2-op entry branch stub
+  // (branch + delay slot) trace through into its target basic block, while
+  // keeping traces small enough for the JS JIT to inline helper calls
+  // (rsp.step / c.exec*).
+  minOpsBeforeBranchStop: 3,
   fragmentLengthLimit: kFragmentLengthLimit,
   // Controls how branches that return to fragment.entryPC are cut off:
   // - false: ignore whether a branch targets entryPC; only stop once
-  //   opsCompiled > longFragmentThreshold. Loops shorter than the threshold
+  //   opsCompiled >= minOpsBeforeBranchStop. Loops shorter than the threshold
   //   can unroll past entryPC and get cut off mid-iteration on a later branch.
   // - 'immediate': stop as soon as a back-edge returns to entryPC (once at
   //   least minSelfLoopOps have been compiled) so the fragment captures a
@@ -3080,18 +3081,18 @@ function flushDelayedPCUpdate(fragment, ctx) {
 // control-flow change (c.pc !== entryPC + 4).
 //
 // Why this matters:
-// 1. Without self-loop awareness, a loop shorter than longFragmentThreshold
+// 1. Without self-loop awareness, a loop shorter than minOpsBeforeBranchStop
 //    continues recording past its back-edge into a second iteration and then
 //    gets cut off at an internal branch (or the next back-edge) once
-//    opsCompiled > longFragmentThreshold, leaving the fragment ending mid-loop
-//    and ineligible for do-while self-loop compilation.
-// 2. Keeping non-loop fragments bounded by longFragmentThreshold (default 2)
+//    opsCompiled >= minOpsBeforeBranchStop, leaving the fragment ending
+//    mid-loop and ineligible for do-while self-loop compilation.
+// 2. Keeping non-loop fragments bounded by minOpsBeforeBranchStop (default 3)
 //    still folds 2-op entry branch stubs (branch + delay slot) into their
 //    target block while keeping compiled functions small enough for the JS JIT
 //    to inline rsp.step() and c.exec*() helper calls.
 function shouldStopOnBranch(fragment, entryPC, c) {
   const branched = c.pc !== entryPC + 4;
-  const longFragment = fragment.opsCompiled > dynarecConfig.longFragmentThreshold;
+  const canStopAtBranch = fragment.opsCompiled >= dynarecConfig.minOpsBeforeBranchStop;
   const atSelfLoopBackEdge = fragment.isAtEntryState(c.pc, c.delayPC, dynarecConfig.requireNullEntryDelay);
   if (atSelfLoopBackEdge) {
     fragment.loopedToEntry = true;
@@ -3100,10 +3101,10 @@ function shouldStopOnBranch(fragment, entryPC, c) {
   const reachedMinSelfLoopOps = fragment.opsCompiled >= dynarecConfig.minSelfLoopOps;
   if (dynarecConfig.selfLoopCutoff === 'immediate') {
     // Stop as soon as the trace returns to entryPC (even if opsCompiled is
-    // still below longFragmentThreshold) so the fragment captures an exact
+    // still below minOpsBeforeBranchStop) so the fragment captures an exact
     // loop body that compileFragment can wrap in a do-while loop.
     const stopAtSelfLoop = atSelfLoopBackEdge && reachedMinSelfLoopOps;
-    return stopAtSelfLoop || (longFragment && branched);
+    return stopAtSelfLoop || (canStopAtBranch && branched);
   }
   if (dynarecConfig.selfLoopCutoff === 'unroll') {
     // When unrolling short loops to at least minSelfLoopOps, only stop at a
@@ -3114,13 +3115,13 @@ function shouldStopOnBranch(fragment, entryPC, c) {
     if (atSelfLoopBackEdge) {
       return reachedMinSelfLoopOps;
     }
-    const unrollBranchThreshold = fragment.loopedToEntry
-      ? Math.max(dynarecConfig.longFragmentThreshold, dynarecConfig.minSelfLoopOps * 2)
-      : dynarecConfig.longFragmentThreshold;
-    const pastUnrollThreshold = fragment.opsCompiled > unrollBranchThreshold;
-    return branched && pastUnrollThreshold;
+    const minUnrollBranchStopOps = fragment.loopedToEntry
+      ? Math.max(dynarecConfig.minOpsBeforeBranchStop, dynarecConfig.minSelfLoopOps * 2 + 1)
+      : dynarecConfig.minOpsBeforeBranchStop;
+    const canStopAtUnrollBranch = fragment.opsCompiled >= minUnrollBranchStopOps;
+    return branched && canStopAtUnrollBranch;
   }
-  return longFragment && branched;
+  return canStopAtBranch && branched;
 }
 
 // A fragment can be wrapped in an internal do-while loop if it ends in the
