@@ -1,38 +1,24 @@
 import { beforeEach, describe, expect, test } from 'bun:test';
-import '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
 import { EmulatedException } from './emulated_exception.js';
+import {
+  DEFAULT_PC,
+  createOpRunner,
+  createTestHardware,
+  resetTestHardware,
+} from './test_helpers.js';
 
-const { Hardware } = await import('../hardware.js');
-const { initCPU } = await import('./r4300.js');
-const { Fragment } = await import('./fragments.js');
-const { FragmentContext, generateCodeForOp } = await import('./recompiler.js');
-
-const hardware = new Hardware({ save: 'Eeprom4k' }, { headless: true });
+const hardware = createTestHardware();
 const cpu = hardware.cpu0;
-const pc = 0x80001000;
 
 beforeEach(() => {
-  initCPU(hardware);
-  cpu.reset();
-  cpu.setControlU32(regs.controlStatus, 0);
-  hardware.ram.clear();
-  n64js.getSyncFlow = () => null;
+  resetTestHardware(hardware);
 });
 
 function execute(word, compiled) {
-  cpu.pc = pc;
-  cpu.nextPC = pc + 4;
-  if (compiled) {
-    const fragment = new Fragment(pc);
-    fragment.opsCompiled = 1;
-    const ctx = new FragmentContext();
-    ctx.set(fragment, pc, word >>> 0, pc + 4, pc + 4);
-    generateCodeForOp(ctx);
-    new Function('c', fragment.bodyCode)(cpu);
-  } else {
-    n64js.executeOp(word >>> 0);
-  }
+  cpu.pc = DEFAULT_PC;
+  cpu.nextPC = DEFAULT_PC + 4;
+  createOpRunner(compiled, word)(cpu);
 }
 
 function mapPages(address, pageMask, lo0, lo1, compiled = false, asid = 0) {

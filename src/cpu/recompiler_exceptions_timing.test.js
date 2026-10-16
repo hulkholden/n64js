@@ -1,25 +1,28 @@
 import { describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator } from '../headless/headless_env.js';
+import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
 import * as regs from './cpu0reg.js';
 import { genericMultiply as genericMultiplyOp } from './cpu1_test_support.js';
 import * as decode from './decode.js';
-import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
+import {
+  DEFAULT_PC,
+  captureExecutionSnapshot,
+  compileFragmentAt,
+  cop1,
+  copMove,
+  createTestEmulator,
+  iop,
+  jump,
+  resetExecutionState,
+  special,
+} from './test_helpers.js';
 
-const pc = 0x80001000;
+const pc = DEFAULT_PC;
 const runCycles = 12;
-const iop = (op, s, t, immediate = 0) => ((op << 26) | (s << 21) | (t << 16) | (immediate & 0xffff)) >>> 0;
-const special = (op, s, t, d) => ((decode.OP_SPECIAL << 26) | (s << 21) | (t << 16) | (d << 11) | op) >>> 0;
-const copMove = (op, transfer, t, d) => ((op << 26) | (transfer << 21) | (t << 16) | (d << 11)) >>> 0;
-const cop1 = (format, op, d, s, t = 0) => ((decode.OP_COP1 << 26) | (format << 21) | (t << 16) | (s << 11) | (d << 6) | op) >>> 0;
-const jump = target => ((decode.OP_J << 26) | ((target >>> 2) & 0x03ffffff)) >>> 0;
 // Emulator breakpoint marker, not a native MIPS instruction.
 const breakpointInstruction = 0x70000000;
 
 async function compareExecutions(instructions, prepare = () => {}, train = () => {}, profiled = false, genericMultiply = false) {
-  const emulator = await createHeadlessEmulator({
-    romBuffer: new ArrayBuffer(0x1000),
-    rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
-  });
+  const emulator = await createTestEmulator();
   const { cpu0: cpu, hardware } = emulator;
   let cop1Checks = 0;
   let interruptRSPPCs = [];
@@ -35,65 +38,23 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     }
     return checkCopXUsable.call(this, copIdx);
   };
-  n64js.getSyncFlow = () => null;
   const words = [...instructions];
   while (words.length < runCycles) {
     words.push(0);
   }
 
   function setup(prepareState) {
-    cpu.reset();
-    cpu.controlCountValue = 0;
-    cpu.opsExecuted = 0;
-    cpu.llBit = 0;
-    cpu.lastControlRegWrite = 0n;
-    cpu.setControlU32(regs.controlStatus, 0x20000000);
-    cpu.cop1ControlChanged();
-    hardware.cpu1.reset();
-    hardware.rsp.reset();
-    hardware.sp_mem.clear();
-    hardware.sp_reg.clear();
-    hardware.mi_reg.clear();
+    resetExecutionState(cpu, words, { pc });
     interruptRSPPCs = [];
-    cpu.pc = pc;
-    hardware.ram.u8.fill(0);
-    words.forEach((word, i) => hardware.ram.set32(0x1000 + i * 4, word));
     cpu.setRegS32Extend(4, 0x80003000);
     prepareState(cpu, hardware);
     cop1Checks = 0;
   }
 
   function snapshot() {
-    expect(emulator.fatalError()).toBeNull();
     return {
-      pc: cpu.pc,
-      llBit: cpu.llBit,
-      llAddr: cpu.getControlU32(regs.controlLLAddr),
-      rspPC: hardware.rsp.pc,
-      rspGPR: [...hardware.rsp.gprU32],
-      rspHalted: hardware.rsp.halted,
+      ...captureExecutionSnapshot(emulator, { ramOffset: 0x3000, ramLength: 0x20 }),
       interruptRSPPCs: [...interruptRSPPCs],
-      mi: [...hardware.mi_reg.u8],
-      sp: [...hardware.sp_reg.u8],
-      delayPC: cpu.delayPC,
-      gpr: [...cpu.gprU64],
-      cause: cpu.getControlU32(regs.controlCause),
-      epc: cpu.getControlU32(regs.controlEPC),
-      badVAddr: cpu.getControlU32(regs.controlBadVAddr),
-      status: cpu.getControlU32(regs.controlStatus),
-      fcsr: hardware.cpu1.control[31],
-      fpr: Array.from({ length: 32 }, (_, i) => hardware.cpu1.loadU32(hardware.cpu1.fdRegIdx32(i))),
-      rawFpr: [...hardware.cpu1.regU32],
-      memory: [...hardware.ram.u8.slice(0x3000, 0x3020)],
-      countCycles: cpu.controlCountValue,
-      compareCycles: cpu.getCyclesUntilEvent('Compare'),
-      rsp: {
-        pc: hardware.rsp.pc,
-        delayPC: hardware.rsp.delayPC,
-        halted: hardware.rsp.halted,
-        gpr: [...hardware.rsp.gprU32],
-        memory: [...hardware.rsp.dmem.u8],
-      },
     };
   }
 
@@ -112,12 +73,7 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     // Use the production tracer/compiler, with safe inputs so a memory exception
     // does not prevent the training trace from completing.
     setup(train);
-    for (let i = 0; i < 499; i++) {
-      hardware.fragmentCache.lookupFragment(pc);
-    }
-    cpu.run(runCycles);
-    const fragment = hardware.fragmentCache.fragments.get(pc);
-    expect(fragment?.func).toBeFunction();
+    const fragment = compileFragmentAt(cpu, pc, runCycles);
 
     setup(prepare);
     hardware.fragmentCache.fragments.set(pc, fragment);
@@ -125,7 +81,13 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     cpu.run(runCycles);
     expect(fragment.executionCount).toBe(1);
     expect(snapshot()).toEqual(interpreted);
-    return { ...interpreted, code: fragment.func.toString(), profile: getPerformanceProfile(), interpretedCop1Checks, compiledCop1Checks: cop1Checks };
+    return {
+      ...interpreted,
+      code: fragment.func.toString(),
+      profile: getPerformanceProfile(),
+      interpretedCop1Checks,
+      compiledCop1Checks: cop1Checks,
+    };
   } finally {
     setPerformanceProfiling(false);
   }

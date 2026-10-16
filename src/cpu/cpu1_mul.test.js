@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { CPU1 } from './cpu1.js';
 import { genericMultiply } from './cpu1_test_support.js';
+import { cartesianPairs } from './test_helpers.js';
 
 function createFPU(generic = false) {
   const state = { traps: 0 };
@@ -17,7 +18,7 @@ const edges = [0, 1, 0x003fffff, 0x007fffff, 0x00800000, 0x00800001,
   0x3fc00000, 0x3fffffff, 0x40000000, 0x4b000001, 0x7f000000, 0x7f7fffff,
   0x7f800000, 0x7f800001, 0x7fbfffff, 0x7fc00000, 0x7fffffff]
   .flatMap(bits => [bits, (bits | 0x80000000) >>> 0]);
-const pairs = edges.flatMap(s => edges.map(t => [s, t]));
+const pairs = cartesianPairs(edges);
 let seed = 0x12345678;
 const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0);
 for (let i = 0; i < 4096; i++) {

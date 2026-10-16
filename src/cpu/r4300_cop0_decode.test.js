@@ -1,35 +1,24 @@
 import { describe, expect, test } from 'bun:test';
-import '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
+import {
+  DEFAULT_PC,
+  createOpRunner,
+  createTestHardware,
+  resetTestHardware,
+} from './test_helpers.js';
 
-const { Hardware } = await import('../hardware.js');
-const { initCPU } = await import('./r4300.js');
-const { Fragment } = await import('./fragments.js');
-const { FragmentContext, generateCodeForOp } = await import('./recompiler.js');
-
-const hardware = new Hardware({ save: 'Eeprom4k' }, { headless: true });
+const hardware = createTestHardware();
 const cpu = hardware.cpu0;
-const pc = 0x80001000;
 
 function execute(word, compiled, delay = false) {
-  initCPU(hardware);
-  cpu.reset();
-  cpu.setControlU32(regs.controlStatus, 0);
-  cpu.pc = pc;
-  cpu.delayPC = delay ? pc + 0x80 : null;
-  cpu.nextPC = cpu.delayPC ?? pc + 4;
+  resetTestHardware(hardware);
+  cpu.pc = DEFAULT_PC;
+  cpu.delayPC = delay ? DEFAULT_PC + 0x80 : null;
+  cpu.nextPC = cpu.delayPC ?? DEFAULT_PC + 4;
   cpu.setRegU64(2, 0x123456789abcdef0n);
-  cpu.setControlU32(regs.controlEPC, pc + 0x100);
-  n64js.getSyncFlow = () => null;
-  if (compiled) {
-    const fragment = new Fragment(pc);
-    fragment.opsCompiled = 1;
-    const ctx = new FragmentContext();
-    ctx.set(fragment, pc, word >>> 0, cpu.nextPC, cpu.nextPC);
-    generateCodeForOp(ctx);
-    new Function('c', fragment.bodyCode)(cpu);
-  } else {
-    n64js.executeOp(word >>> 0);
+  cpu.setControlU32(regs.controlEPC, DEFAULT_PC + 0x100);
+  createOpRunner(compiled, word, { postPC: cpu.nextPC, nextPC: cpu.nextPC })(cpu);
+  if (!compiled) {
     cpu.pc = cpu.nextPC;
   }
 }
@@ -42,7 +31,7 @@ for (const compiled of [false, true]) {
           execute(0x40000000 | (rs << 21), compiled, delay);
           expect(cpu.pc).toBe(0x80000180);
           expect(cpu.getControlU32(regs.controlCause)).toBe((0x28 | (delay ? 0x80000000 : 0)) >>> 0);
-          expect(cpu.getControlU32(regs.controlEPC)).toBe(delay ? pc - 4 : pc);
+          expect(cpu.getControlU32(regs.controlEPC)).toBe(delay ? DEFAULT_PC - 4 : DEFAULT_PC);
           expect(cpu.getControlU32(regs.controlStatus) & 2).toBe(2);
         }
       }
@@ -53,9 +42,9 @@ for (const compiled of [false, true]) {
         for (const operands of [0, 0x1fffff]) {
           for (const delay of [false, true]) {
             execute(0x40000000 | (rs << 21) | operands, compiled, delay);
-            expect(cpu.pc).toBe(delay ? pc + 0x80 : pc + 4);
+            expect(cpu.pc).toBe(delay ? DEFAULT_PC + 0x80 : DEFAULT_PC + 4);
             expect(cpu.getControlU32(regs.controlCause)).toBe(0);
-            expect(cpu.getControlU32(regs.controlEPC)).toBe(pc + 0x100);
+            expect(cpu.getControlU32(regs.controlEPC)).toBe(DEFAULT_PC + 0x100);
             expect(cpu.getRegU64(2)).toBe(0x123456789abcdef0n);
           }
         }
@@ -69,7 +58,7 @@ for (const compiled of [false, true]) {
         }
         for (const operands of [0, 0x1e00000, 0x1fffc0, 0x1ffffc0]) {
           execute(0x42000000 | operands | funct, compiled);
-          expect(cpu.pc).toBe(funct === 16 ? 0x80000180 : pc + 4);
+          expect(cpu.pc).toBe(funct === 16 ? 0x80000180 : DEFAULT_PC + 4);
           expect(cpu.getControlU32(regs.controlCause)).toBe(funct === 16 ? 0x28 : 0);
         }
       }
@@ -77,7 +66,7 @@ for (const compiled of [false, true]) {
 
     test('ERET decodes with nonzero operand bits', () => {
       execute(0x43ffffd8, compiled);
-      expect(cpu.pc).toBe(pc + 0x100);
+      expect(cpu.pc).toBe(DEFAULT_PC + 0x100);
     });
   });
 }

@@ -1,20 +1,16 @@
 import { describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator } from '../headless/headless_env.js';
 import { controlCause, controlEPC, controlStatus } from './cpu0reg.js';
-
-const { Fragment } = await import('./fragments.js');
-const { FragmentContext, generateCodeForOp } = await import('./recompiler.js');
-
-const pc = 0x80001000;
+import {
+  DEFAULT_PC,
+  compileOp,
+  createTestEmulator,
+} from './test_helpers.js';
 
 async function createCPU() {
-  const emulator = await createHeadlessEmulator({
-    romBuffer: new ArrayBuffer(0x1000),
-    rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
-  });
+  const emulator = await createTestEmulator();
   emulator.cpu0.reset();
   emulator.cpu0.setControlU32(controlStatus, 0);
-  emulator.cpu0.pc = pc;
+  emulator.cpu0.pc = DEFAULT_PC;
   return emulator;
 }
 
@@ -25,12 +21,7 @@ function runInstruction(emulator, compiled, word) {
     cpu.run(1);
     return;
   }
-  n64js.getSyncFlow = () => null;
-  const fragment = new Fragment(pc);
-  fragment.opsCompiled = 1;
-  const ctx = new FragmentContext();
-  ctx.set(fragment, pc, word, cpu.delayPC ?? pc + 4, pc + 4);
-  generateCodeForOp(ctx);
+  const fragment = compileOp(word, { postPC: cpu.delayPC ?? DEFAULT_PC + 4, nextPC: DEFAULT_PC + 4 });
   new Function('c', fragment.bodyCode)(cpu);
 }
 
@@ -51,7 +42,7 @@ for (const compiled of [false, true]) {
         expect(cpu.getRegS64(2)).toBe(expected);
         expect(cpu.getControlU32(controlCause)).toBe(0);
         expect(cpu.getControlU32(controlStatus)).toBe(0);
-        expect(cpu.pc).toBe(pc + 4);
+        expect(cpu.pc).toBe(DEFAULT_PC + 4);
       });
     }
 
@@ -75,7 +66,7 @@ for (const compiled of [false, true]) {
       expect(cpu.getRegS64(0)).toBe(0n);
       expect(cpu.getControlU32(controlStatus)).toBe(0);
       expect(cpu.getControlU32(controlCause)).toBe(0);
-      expect(cpu.pc).toBe(pc + 4);
+      expect(cpu.pc).toBe(DEFAULT_PC + 4);
     });
 
     test('ADDI continues to trap on signed overflow', async () => {
@@ -86,7 +77,7 @@ for (const compiled of [false, true]) {
       runInstruction(emulator, compiled, 0x20820001); // ADDI v0, a0, 1.
       expect(cpu.getRegS64(2)).toBe(123n);
       expect(cpu.getControlU32(controlCause)).toBe(12 << 2);
-      expect(cpu.getControlU32(controlEPC)).toBe(pc);
+      expect(cpu.getControlU32(controlEPC)).toBe(DEFAULT_PC);
       expect(cpu.pc).toBe(0x80000180);
     });
   });

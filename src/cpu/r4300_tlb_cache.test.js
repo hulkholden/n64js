@@ -1,30 +1,22 @@
 import { beforeEach, describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator } from '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
 import { EmulatedException } from './emulated_exception.js';
+import {
+  DEFAULT_PC,
+  compileFragmentAt,
+  createTestEmulator,
+  createTestHardware,
+  resetTestHardware,
+  writeTLBEntry,
+} from './test_helpers.js';
 
-const { Hardware } = await import('../hardware.js');
-const { initCPU } = await import('./r4300.js');
-const hardware = new Hardware({ save: 'Eeprom4k' }, { headless: true });
+const hardware = createTestHardware();
 const cpu = hardware.cpu0;
 const base = 0x12000000;
 
 beforeEach(() => {
-  initCPU(hardware);
-  cpu.reset();
-  cpu.setControlU32(regs.controlStatus, 0);
-  hardware.ram.clear();
-  n64js.getSyncFlow = () => null;
+  resetTestHardware(hardware);
 });
-
-function map(c, index, address, lo0 = 0x87, lo1 = 0xc7, mask = 0) {
-  c.setControlU32(regs.controlIndex, index);
-  c.setControlU32(regs.controlPageMask, mask);
-  c.setControlS64(regs.controlEntryHi, BigInt(address | 0));
-  c.setControlU32(regs.controlEntryLo0, lo0);
-  c.setControlU32(regs.controlEntryLo1, lo1);
-  c.tlbWriteIndex();
-}
 
 function translationState(c) {
   return { control: [...c.controlRegU64], pc: c.pc, nextPC: c.nextPC, delayPC: c.delayPC };
@@ -50,7 +42,7 @@ function translate(c, method, address) {
 
 describe('cached TLB lookup', () => {
   test('reuses hits and misses, and keeps colliding virtual pages distinct', () => {
-    map(cpu, 7, base);
+    writeTLBEntry(cpu, 7, base);
     const colliding = base + 0x10000000;
     const lookup = cpu.tlbFindEntryUncached;
     let scans = 0;
@@ -74,7 +66,7 @@ describe('cached TLB lookup', () => {
   });
 
   test('serves warm valid reads and dirty writes from cached 4 KiB page frames without calling tlbFindEntry', () => {
-    map(cpu, 6, base, 0x87, 0xc3); // Writable even page, read-only odd page.
+    writeTLBEntry(cpu, 6, base, 0x87, 0xc3); // Writable even page, read-only odd page.
     hardware.ram.set32(0x2010, 0x11223344);
     expect(cpu.translateRead(base)).toBe(0x2000);
     expect(cpu.translateRead(base + 0x1000)).toBe(0x3000);
@@ -95,9 +87,9 @@ describe('cached TLB lookup', () => {
   });
 
   test('avoids conflict misses and full-cache flushes across GoldenEye 0x70000000 and 0x7f000000 segments', () => {
-    map(cpu, 1, 0x70000000, 0x1f, 0x1, 0x7fe000);
-    map(cpu, 2, 0x7f01a000, 0xc61f, 0xc65f, 0);
-    map(cpu, 3, 0x7f008000, 0xc51f, 0xc55f, 0);
+    writeTLBEntry(cpu, 1, 0x70000000, 0x1f, 0x1, 0x7fe000);
+    writeTLBEntry(cpu, 2, 0x7f01a000, 0xc61f, 0xc65f, 0);
+    writeTLBEntry(cpu, 3, 0x7f008000, 0xc51f, 0xc55f, 0);
     const lookup = cpu.tlbFindEntryUncached;
     let scans = 0;
     cpu.tlbFindEntryUncached = function (address, asid) {
@@ -117,7 +109,7 @@ describe('cached TLB lookup', () => {
       expect(scans).toBe(pages.length);
 
       // Replacing one 4 KiB TLB entry invalidates only its old and new page pairs.
-      map(cpu, 3, 0x7f020000, 0xd51f, 0xd55f, 0);
+      writeTLBEntry(cpu, 3, 0x7f020000, 0xd51f, 0xd55f, 0);
       for (const va of [0x7001a000, 0x7f01a000, 0x7f01b000, 0x70008000, 0x7011a000, 0x7021a000]) {
         cpu.translateRead(va + 0x200);
       }
@@ -132,7 +124,7 @@ describe('cached TLB lookup', () => {
 
   test('invalidates warm hits and misses after TLBWI, TLBWR and reset', () => {
     expect(cpu.translateReadInternal(base)).toBe(0);
-    map(cpu, 7, base);
+    writeTLBEntry(cpu, 7, base);
     expect(cpu.translateRead(base)).toBe(0x2000);
     cpu.setControlU32(regs.controlEntryLo0, 0x107);
     cpu.tlbWriteIndex();
@@ -143,7 +135,7 @@ describe('cached TLB lookup', () => {
       cpu.tlbWriteRandom();
       expect(cpu.translateRead(base)).toBe(0x6000);
       // A write to a different, earlier entry changes first-match priority.
-      map(cpu, 2, base, 1, 1);
+      writeTLBEntry(cpu, 2, base, 1, 1);
       expect(translate(cpu, 'translateRead', base).result).toBe('TLBL E_VEC');
       cpu.reset();
       expect(cpu.tlbFindEntry(base)).toBeNull();
@@ -153,8 +145,8 @@ describe('cached TLB lookup', () => {
   });
 
   test('tags global matches with ASID to preserve earlier non-global matches', () => {
-    map(cpu, 2, base | 0x12, 0x86, 0xc6);
-    map(cpu, 7, base | 0x34, 0x107, 0x147);
+    writeTLBEntry(cpu, 2, base | 0x12, 0x86, 0xc6);
+    writeTLBEntry(cpu, 7, base | 0x34, 0x107, 0x147);
     expect(cpu.translateRead(base)).toBe(0x4000);
     // Exercise both guest EntryHi transfer widths, not just raw setters.
     cpu.moveToControl32(regs.controlEntryHi, 0x12);
@@ -170,8 +162,8 @@ describe('cached TLB lookup', () => {
   });
 
   test('large-page hits do not hide overlapping smaller invalid/read-only pages', () => {
-    map(cpu, 2, base + 0x2000, 1, 0xc3);
-    map(cpu, 7, base, 7, 0x10007, 0x7fe000);
+    writeTLBEntry(cpu, 2, base + 0x2000, 1, 0xc3);
+    writeTLBEntry(cpu, 7, base, 7, 0x10007, 0x7fe000);
     expect(cpu.translateRead(base)).toBe(0);
     expect(translate(cpu, 'translateRead', base + 0x2000).result).toBe('TLBL E_VEC');
     expect(cpu.translateRead(base + 0x3000)).toBe(0x3000);
@@ -183,12 +175,12 @@ describe('cached TLB lookup', () => {
   });
 
   test('keeps separate CPUs isolated, including updates and resets', () => {
-    const other = new Hardware({ save: 'Eeprom4k' }, { headless: true }).cpu0;
-    map(cpu, 7, base);
-    map(other, 7, base, 0x107, 0x147);
+    const other = createTestHardware().cpu0;
+    writeTLBEntry(cpu, 7, base);
+    writeTLBEntry(other, 7, base, 0x107, 0x147);
     expect(cpu.translateRead(base)).toBe(0x2000);
     expect(other.translateRead(base)).toBe(0x4000);
-    map(other, 7, base, 1, 1);
+    writeTLBEntry(other, 7, base, 1, 1);
     expect(other.translateReadInternal(base)).toBe(0);
     expect(cpu.translateRead(base)).toBe(0x2000);
     other.reset();
@@ -212,7 +204,7 @@ describe('cached TLB lookup', () => {
     for (const address of [0, base, 0xe0000000]) {
       for (const mask of masks) {
         for (const flags of [0, 1, 2, 3, 6, 7]) {
-          map(cpu, 7, address | 0x12, 0x1080 | flags, 0x2040 | flags, mask);
+          writeTLBEntry(cpu, 7, address | 0x12, 0x1080 | flags, 0x2040 | flags, mask);
           const pageSize = cpu.tlbEntries[7].checkbit;
           for (const asid of [0x12, 0x34]) {
             cpu.setControlU32(regs.controlEntryHi, asid);
@@ -256,12 +248,9 @@ describe('cached translations during execution', () => {
     ['missing store', null, true, 12],
   ]) {
     test(`${name} matches uncached interpreter and compiled delay-slot accesses`, async () => {
-      const emulator = await createHeadlessEmulator({
-        romBuffer: new ArrayBuffer(0x1000),
-        rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
-      });
+      const emulator = await createTestEmulator();
       const { cpu0: c, hardware: h } = emulator;
-      const pc = 0x80001000;
+      const pc = DEFAULT_PC;
       const target = base + 0x2000;
       const words = [
         0x8c820000, // LW v0, 0(a0): last word in the even page.
@@ -277,9 +266,9 @@ describe('cached translations during execution', () => {
         h.rsp.reset();
         h.ram.clear();
         words.forEach((word, i) => h.ram.set32(0x1000 + i * 4, word));
-        map(c, 6, base, 0x87, 0x147); // Adjacent virtual pages, nonadjacent physical pages.
+        writeTLBEntry(c, 6, base, 0x87, 0x147); // Adjacent virtual pages, nonadjacent physical pages.
         if (training || flags !== null) {
-          map(c, 7, target, 0x100 | (training ? 7 : flags), 7);
+          writeTLBEntry(c, 7, target, 0x100 | (training ? 7 : flags), 7);
         }
         h.ram.set32(0x2ffc, 0x12345678);
         h.ram.set32(0x4000, 0xabcdef01);
@@ -302,12 +291,7 @@ describe('cached translations during execution', () => {
         };
       }
       setup(true);
-      for (let i = 0; i < 499; i++) {
-        h.fragmentCache.lookupFragment(pc);
-      }
-      c.run(12);
-      const fragment = h.fragmentCache.fragments.get(pc);
-      expect(fragment?.func).toBeFunction();
+      const fragment = compileFragmentAt(c, pc, 12);
       let reference;
       try {
         for (const compiled of [false, true]) {

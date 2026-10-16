@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { CPU1 } from './cpu1.js';
-import { createHeadlessEmulator } from '../headless/headless_env.js';
+import { MI_INTR_MASK_REG, MI_INTR_PI } from '../devices/mi.js';
 import * as regs from './cpu0reg.js';
-import { MI_INTR_PI, MI_INTR_MASK_REG } from '../devices/mi.js';
+import { CPU1 } from './cpu1.js';
+import { DEFAULT_PC, createTestEmulator } from './test_helpers.js';
 
 const FR = 0x04000000;
 const CU1 = 0x20000000;
@@ -50,10 +50,7 @@ describe('FPU register mode', () => {
     });
 
     test(`status writes still update COP1 usability with unchanged FR=${Number(fullMode)}`, async () => {
-      const { cpu0: cpu, hardware } = await createHeadlessEmulator({
-        romBuffer: new ArrayBuffer(0x1000),
-        rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
-      });
+      const { cpu0: cpu, hardware } = await createTestEmulator();
       const fpu = hardware.cpu1;
       for (const usable of [true, false, true]) {
         cpu.setRegU32Extend(4, (fullMode ? FR : 0) | (usable ? CU1 : 0));
@@ -62,7 +59,7 @@ describe('FPU register mode', () => {
         fpu.store32(fpu.copRegIdx32(3), 0x12345678);
         cpu.setRegU32Extend(2, 0xdeadbeef);
         cpu.setControlU32(regs.controlCause, 0);
-        cpu.pc = 0x80001000;
+        cpu.pc = DEFAULT_PC;
         cpu.nextPC = cpu.pc + 4;
         cpu.delayPC = null;
         n64js.executeOp(0x44021800); // MFC1 v0, f3.
@@ -72,10 +69,7 @@ describe('FPU register mode', () => {
     });
 
     test(`status writes still update pending interrupts with unchanged FR=${Number(fullMode)}`, async () => {
-      const { cpu0: cpu, hardware } = await createHeadlessEmulator({
-        romBuffer: new ArrayBuffer(0x1000),
-        rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
-      });
+      const { cpu0: cpu, hardware } = await createTestEmulator();
       hardware.mi_reg.set32(MI_INTR_MASK_REG, MI_INTR_PI);
       hardware.miRegDevice.setInterruptBit(MI_INTR_PI);
       for (const enabled of [false, true, false, true]) {

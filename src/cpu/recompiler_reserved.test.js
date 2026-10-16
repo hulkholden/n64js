@@ -1,10 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-
-globalThis.window = globalThis.window ?? globalThis;
-globalThis.n64js = globalThis.n64js ?? {};
-globalThis.n64js.getSyncFlow = () => null;
-
-const { FragmentContext, generateCodeForOp } = await import('./recompiler.js');
+import { compileOp, regimm } from './test_helpers.js';
 
 const reservedMainOpcodes = [0x13, 0x1c, 0x1d, 0x1e, 0x1f, 0x33, 0x3b];
 const reservedSpecialFunctions = [
@@ -15,31 +10,16 @@ const reservedRegImmSelectors = [
   0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
 ];
 
-function generateInstruction(instruction) {
-  const fragment = {
-    needsDelayCheck: true,
-    bodyCode: '',
-    bailedOut: false,
-    usesCop1: false,
-    opsCompiled: 1,
-  };
-  const context = new FragmentContext();
-  context.newFragment();
-  context.set(fragment, 0x80000000, instruction, 0x80000004, 0x80000004);
-  generateCodeForOp(context);
-  return fragment.bodyCode;
-}
-
 describe('reserved integer recompilation', () => {
   test('raises RI for every reserved integer encoding', () => {
     const instructions = [
       ...reservedMainOpcodes.map(op => op << 26),
       ...reservedSpecialFunctions,
-      ...reservedRegImmSelectors.map(rt => (0x01 << 26) | (rt << 16)),
+      ...reservedRegImmSelectors.map(rt => regimm(rt, 0)),
     ];
 
     for (const instruction of instructions) {
-      expect(generateInstruction(instruction)).toContain('c.execRESERVED(0);');
+      expect(compileOp(instruction, { pc: 0x80000000 }).bodyCode).toContain('c.execRESERVED(0);');
     }
   });
 });

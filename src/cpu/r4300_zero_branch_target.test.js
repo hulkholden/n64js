@@ -1,15 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator } from '../headless/headless_env.js';
 import { controlCause, controlEPC, controlStatus } from './cpu0reg.js';
-
-const { Fragment } = await import('./fragments.js');
-const { FragmentContext, generateCodeForOp } = await import('./recompiler.js');
+import {
+  DEFAULT_PC,
+  compileOps,
+  createTestEmulator,
+} from './test_helpers.js';
 
 async function createCPU(pc, branch, slot) {
-  const emulator = await createHeadlessEmulator({
-    romBuffer: new ArrayBuffer(0x1000),
-    rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
-  });
+  const emulator = await createTestEmulator();
   const { cpu0: cpu, hardware } = emulator;
   cpu.reset();
   cpu.setControlU32(controlStatus, 0);
@@ -30,24 +28,15 @@ function runBranch(cpu, compiled, branch, slot, target = 0) {
     cpu.run(2);
     return;
   }
-  n64js.getSyncFlow = () => null;
-  const pc = cpu.pc;
-  const fragment = new Fragment(pc);
-  const ctx = new FragmentContext();
-  for (const [i, word] of [branch, slot].entries()) {
-    fragment.opsCompiled++;
-    const postPC = i === 0 ? pc + 4 : target;
-    ctx.set(fragment, pc + i * 4, word, postPC, postPC);
-    generateCodeForOp(ctx);
-  }
+  const fragment = compileOps([branch, slot], { pc: cpu.pc, target });
   new Function('c', fragment.bodyCode)(cpu);
 }
 
 for (const compiled of [false, true]) {
   describe(compiled ? 'compiled branches to zero' : 'interpreted branches to zero', () => {
     for (const [name, pc, word, link] of [
-      ['JR', 0x80001000, 0x00000008, false],
-      ['JALR', 0x80001000, 0x0000f809, true],
+      ['JR', DEFAULT_PC, 0x00000008, false],
+      ['JALR', DEFAULT_PC, 0x0000f809, true],
       ['J', 0x100, 0x08000000, false],
       ['JAL', 0x100, 0x0c000000, true],
       ['BEQ', 0x100, 0x1000ffbf, false],
@@ -70,7 +59,7 @@ for (const compiled of [false, true]) {
     test('a load in the delay slot preserves the zero target', async () => {
       const branch = 0x00000008; // JR zero.
       const slot = 0x8c820000; // LW v0, 0(a0).
-      const { cpu0: cpu, hardware } = await createCPU(0x80001000, branch, slot);
+      const { cpu0: cpu, hardware } = await createCPU(DEFAULT_PC, branch, slot);
       cpu.setRegS32Extend(4, 0x80003000);
       hardware.ram.set32(0x3000, 0x12345678);
       runBranch(cpu, compiled, branch, slot);
@@ -81,11 +70,11 @@ for (const compiled of [false, true]) {
     test('an exception in the delay slot sets BD and reports the branch EPC', async () => {
       const branch = 0x00000008; // JR zero.
       const slot = 0x0000000c; // SYSCALL.
-      const { cpu0: cpu } = await createCPU(0x80001000, branch, slot);
+      const { cpu0: cpu } = await createCPU(DEFAULT_PC, branch, slot);
       runBranch(cpu, compiled, branch, slot, 0x80000180);
       expect(cpu.pc).toBe(0x80000180);
       expect(cpu.getControlU32(controlCause)).toBe(0x80000020);
-      expect(cpu.getControlU32(controlEPC)).toBe(0x80001000);
+      expect(cpu.getControlU32(controlEPC)).toBe(DEFAULT_PC);
     });
 
     test('an untaken likely branch annuls its delay slot', async () => {
