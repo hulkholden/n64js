@@ -1,6 +1,7 @@
-// Captured RDP output of the two Sprite2D 2.0H programs identified by
-// prefix hashes 0xaed514f8 and 0x6abfc6f8. Both produced identical packets
-// for these synthetic descriptors. No ROM bytes or game assets are included.
+// Captured RDP output of the Sprite2D 2.0H XBUS builds (prefix hashes
+// 0xaed514f8 and 0x6abfc6f8) and FIFO builds (0xac7799c3 and 0x25a1cbc3).
+// All four produced identical packets for these synthetic descriptors.
+// No ROM bytes or game assets are included.
 export const sprite2DCases = [
   { options: {}, packets: [
     [0xff10003f, 0x00030000],

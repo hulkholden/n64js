@@ -88,9 +88,15 @@ export const microcodePrefixLength = 1488;
 const hvqm2SP1PrefixHash = 0xeb70fcb5;
 // Sprite2D shares the generic "RSP SW Version" string with Fast3D. Its code
 // ends before the advertised 4 KiB, so the full hash includes adjacent data.
-// These prefixes cover the dispatcher and sprite palette/scaling code:
-// Hiryuu no Ken Twin; Flying Dragon and Midway's Greatest Arcade Hits.
-const sprite2DPrefixHashes = new Set([0xaed514f8, 0x6abfc6f8]);
+// These prefixes cover the dispatcher and sprite palette/scaling code.
+// The FIFO builds send RDP commands through RAM instead of XBUS, but emit
+// the same sprite packets and can use the same HLE handler.
+const sprite2DPrefixHashes = new Set([
+  0xaed514f8, // XBUS: Hiryuu no Ken Twin.
+  0x6abfc6f8, // XBUS: Flying Dragon and Midway's Greatest Arcade Hits.
+  0xac7799c3, // FIFO: Wipeout 64, Super Robot Spirits, Heiwa Pachinko, Utchan Nanchan.
+  0x25a1cbc3, // FIFO: SpaceStation Silicon Valley and Ide Yosuke no Mahjong Juku.
+]);
 
 /**
  * Identifies the microcode without constructing a handler or producing side effects.
