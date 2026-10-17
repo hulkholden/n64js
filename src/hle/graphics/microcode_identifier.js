@@ -25,9 +25,11 @@ export const MicrocodeId = Object.freeze({
   F5_NABOO: 23,    // Battle for Naboo (recognized, but HLE is not implemented)
   GBI2_FLX: 24,    // F-Zero X: normal-indexed alpha lighting
   GBI2_L3DEX: 25,  // L3DEX2 line and wireframe rendering
+  SPRITE2D: 26,    // Nintendo's original sprite microcode (before S2DEX)
 });
 
 const microcodeProfiles = new Map([
+  [MicrocodeId.SPRITE2D, { family: 'Sprite2D', variant: null }],
   [MicrocodeId.GBI0_EARLY, { family: 'GBI0', variant: 'EARLY' }],
   [MicrocodeId.GBI1_L3DEX, { family: 'GBI1', variant: 'L3DEX' }],
   [MicrocodeId.GBI2_L3DEX, { family: 'GBI2', variant: 'L3DEX' }],
@@ -84,6 +86,11 @@ const ucodeOverrides = new Map([
 // for the HVQM2 identification range (their byte sum is 0x19495).
 export const microcodePrefixLength = 1488;
 const hvqm2SP1PrefixHash = 0xeb70fcb5;
+// Sprite2D shares the generic "RSP SW Version" string with Fast3D. Its code
+// ends before the advertised 4 KiB, so the full hash includes adjacent data.
+// These prefixes cover the dispatcher and sprite palette/scaling code:
+// Hiryuu no Ken Twin; Flying Dragon and Midway's Greatest Arcade Hits.
+const sprite2DPrefixHashes = new Set([0xaed514f8, 0x6abfc6f8]);
 
 /**
  * Identifies the microcode without constructing a handler or producing side effects.
@@ -110,6 +117,8 @@ export function identifyMicrocode(version, hash, prefixHash = null) {
       const resolvedPrefixHash = typeof prefixHash === 'function' ? prefixHash() : prefixHash;
       if (resolvedPrefixHash === hvqm2SP1PrefixHash) {
         id = MicrocodeId.HVQM2;
+      } else if (sprite2DPrefixHashes.has(resolvedPrefixHash)) {
+        id = MicrocodeId.SPRITE2D;
       } else {
         id = MicrocodeId.GBI0;
         detection = 'fallback';

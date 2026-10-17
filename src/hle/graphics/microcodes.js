@@ -14,6 +14,7 @@ import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microco
 import { Turbo3D } from './microcodes/turbo3d.js';
 import { T3DUX } from './microcodes/t3dux.js';
 import { ZSortP } from './microcodes/zsortp.js';
+import { Sprite2D } from './microcodes/sprite2d.js';
 
 class UnsupportedMicrocodeError extends Error {
   constructor(info) {
@@ -66,6 +67,8 @@ export function create(task, state, ramDV, onMicrocodeLoad = null) {
 
 function createMicrocode(ucode, state, ramDV) {
   switch (ucode) {
+    case MicrocodeId.SPRITE2D:
+      return new Sprite2D(state, ramDV);
     case MicrocodeId.ZSORTP:
       return new ZSortP(state, ramDV);
     case MicrocodeId.GBI0:
