@@ -713,6 +713,31 @@ for (const profiled of [false, true]) {
       }
     });
 
+    test('hoisted !rsp.halted check skips rsp.step when halted and exits on mid-fragment RSP break interrupt', async () => {
+      const setup = (c, h, triggerInterrupt = true) => {
+        c.setControlU32(regs.controlStatus, 0x20000401);
+        c.statusRegisterChanged();
+        h.mi_reg.set32(0x0c, 1); // Enable MI_INTR_SP in MI_INTR_MASK_REG.
+        c.setRegS32Extend(4, 0xa4040010); // SP_STATUS_REG
+        // Clear HALT (0x01) and Clear BROKE (0x04), plus Set INTR_BREAK (0x100) when testing interrupt exit.
+        c.setRegS32Extend(5, triggerInterrupt ? 0x105 : 0x05);
+        h.sp_mem.set32(0x1000, iop(decode.OP_ADDIU, 1, 1, 7));
+        h.sp_mem.set32(0x1004, special(0x0d)); // RSP BREAK
+      };
+      const result = await compare([
+        0,
+        iop(decode.OP_SW, 4, 5, 0), // Start RSP at instruction 1
+        iop(decode.OP_ADDIU, 2, 2, 1), // Step 1 of RSP (ADDIU) runs before this op
+        iop(decode.OP_ADDIU, 2, 2, 2), // Step 2 of RSP (BREAK -> SP interrupt) runs before this op and exits
+        iop(decode.OP_ADDIU, 2, 2, 4),
+      ], (c, h) => setup(c, h, true), (c, h) => setup(c, h, false));
+      expect(result.code).toContain('if (!rsp.halted) { rsp.step(); if (c.stuffToDo)');
+      expect(result.rspHalted).toBe(true);
+      expect(result.gpr[2]).toBe(1n);
+      expect(result.epc).toBe(pc + 12);
+      expect(result.interruptRSPPCs).toEqual([8]);
+    });
+
     for (const [name, branch] of [['BEQ', iop(decode.OP_BEQ, 0, 0, -1)], ['J', jump(0x100c)]]) {
       test(`${name} idle-loop skipping uses the current event countdown`, async () => {
         const setup = c => c.addEvent('Stop idle loop', 100, () => c.breakExecution());

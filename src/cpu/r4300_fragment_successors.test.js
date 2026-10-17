@@ -82,14 +82,15 @@ async function dispatchFixture(uncached) {
 function runWithMidFragmentStep({ h, run }, targetStep, onStep) {
   const step = h.rsp.step;
   let steps = 0;
+  h.rsp.halted = false;
   h.rsp.step = function () {
     if (++steps === targetStep) {
       onStep();
     }
-    return step.call(this);
   };
   run(false);
   h.rsp.step = step;
+  h.rsp.halted = true;
 }
 
 const scenarios = [
