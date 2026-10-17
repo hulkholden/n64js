@@ -128,5 +128,113 @@ describe('combiner descriptions', () => {
     expect(renderer.currentShader.shader).toBeNull();
     expect(renderer.getCurrentN64Shader(true)).toBe(constantFogShader);
   });
+
+  test('Renderer.setProgramState shares one VAO across shaders and uploads interleaved vertex data in a single bufferSubData call', () => {
+    const calls = {
+      createVertexArray: 0,
+      createBuffer: 0,
+      bindVertexArray: [],
+      bindBuffer: 0,
+      bufferData: [],
+      bufferSubData: [],
+      enableVertexAttribArray: [],
+      vertexAttribPointer: [],
+    };
+    const baseGL = createMockGL();
+    const gl = {
+      ...baseGL,
+      DYNAMIC_DRAW: 0x88e8,
+      createVertexArray: () => ({ id: ++calls.createVertexArray }),
+      bindVertexArray: vao => { calls.bindVertexArray.push(vao); },
+      createBuffer: () => ({ id: ++calls.createBuffer }),
+      bindBuffer: () => { calls.bindBuffer++; },
+      bufferData: (_target, sizeOrData, usage) => { calls.bufferData.push({ sizeOrData, usage }); },
+      bufferSubData: (_target, dstByteOffset, srcData, srcOffset, length) => {
+        calls.bufferSubData.push({
+          dstByteOffset,
+          words: Array.from(new Uint32Array(srcData.buffer, srcOffset * 4, length)),
+          floats: Array.from(srcData.subarray(srcOffset, srcOffset + length)),
+        });
+      },
+      enableVertexAttribArray: loc => { calls.enableVertexAttribArray.push(loc); },
+      vertexAttribPointer: (loc, size, type, normalized, stride, offset) => {
+        calls.vertexAttribPointer.push({ loc, size, type, normalized, stride, offset });
+      },
+      useProgram() {},
+      uniform1i() {},
+      uniform1f() {},
+      uniform2f() {},
+      uniform2i() {},
+      uniform4f() {},
+      uniform4i() {},
+    };
+
+    const state = new RSPState();
+    state.combine.hi = 0x00112233;
+    state.combine.lo = 0x44556677;
+    state.rdpOtherModeH = gbi.CycleType.G_CYC_1CYCLE;
+    state.rdpOtherModeL = 0;
+
+    const renderer = Object.assign(Object.create(Renderer.prototype), {
+      gl,
+      state,
+      nativeTransform: { viWidth: 320, viHeight: 240 },
+      renderTargets: { width: 320, height: 240, current: { framebuffer: { width: 320, height: 240 } } },
+      tmemTexture: { bind() {} },
+      applyScissor() {},
+      setGLBlendMode() {},
+      observeTextureUse() {},
+    });
+    renderer.n64VA = renderer.initN64VA();
+
+    // VAO and interleaved attribute pointers are configured once at initialization.
+    expect(calls.createVertexArray).toBe(1);
+    expect(calls.createBuffer).toBe(1);
+    expect(calls.bufferData).toEqual([{ sizeOrData: 64 * 3 * 28, usage: gl.DYNAMIC_DRAW }]);
+    expect(calls.enableVertexAttribArray).toEqual([0, 1, 2]);
+    expect(calls.vertexAttribPointer).toEqual([
+      { loc: 0, size: 4, type: gl.FLOAT, normalized: false, stride: 28, offset: 0 },
+      { loc: 1, size: 4, type: gl.UNSIGNED_BYTE, normalized: true, stride: 28, offset: 16 },
+      { loc: 2, size: 2, type: gl.FLOAT, normalized: false, stride: 28, offset: 20 },
+    ]);
+
+    calls.bindVertexArray.length = 0;
+    calls.bindBuffer = 0;
+    calls.bufferData.length = 0;
+    calls.enableVertexAttribArray.length = 0;
+    calls.vertexAttribPointer.length = 0;
+
+    const positions = new Float32Array([
+      -1, 2, 0.5, 1,
+      3, -4, 0.25, 2,
+      0, 0, 0, 0, // trailing capacity beyond numVertices must not be uploaded
+    ]);
+    const colours = new Uint32Array([0x11223344, 0xaabbccdd, 0xffffffff]);
+    const coords = new Float32Array([10.5, 20.25, -3.5, 4.75, 99, 99]);
+
+    renderer.setProgramState(positions, colours, coords, false, false, 0, 2);
+
+    // Changing combiner muxes compiles a new N64Shader without creating another VAO.
+    state.combine.hi = 0x00556677;
+    renderer.setProgramState(positions, colours, coords, false, false, 0, 2);
+
+    expect(calls.createVertexArray).toBe(1);
+    expect(calls.createBuffer).toBe(1);
+    expect(calls.bufferData).toEqual([]);
+    expect(calls.enableVertexAttribArray).toEqual([]);
+    expect(calls.vertexAttribPointer).toEqual([]);
+    expect(calls.bindBuffer).toBe(2);
+    expect(calls.bufferSubData).toHaveLength(2);
+
+    const upload = calls.bufferSubData[0];
+    expect(upload.dstByteOffset).toBe(0);
+    expect(upload.floats).toHaveLength(14);
+    expect(upload.floats.slice(0, 4)).toEqual([-1, 2, 0.5, 1]);
+    expect(upload.words[4]).toBe(0x11223344);
+    expect(upload.floats.slice(5, 7)).toEqual([10.5, 20.25]);
+    expect(upload.floats.slice(7, 11)).toEqual([3, -4, 0.25, 2]);
+    expect(upload.words[11]).toBe(0xaabbccdd);
+    expect(upload.floats.slice(12, 14)).toEqual([-3.5, 4.75]);
+  });
 });
 

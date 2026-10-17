@@ -33,12 +33,6 @@ export function runTMEMSamplingTests(gl) {
     gl.clear(gl.COLOR_BUFFER_BIT);
     renderer.setProgramState(positions, colors, new Float32Array([...uv, ...uv, ...uv]), enabled, false, 0);
     gl.disable(gl.BLEND);
-    // Copy's fixed combiner optimizes out attributes in the existing VA setup.
-    if (cycle === gbi.CycleType.G_CYC_COPY) {
-      while (gl.getError() !== gl.NO_ERROR) {
-        /* drain setup */
-      }
-    }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     const pixel = new Uint8Array(4);
     gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
