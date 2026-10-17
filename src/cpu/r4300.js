@@ -435,6 +435,7 @@ export class CPU0 {
     // Null means execution is outside a compiled fragment.
     this.fragmentOps = null;
     this.fragmentCycles = 0; // Instructions whose Count/event updates were flushed.
+    this.rspFragmentOps = 0;
 
     // Invalid-register reads return the last write, before masking. Keep fast
     // 32-bit writes as signed Numbers; the 64-bit path stores a BigInt.
@@ -540,10 +541,23 @@ export class CPU0 {
     this.eventQueue.incrementCount(cycles);
   }
 
+  flushFragmentCycles() {
+    if (this.fragmentOps !== null && this.fragmentOps > this.fragmentCycles) {
+      this.syncFragmentCycles(this.fragmentOps);
+    }
+  }
+
+  canContinueSelfLoop(opsExecuted, loopOps) {
+    this.fragmentOps = opsExecuted;
+    this.rspFragmentOps = opsExecuted;
+    return opsExecuted + loopOps <= this.fragmentCycles + this.eventQueue.cyclesToFirstEvent;
+  }
+
   finishFragment(opsExecuted) {
     this.syncFragmentCycles(opsExecuted);
     this.fragmentOps = null;
     this.fragmentCycles = 0;
+    this.rspFragmentOps = 0;
   }
 
   getRegS32Lo(r) { return this.gprS32[r * 2 + 0]; }
@@ -673,6 +687,7 @@ export class CPU0 {
     this.hardware.fragmentCache.reset();
     this.fragmentOps = null;
     this.fragmentCycles = 0;
+    this.rspFragmentOps = 0;
     this.compatibilityHacks = this.hardware.enableCompatibilityHacks ? getCompatibilityHacks(this.hardware.rominfo.id) : null;
 
     for (let i = 0; i < 32; ++i) {
@@ -1286,9 +1301,18 @@ export class CPU0 {
   }
 
   // Provide some wrappers to the event queue.
-  addEvent(type, cycles, handler) { return this.eventQueue.addEvent(type, cycles, handler); }
-  removeEvent(type) { return this.eventQueue.removeEvent(type); }
-  getCyclesUntilEvent(type) { return this.eventQueue.getCyclesUntilEvent(type); }
+  addEvent(type, cycles, handler) {
+    this.flushFragmentCycles();
+    return this.eventQueue.addEvent(type, cycles, handler);
+  }
+  removeEvent(type) {
+    this.flushFragmentCycles();
+    return this.eventQueue.removeEvent(type);
+  }
+  getCyclesUntilEvent(type) {
+    this.flushFragmentCycles();
+    return this.eventQueue.getCyclesUntilEvent(type);
+  }
   hasEvent(type) { return this.eventQueue.hasEvent(type); }
 
   addCompareEvent(cycles) {
@@ -2986,6 +3010,7 @@ function executeFragment(fragment, cpu0, eventQueue) {
   }
   fragment.executionCount++;
   cpu0.fragmentOps = 0;
+  cpu0.rspFragmentOps = 0;
   const opsExecuted = fragment.func();
   cpu0.finishFragment(opsExecuted);
 
@@ -2999,6 +3024,7 @@ function executeFragmentProfiled(fragment, cpu0, eventQueue) {
   }
   fragment.executionCount++;
   cpu0.fragmentOps = 0;
+  cpu0.rspFragmentOps = 0;
   const opsExecuted = fragment.func();
   performanceProfile.counters.fragmentRuns++;
   performanceProfile.counters.compiledOps += opsExecuted;
@@ -3127,10 +3153,8 @@ function buildSelfLoopBodyCode(fragment) {
   fragmentContext.opsCounterVar = null;
 
   // RSP steps and CPU MMIO can schedule an earlier event while the loop runs.
-  // Recheck the live deadline before starting another iteration. Event time is
-  // relative to the last cycle sync, so include the cycles already charged by
-  // this fragment (for example, by MFC0 Count).
-  return `const maxOps = c.eventQueue.cyclesToFirstEvent;\nlet opsExecuted = 0;\ndo {\n${fragment.bodyCode}opsExecuted += ${loopOps};\n} while (opsExecuted + ${loopOps} <= Math.min(maxOps, c.fragmentCycles + c.eventQueue.cyclesToFirstEvent));\nreturn opsExecuted;\n`;
+  // Recheck the live deadline before starting another iteration.
+  return `let opsExecuted = 0;\ndo {\n${fragment.bodyCode}opsExecuted += ${loopOps};\n} while (c.canContinueSelfLoop(opsExecuted, ${loopOps}));\nreturn opsExecuted;\n`;
 }
 
 function compileFragment(fragment, c = cpu0) {
