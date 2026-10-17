@@ -3,6 +3,12 @@ import { rcp16 } from '../../../rsp/rsp_recip.js';
 import * as gbi from '../gbi.js';
 import { GBI1 } from './gbi1.js';
 
+// Convert reciprocal products to quarter-pixel screen coordinates. The
+// reciprocal has 32 fractional bits and the input scale has 10; texture
+// coordinates carry another 5 fractional bits compared with integer texels.
+const TEXEL_TO_SUBPIXEL_DIVISOR = 0x100000;     // 2^(32 - 10 - 2)
+const TEXCOORD_TO_SUBPIXEL_DIVISOR = 0x2000000; // 2^(32 + 5 - 10 - 2)
+
 // The original gspSprite2D has a GBI1-style command dispatcher, but 0xBD and
 // 0xBE are Draw and ScaleFlip, not PopMatrix and CullDL. Keep them scoped to
 // positively identified sprite programs, including when debugging one op at a time.
@@ -140,7 +146,7 @@ function reciprocal(value) {
 // path walks the source backwards while destination rectangles still go down.
 function* sprite2DStrips(sp, scaleX, scaleY, flipX, flipY, x, y) {
   const invX = reciprocal(scaleX), invY = reciprocal(scaleY);
-  const width = Math.floor(invX * sp.width / 0x100000);
+  const width = Math.floor(invX * sp.width / TEXEL_TO_SUBPIXEL_DIVISOR);
   const x1 = Math.min(4095, x + width), x0 = Math.max(0, x);
   if (x1 <= x0) {
     return;
@@ -185,7 +191,7 @@ function* sprite2DStrips(sp, scaleX, scaleY, flipX, flipY, x, y) {
     }
     let t = startT + Math.floor(subpixel * scaleY / 128) * (flipY ? 1 : -1);
     const available = flipY ? t + 1 : (rows - 1) * 32 - startT;
-    nextY = Math.floor((y0 + Math.floor(invY * available / 0x2000000) + 4) / 4) * 4;
+    nextY = Math.floor((y0 + Math.floor(invY * available / TEXCOORD_TO_SUBPIXEL_DIVISOR) + 4) / 4) * 4;
     if (nextY >= 4095 || nextY <= y0) {
       return;
     }
@@ -200,7 +206,7 @@ function* sprite2DStrips(sp, scaleX, scaleY, flipX, flipY, x, y) {
       fraction = flippedFraction;
       if (sourceY <= sp.y) {
         t -= (sp.y - sourceY) * 32;
-        nextY = y0 + Math.floor(invY * t / 0x2000000) + (scaleY === 1024 ? 4 : 0);
+        nextY = y0 + Math.floor(invY * t / TEXCOORD_TO_SUBPIXEL_DIVISOR) + (scaleY === 1024 ? 4 : 0);
         done = true;
         sourceY = sp.y;
       }
@@ -210,7 +216,7 @@ function* sprite2DStrips(sp, scaleX, scaleY, flipX, flipY, x, y) {
       fraction = Math.floor(scaleY * (nextY - y0) / 128) + startT;
       if ((fraction >>> 5) + sourceY - sp.y >= sp.height) {
         lastY = sp.y + sp.height - (subpixel === 0 && scaleY >= 1024 ? 1 : 0);
-        nextY = y + Math.floor(invY * sp.height / 0x100000);
+        nextY = y + Math.floor(invY * sp.height / TEXEL_TO_SUBPIXEL_DIVISOR);
         done = true;
       }
     }
