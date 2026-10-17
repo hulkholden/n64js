@@ -472,9 +472,8 @@ export class RSP {
   unhalt() {
     // TODO: should this just check the status bits?
     this.halted = false;
-    const cpu0 = this.hardware.cpu0;
-    if (cpu0 && cpu0.fragmentOps !== null) {
-      cpu0.rspFragmentOps = cpu0.fragmentOps + 1;
+    if (this.hardware.cpu0.fragmentOps !== null) {
+      this.hardware.cpu0.rspFragmentOps = this.hardware.cpu0.fragmentOps + 1;
     }
 
     if (this.runEvent) {
@@ -503,9 +502,7 @@ export class RSP {
     this.executeOp(instr);
     this.pc = this.nextPC;
     this.delayPC = this.branchTarget;
-    if (this.hardware.cpu0) {
-      this.hardware.cpu0.rspFragmentOps++;
-    }
+    this.hardware.cpu0.rspFragmentOps++;
   }
 
   stepProfiled() {
@@ -521,9 +518,7 @@ export class RSP {
     this.executeOp(instr);
     this.pc = this.nextPC;
     this.delayPC = this.branchTarget;
-    if (this.hardware.cpu0) {
-      this.hardware.cpu0.rspFragmentOps++;
-    }
+    this.hardware.cpu0.rspFragmentOps++;
   }
 
   halt(statusBits) {
@@ -559,9 +554,8 @@ export class RSP {
   }
 
   moveFromControl(controlReg) {
-    const cpu0 = this.hardware.cpu0;
-    if (cpu0 && cpu0.fragmentOps !== null) {
-      cpu0.fragmentOps = cpu0.rspFragmentOps;
+    if (this.hardware.cpu0.fragmentOps !== null) {
+      this.hardware.cpu0.fragmentOps = this.hardware.cpu0.rspFragmentOps;
     }
     switch (controlReg) {
       case controlRegSPMemAddr:
@@ -588,9 +582,8 @@ export class RSP {
   }
 
   moveToControl(controlReg, value) {
-    const cpu0 = this.hardware.cpu0;
-    if (cpu0 && cpu0.fragmentOps !== null) {
-      cpu0.fragmentOps = cpu0.rspFragmentOps;
+    if (this.hardware.cpu0.fragmentOps !== null) {
+      this.hardware.cpu0.fragmentOps = this.hardware.cpu0.rspFragmentOps;
     }
     switch (controlReg) {
       case controlRegSPMemAddr:

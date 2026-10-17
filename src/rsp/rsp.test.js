@@ -6,6 +6,7 @@ import { initRSP, RSP } from './rsp.js';
 let rsp;
 beforeEach(() => {
   const hardware = {
+    cpu0: { fragmentOps: null, rspFragmentOps: 0 },
     sp_mem: new MemoryRegion(new ArrayBuffer(0x2000)),
     sp_ibist_mem: new MemoryRegion(new ArrayBuffer(8)),
   };
