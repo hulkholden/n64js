@@ -1,3 +1,10 @@
+const kPositionLocation = 0;
+const kColorLocation = 1;
+const kUVLocation = 2;
+
+export const kVertexStrideFloats = 7;
+export const kVertexStrideBytes = kVertexStrideFloats * Float32Array.BYTES_PER_ELEMENT;
+const kMaxBatchVertices = 64 * 3;
 
 export class VertexArray {
   constructor(gl) {
@@ -7,6 +14,10 @@ export class VertexArray {
     this.posBuffer = null;
     this.uvBuffer = null;
     this.colBuffer = null;
+    this.interleavedBuffer = null;
+    this.interleavedData = null;
+    this.interleavedFloats = null;
+    this.interleavedUints = null;
   }
 
   bind() {
@@ -15,6 +26,60 @@ export class VertexArray {
 
   unbind() {
     this.gl.bindVertexArray(null);
+  }
+
+  initInterleavedN64Attrs(maxVertices = kMaxBatchVertices) {
+    const gl = this.gl;
+    this.interleavedData = new ArrayBuffer(maxVertices * kVertexStrideBytes);
+    this.interleavedFloats = new Float32Array(this.interleavedData);
+    this.interleavedUints = new Uint32Array(this.interleavedData);
+
+    const buffer = gl.createBuffer();
+    this.interleavedBuffer = buffer;
+
+    this.bind();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.interleavedData.byteLength, gl.DYNAMIC_DRAW);
+
+    gl.enableVertexAttribArray(kPositionLocation);
+    gl.vertexAttribPointer(kPositionLocation, 4, gl.FLOAT, false, kVertexStrideBytes, 0);
+
+    gl.enableVertexAttribArray(kColorLocation);
+    gl.vertexAttribPointer(kColorLocation, 4, gl.UNSIGNED_BYTE, true, kVertexStrideBytes, 16);
+
+    gl.enableVertexAttribArray(kUVLocation);
+    gl.vertexAttribPointer(kUVLocation, 2, gl.FLOAT, false, kVertexStrideBytes, 20);
+    this.unbind();
+  }
+
+  setInterleavedData(positions, colours, coords, numVertices = positions.length >>> 2) {
+    const gl = this.gl;
+    if (numVertices * kVertexStrideFloats > this.interleavedFloats.length) {
+      this.interleavedData = new ArrayBuffer(numVertices * kVertexStrideBytes);
+      this.interleavedFloats = new Float32Array(this.interleavedData);
+      this.interleavedUints = new Uint32Array(this.interleavedData);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.interleavedBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, this.interleavedData.byteLength, gl.DYNAMIC_DRAW);
+    } else {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.interleavedBuffer);
+    }
+
+    const floats = this.interleavedFloats;
+    const uints = this.interleavedUints;
+    for (let i = 0; i < numVertices; i++) {
+      const dst = i * kVertexStrideFloats;
+      const posIdx = i * 4;
+      const uvIdx = i * 2;
+      floats[dst] = positions[posIdx];
+      floats[dst + 1] = positions[posIdx + 1];
+      floats[dst + 2] = positions[posIdx + 2];
+      floats[dst + 3] = positions[posIdx + 3];
+      uints[dst + 4] = colours[i];
+      floats[dst + 5] = coords[uvIdx];
+      floats[dst + 6] = coords[uvIdx + 1];
+    }
+
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, floats, 0, numVertices * kVertexStrideFloats);
   }
 
   initPosAttr(program, attrName) {

@@ -107,13 +107,6 @@ try {
       renderer.setProgramState(positions, colors, coords, enabled, texgen, tileIndex);
       // Inspect the combiner result directly, including its alpha channel.
       gl.disable(gl.BLEND);
-      // Existing VertexArray setup enables inactive attributes in copy/fill
-      // and custom combiners; discard setup errors for those shader variants.
-      if (cycle === gbi.CycleType.G_CYC_COPY || cycle === gbi.CycleType.G_CYC_FILL || combine) {
-        while (gl.getError() !== gl.NO_ERROR) {
-          /* drain setup errors */
-        }
-      }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
     const actual = new Uint8Array(4);
@@ -595,10 +588,6 @@ try {
     lines.push(`PASS ${name}`);
     passed++;
   }
-  // Ignore inactive UV attribute setup errors as the sampler checks do above.
-  while (gl.getError() !== gl.NO_ERROR) {
-    /* drain setup errors */
-  }
   clearDepthScene();
   state.noNearClipping = true;
   drawDepth([-4, -4, -4], 0xff0000ff);
@@ -792,9 +781,6 @@ try {
       }
       lines.push(`PASS ${name}`);
       passed++;
-    }
-    while (gl.getError() !== gl.NO_ERROR) {
-      /* drain earlier shader setup errors */
     }
     clearImage(0, RED);
     clearImage(16, GREEN);

@@ -68,8 +68,15 @@ export class Renderer extends RendererBase {
     this.fillFillColorUniform = gl.getUniformLocation(this.fillShaderProgram, "uFillColor");
     this.fillRectVA = this.initFillRectVA(this.fillShaderProgram);
     this.debugClearVA = this.initClearVA(this.fillShaderProgram);
+    this.n64VA = this.initN64VA();
 
     this.currentShader = new CurrentShader();
+  }
+
+  initN64VA() {
+    const va = new VertexArray(this.gl);
+    va.initInterleavedN64Attrs();
+    return va;
   }
 
   get frameBuffer() { return this.renderTargets.current.framebuffer; }
@@ -552,11 +559,9 @@ export class Renderer extends RendererBase {
     gl.useProgram(shader.program);
     gl.uniform1i(shader.uAffineUVUniform, affineUV ? 1 : 0);
 
-    // TODO: just return the shader and do the binding at the call site?
-    shader.vertexArray.bind();
-    shader.vertexArray.setPosData(positions, gl.DYNAMIC_DRAW, numVertices * 4);
-    shader.vertexArray.setColorData(colours, gl.DYNAMIC_DRAW, numVertices);
-    shader.vertexArray.setUVData(coords, gl.DYNAMIC_DRAW, numVertices * 2);
+    this.n64VA ??= this.initN64VA();
+    this.n64VA.bind();
+    this.n64VA.setInterleavedData(positions, colours, coords, numVertices);
 
     this.tmemTexture.bind(this.state.tmem);
     gl.uniform1i(shader.uTMEMUniform, 0);

@@ -1,7 +1,6 @@
 import * as gbi from './gbi.js';
 import * as logger from '../../logger.js';
 import { assert } from '../../assert.js';
-import { VertexArray } from './vertex_array.js';
 import vertexSource from './shaders/n64.vert.glsl' with { type: 'text' };
 import fragmentSource from './shaders/n64.frag.glsl' with { type: 'text' };
 import tmemSource from './shaders/tmem.glsl' with { type: 'text' };
@@ -224,11 +223,6 @@ class N64Shader {
   constructor(gl, program, shaderSource) {
     this.program = program;
     this.shaderSource = shaderSource;
-
-    this.vertexArray = new VertexArray(gl);
-    this.vertexArray.initPosAttr(program, "aPosition");
-    this.vertexArray.initUVsAttr(program, "aUV");
-    this.vertexArray.initColorAttr(program, "aColor");
 
     this.uTextureFilterUniform   = gl.getUniformLocation(program, "uTextureFilter");
     this.uTextureRectEnabledUniform = gl.getUniformLocation(program, "uTextureRectEnabled");
