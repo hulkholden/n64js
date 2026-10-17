@@ -1,0 +1,3 @@
+interface:
+  display_name: "N64js Inventory"
+  short_description: "Run ROM inventories and compare compatibility progress"
