@@ -418,7 +418,6 @@ export class CPU0 {
     this.controlRegU32 = new Uint32Array(controlMem);
     this.controlRegS32 = new Int32Array(controlMem);
     this.controlRegU64 = new BigUint64Array(controlMem);
-    this.controlRegS64 = new BigInt64Array(controlMem);
     // This tracks the number of instructions executed.
     // Reads from the COUNT register return half this value
     // (i.e. COUNT increments by 1 for every 2 instructions executed).
@@ -639,21 +638,12 @@ export class CPU0 {
       this.currentASID = v & TLBHI_PIDMASK32;
     }
   }
-  setControlS32(r, v) {
-    this.controlRegS32[r * 2 + 0] = v;
-    if (r === cpu0reg.controlEntryHi) {
-      this.currentASID = v & TLBHI_PIDMASK32;
-    }
-  }
   getControlU32(r) { return this.controlRegU32[r * 2 + 0]; }
   getControlS32(r) { return this.controlRegS32[r * 2 + 0]; }
 
   setControlS32Extend(r, v) {
-    this.controlRegS32[r * 2 + 0] = v;
     this.controlRegS32[r * 2 + 1] = v >> 31;
-    if (r === cpu0reg.controlEntryHi) {
-      this.currentASID = v & TLBHI_PIDMASK32;
-    }
+    this.setControlU32(r, v);
   }
 
   setControlU64(r, v) {
@@ -662,57 +652,20 @@ export class CPU0 {
       this.currentASID = this.controlRegU32[cpu0reg.controlEntryHi * 2] & TLBHI_PIDMASK32;
     }
   }
-  setControlS64(r, v) {
-    this.controlRegS64[r] = v;
-    if (r === cpu0reg.controlEntryHi) {
-      this.currentASID = this.controlRegU32[cpu0reg.controlEntryHi * 2] & TLBHI_PIDMASK32;
-    }
-  }
   getControlU64(r) { return this.controlRegU64[r]; }
-  getControlS64(r) { return this.controlRegS64[r]; }
 
   maskControlBits32(r, mask, value) {
-    const idx = r * 2 + 0;
-    const updated = (this.controlRegU32[idx] & ~mask) | (value & mask);
-    this.controlRegU32[idx] = updated;
-    if (r === cpu0reg.controlEntryHi) {
-      this.currentASID = updated & TLBHI_PIDMASK32;
-    }
+    this.setControlU32(r, (this.controlRegU32[r * 2 + 0] & ~mask) | (value & mask));
   }
-
   setControlBits32(r, value) {
-    const updated = this.controlRegU32[r * 2 + 0] | value;
-    this.controlRegU32[r * 2 + 0] = updated;
-    if (r === cpu0reg.controlEntryHi) {
-      this.currentASID = updated & TLBHI_PIDMASK32;
-    }
+    this.setControlU32(r, this.controlRegU32[r * 2 + 0] | value);
   }
   clearControlBits32(r, value) {
-    const updated = this.controlRegU32[r * 2 + 0] & ~value;
-    this.controlRegU32[r * 2 + 0] = updated;
-    if (r === cpu0reg.controlEntryHi) {
-      this.currentASID = updated & TLBHI_PIDMASK32;
-    }
+    this.setControlU32(r, this.controlRegU32[r * 2 + 0] & ~value);
   }
 
   maskControlBits64(r, mask, value) {
-    this.controlRegU64[r] = (this.controlRegU64[r] & ~mask) | (value & mask);
-    if (r === cpu0reg.controlEntryHi) {
-      this.currentASID = this.controlRegU32[cpu0reg.controlEntryHi * 2] & TLBHI_PIDMASK32;
-    }
-  }
-
-  setControlBits64(r, value) {
-    this.controlRegU64[r] |= value;
-    if (r === cpu0reg.controlEntryHi) {
-      this.currentASID = this.controlRegU32[cpu0reg.controlEntryHi * 2] & TLBHI_PIDMASK32;
-    }
-  }
-  clearControlBits64(r, value) {
-    this.controlRegU64[r] &= ~value;
-    if (r === cpu0reg.controlEntryHi) {
-      this.currentASID = this.controlRegU32[cpu0reg.controlEntryHi * 2] & TLBHI_PIDMASK32;
-    }
+    this.setControlU64(r, (this.controlRegU64[r] & ~mask) | (value & mask));
   }
 
   reset() {

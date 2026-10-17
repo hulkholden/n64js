@@ -185,11 +185,11 @@ describe('cached TLB lookup', () => {
     cpu.moveToControl(regs.controlEntryHi, 0x34n);
     expect(cpu.currentASID).toBe(0x34);
     expect(cpu.translateRead(base)).toBe(0x4000);
-    cpu.setControlS32(regs.controlEntryHi, 0x12);
+    cpu.setControlU32(regs.controlEntryHi, 0x12);
     expect(cpu.translateRead(base)).toBe(0x2000);
     cpu.setControlS32Extend(regs.controlEntryHi, 0x34);
     expect(cpu.translateRead(base)).toBe(0x4000);
-    cpu.setControlS64(regs.controlEntryHi, 0x12n);
+    cpu.setControlU64(regs.controlEntryHi, 0x12n);
     expect(cpu.translateRead(base)).toBe(0x2000);
     cpu.maskControlBits32(regs.controlEntryHi, 0xff, 0x34);
     expect(cpu.translateRead(base)).toBe(0x4000);
@@ -197,11 +197,6 @@ describe('cached TLB lookup', () => {
     cpu.setControlBits32(regs.controlEntryHi, 0x02);
     expect(cpu.translateRead(base)).toBe(0x2000);
     cpu.maskControlBits64(regs.controlEntryHi, 0xffn, 0x34n);
-    expect(cpu.translateRead(base)).toBe(0x4000);
-    cpu.clearControlBits64(regs.controlEntryHi, 0x24n);
-    cpu.setControlBits64(regs.controlEntryHi, 0x02n);
-    expect(cpu.translateRead(base)).toBe(0x2000);
-    cpu.moveToControl(regs.controlEntryHi, 0x34n);
     expect(cpu.translateRead(base)).toBe(0x4000);
     cpu.setControlU32(regs.controlIndex, 2);
     cpu.tlbRead();

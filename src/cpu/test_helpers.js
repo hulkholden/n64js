@@ -138,7 +138,7 @@ export function advanceCycles(cpu, cycles) {
 export function writeTLBEntry(cpu, index, entryHi, lo0 = 0x87, lo1 = 0xc7, pageMask = 0) {
   cpu.setControlU32(regs.controlIndex, index);
   cpu.setControlU32(regs.controlPageMask, pageMask);
-  cpu.setControlS64(regs.controlEntryHi, BigInt(entryHi | 0));
+  cpu.setControlU64(regs.controlEntryHi, BigInt(entryHi | 0));
   cpu.setControlU32(regs.controlEntryLo0, lo0);
   cpu.setControlU32(regs.controlEntryLo1, lo1);
   cpu.tlbWriteIndex();
