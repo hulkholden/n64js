@@ -58,48 +58,38 @@ export function dispatchGraphicsTask(hardware, mode, task) {
   // Reject other unsupported protocols even when headless graphics are skipped.
   microcodes.assertHLESupported(microcode);
   const ev = hardware.timeline.startEvent(`HLE Task ${microcode.version}`);
-  let continuation = null;
-
-  // TODO: implement Factor 5's Indiana Jones microcode. Its linked display
-  // lists loop indefinitely in the GBI0 fallback. Skip parsing them while
-  // preserving normal task completion and interrupts for the guest.
-  if (microcode.id === MicrocodeId.F5_INDI) {
-    if (!warnedF5Indi) {
-      logger.log('Skipping unsupported Factor 5 Indiana Jones graphics microcode');
-      warnedF5Indi = true;
+  // Defer execution as well as SP completion so the submitting CPU can publish
+  // its task state before either SP or DP interrupts it. Deferring only SP lets
+  // the CPU handle FullSync while SP still appears busy, eventually stalling
+  // Utchan Nanchan's scheduler. Taz Express also needs the submission delay.
+  // The SP event supplies nominal latency, not an RSP timing model.
+  let continuation = () => {
+    // TODO: implement Factor 5's Indiana Jones microcode. Its linked display
+    // lists loop indefinitely in the GBI0 fallback. Skip parsing them while
+    // preserving normal task completion and interrupts for the guest.
+    if (microcode.id === MicrocodeId.F5_INDI) {
+      if (!warnedF5Indi) {
+        logger.log('Skipping unsupported Factor 5 Indiana Jones graphics microcode');
+        warnedF5Indi = true;
+      }
+      hardware.miRegDevice.interruptDP();
+      return null;
     }
-    hardware.miRegDevice.interruptDP();
-  } else {
-    continuation = hardware.graphics.processTask(task);
-  }
-
-  const complete = () => {
-    // SP completion is independent of DP: only an executed FullSync
-    // requests a DP interrupt, and some games split a frame over tasks.
+    return hardware.graphics.processTask(task);
+  };
+  const resume = () => {
+    continuation = continuation();
+    if (continuation) {
+      return resume;
+    }
+    // FullSync still signals DP where it occurs in the list, including before
+    // a CPU producer wait. SP-only lists must not invent a DP interrupt.
     if (ev) {
       ev.stop();
     }
-  };
-  if (continuation) {
-    const resume = () => {
-      continuation = continuation();
-      if (continuation) {
-        return resume;
-      }
-      complete();
-      return null;
-    };
-    return resume;
-  }
-  // Even a fully consumed list must finish asynchronously. Instant SP
-  // completion can wake the guest's completion thread before its submitting
-  // thread has returned from queuing the task (Taz Express requeues the same
-  // framebuffer and deadlocks). Use the SP continuation event's nominal
-  // latency; FullSync still signals DP independently when it executes.
-  return () => {
-    complete();
     return null;
   };
+  return resume;
 }
 
 export function initialiseRenderer(canvas) {

@@ -30,7 +30,7 @@ const pcWritableBits = 0xffc;
 const kSPDMAEvent = 'SP DMA';
 const kHLETaskEvent = 'HLE task wait';
 // Poll in emulated time so CPU producers and inventory cycle limits can run.
-// Also supplies a nominal latency for otherwise synchronous HLE graphics tasks;
+// Also supplies a nominal latency before executing HLE graphics tasks;
 // this is a scheduling approximation, not an RSP instruction timing model.
 const hleWaitCycles = 1000;
 
@@ -144,7 +144,10 @@ export class SPRegDevice extends Device {
     const cpu = this.hardware.cpu0;
     if (cpu.hasEvent(kHLETaskEvent)) { return; }
     cpu.addEvent(kHLETaskEvent, hleWaitCycles, () => {
-      const result = this.hleTask();
+      const resume = this.hleTask;
+      // A failing continuation must not remain resumable after a fatal halt.
+      this.hleTask = null;
+      const result = resume();
       this.hleTask = typeof result === 'function' ? result : null;
       if (this.hleTask) {
         this.scheduleHLETask();
