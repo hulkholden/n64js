@@ -7,12 +7,6 @@ import * as s2dex2 from './s2dex2_constants.js';
 import { GBI1 } from "./gbi1";
 import { GBI2 } from "./gbi2";
 
-// Where do these fit in?
-// const ucodeSprite2d = {
-//   0xbe: executeSprite2dScaleFlip,
-//   0xbd: executeSprite2dDraw
-// };
-
 // Preserve the existing exports using the shared RDP command definitions.
 export const {
   FillTriangle,

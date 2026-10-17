@@ -25,6 +25,7 @@ import {
   RED,
   WHITE,
 } from './webgl_test_helpers.js';
+import { runSprite2DTests } from './sprite2d_webgl.js';
 import { runHLECommandTests } from './hle_commands_webgl.js';
 import { runTMEMSamplingTests } from './tmem_sampling_webgl.js';
 
@@ -815,6 +816,7 @@ try {
     runModifyVertexTests,
     runPresentationTests,
     runHLECommandTests,
+    runSprite2DTests,
   ];
   for (const runSuite of suiteRunners) {
     const results = runSuite(gl);

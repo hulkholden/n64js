@@ -946,8 +946,8 @@ export class GBIMicrocode {
     const tileIdx = (cmd1 >>> 24) & 0x7;
     const xl = ((cmd1 >>> 12) & 0xfff) / 4.0;
     const yl = ((cmd1 >>> 0) & 0xfff) / 4.0;
-    const s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
-    const t0 = ((cmd2 >>> 0) & 0xffff) / 32.0;
+    const s0 = (cmd2 >> 16) / 32.0;
+    const t0 = ((cmd2 << 16) >> 16) / 32.0;
     // NB - signed value
     let dsdx = ((cmd3 | 0) >> 16) / 1024.0;
     const dtdy = ((cmd3 << 16) >> 16) / 1024.0;
