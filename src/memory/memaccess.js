@@ -10,14 +10,27 @@
 // Exclusive end of the 8 MiB KSEG0 RAM window, expressed as a signed address.
 export const kKseg0RamEndS32 = 0x8080_0000 | 0;
 
-let getMemoryHandler;
+let memoryMap;
+let ram;
 let ramDV;
 let cpu0;
 
 export function reset(hardware, c0) {
-  getMemoryHandler = hardware.memMap.getMemoryHandler.bind(hardware.memMap);
+  memoryMap = hardware.memMap;
+  ram = hardware.ram;
   ramDV = hardware.cachedMemDevice.mem.dataView;
   cpu0 = c0;
+}
+
+function getMemoryHandler(addr) {
+  const handler = memoryMap.getMemoryHandler(addr);
+  // Device reads can depend on elapsed time, and writes can create deadlines.
+  // Keep this on the slow path, after alignment checks. Cached, uncached and
+  // TLB-mapped RAM all retain deferred fragment accounting.
+  if (handler.mem !== ram) {
+    cpu0.syncFragmentForDeviceAccess();
+  }
+  return handler;
 }
 
 export function store32masked(addr, value, mask) { getMemoryHandler(addr).write32masked(addr, value, mask); }
