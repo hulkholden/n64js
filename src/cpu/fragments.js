@@ -27,6 +27,9 @@ export class Fragment {
     this.cachedFunc       = undefined;
     this.instructionPCs   = [];
     this.instructionWords = [];
+    this.instructionPages = new Map(); // Mapped virtual page -> physical page.
+    this.tlbGeneration    = -1;
+    this.asid             = -1;
     this.traceSteps       = [];
     this.cacheBuckets     = new Set();
     this.opsCompiled      = 0;
@@ -69,6 +72,9 @@ export class Fragment {
     this.cachedFunc       = undefined;
     this.instructionPCs   = [];
     this.instructionWords = [];
+    this.instructionPages.clear();
+    this.tlbGeneration    = -1;
+    this.asid             = -1;
     this.traceSteps       = [];
     this.opsCompiled      = 0;
     this.executionCount   = 0;
