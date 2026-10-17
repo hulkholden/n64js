@@ -39,10 +39,10 @@ function withRAM(ram, fn) {
 }
 
 describe('Sprite2D dispatch', () => {
-  test('identifies both code prefixes despite different trailing data and the shared Fast3D version', () => {
+  test('identifies XBUS and FIFO code prefixes despite trailing data and the shared Fast3D version', () => {
     const version = 'RSP SW Version: 2.0H, 02-12-97';
-    for (const prefix of [0xaed514f8, 0x6abfc6f8]) {
-      for (const hash of [0xcfca6039, 0x3794043d, 0x2b413a55, 0]) {
+    for (const prefix of [0xaed514f8, 0x6abfc6f8, 0xac7799c3, 0x25a1cbc3]) {
+      for (const hash of [0xcfca6039, 0x3794043d, 0x63376c7b, 0xad2dc4e7, 0]) {
         expect(identifyMicrocode(version, hash, prefix)).toMatchObject({
           id: MicrocodeId.SPRITE2D, family: 'Sprite2D', detection: 'hash',
         });
@@ -51,7 +51,9 @@ describe('Sprite2D dispatch', () => {
           .toBeInstanceOf(Sprite2D);
       }
     }
-    expect(identifyMicrocode(version, 0)).toMatchObject({ id: MicrocodeId.GBI0, detection: 'fallback' });
+    for (const prefix of [null, 0x08abaaa9, 0xac7799c2, 0x25a1cbc2]) {
+      expect(identifyMicrocode(version, 0, prefix)).toMatchObject({ id: MicrocodeId.GBI0, detection: 'fallback' });
+    }
     // The same opcodes still cull and pop matrices in Fast3D.
     const { state, ram } = harness();
     const fast = new GBI0(state, ram);
