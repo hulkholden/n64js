@@ -3126,7 +3126,11 @@ function buildSelfLoopBodyCode(fragment) {
   flushDelayedPCUpdate(fragment, fragmentContext);
   fragmentContext.opsCounterVar = null;
 
-  return `const maxOps = c.eventQueue.cyclesToFirstEvent;\nlet opsExecuted = 0;\ndo {\n${fragment.bodyCode}opsExecuted += ${loopOps};\n} while (opsExecuted + ${loopOps} <= maxOps);\nreturn opsExecuted;\n`;
+  // RSP steps and CPU MMIO can schedule an earlier event while the loop runs.
+  // Recheck the live deadline before starting another iteration. Event time is
+  // relative to the last cycle sync, so include the cycles already charged by
+  // this fragment (for example, by MFC0 Count).
+  return `const maxOps = c.eventQueue.cyclesToFirstEvent;\nlet opsExecuted = 0;\ndo {\n${fragment.bodyCode}opsExecuted += ${loopOps};\n} while (opsExecuted + ${loopOps} <= Math.min(maxOps, c.fragmentCycles + c.eventQueue.cyclesToFirstEvent));\nreturn opsExecuted;\n`;
 }
 
 function compileFragment(fragment, c = cpu0) {

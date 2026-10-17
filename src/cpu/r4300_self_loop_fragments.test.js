@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { performanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
+import { SP_DRAM_ADDR_REG, SP_MEM_ADDR_REG } from '../devices/sp_constants.js';
 import * as regs from './cpu0reg.js';
 import {
   ADDIU_T0_1,
@@ -251,6 +252,65 @@ describe('self-looping fragments and self-loop cutoff', () => {
       expect(states[1]).toEqual(states[0]);
     }
   });
+
+  for (const loopOps of [4, 12]) {
+    for (const syncCount of [false, true]) {
+      for (const profiled of [false, true]) {
+        test(`${loopOps}-op loop respects a new RSP DMA deadline, Count sync=${syncCount}, profiling=${profiled}`, async () => {
+          const words = Array(loopOps).fill(ADDIU_T0_1);
+          if (syncCount) {
+            words[1] = 0x400b4800; // MFC0 t3, Count: charges preceding fragment cycles.
+          }
+          words[loopOps - 2] = iop(4, 0, 0, -(loopOps - 1)); // BEQ zero, zero, loop
+          words[loopOps - 1] = iop(9, 10, 10, 1); // ADDIU t2, t2, 1
+          const deadline = loopOps * 4;
+          const states = [];
+          for (const compiled of [false, true]) {
+            const { e, cpu, h, entry } = await createLoopFixture(words);
+            cpu.pc = entry;
+            cpu.delayPC = null;
+            if (compiled) {
+              const fragment = compileFragmentAt(cpu, entry, loopOps);
+              expect(fragment.opsCompiled).toBe(loopOps);
+              expect(fragment.getCode()).toContain('do {');
+            }
+
+            cpu.pc = entry;
+            cpu.delayPC = null;
+            cpu.controlCountValue = 0;
+            cpu.opsExecuted = 0;
+            cpu.gprU32.fill(0);
+
+            // The first RSP instruction starts a real DMA after the compiled
+            // loop has read its original (much later) run-budget deadline.
+            const sp = h.spRegDevice;
+            sp.write32(0xa4040000 + SP_MEM_ADDR_REG, 0);
+            sp.write32(0xa4040000 + SP_DRAM_ADDR_REG, 0x4000);
+            h.sp_mem.clear();
+            h.rsp.imem.set32(0, 0x40881000); // MTC0 t0, SP_RD_LEN
+            h.rsp.setRegU32(8, deadline * 8 - 1);
+            h.rsp.halted = false;
+            const dmaComplete = sp.dmaComplete;
+            let completion;
+            sp.dmaComplete = function () {
+              dmaComplete.call(this);
+              completion = { cycles: cpu.controlCountValue, rspPC: h.rsp.pc };
+              cpu.breakExecution();
+            };
+
+            setPerformanceProfiling(profiled);
+            cpu.run(loopOps * 10);
+            expect(e.fatalError()).toBeNull();
+            expect(completion).toEqual({ cycles: deadline, rspPC: deadline * 4 });
+            expect(sp.dmaQueue).toHaveLength(0);
+            states.push(captureState(cpu, h));
+            setPerformanceProfiling(false);
+          }
+          expect(states[1]).toEqual(states[0]);
+        });
+      }
+    }
+  }
 
   test('rotated loop entered at its 2-op branch test traces across the back-edge and stops when falling through to entryPC', async () => {
     // Classic compiler while-loop layout entered at test (0x80001008):
