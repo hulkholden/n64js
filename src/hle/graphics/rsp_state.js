@@ -131,6 +131,8 @@ export class RSPState {
     this.cmd1 = 0;
     this.currentOp = 0;
     this.bailAfter = -1;
+    // Texture-rectangle S/T starts with fresh RSP task data.
+    this.rdpHalf1Cmd1 = 0;
     // Only live task execution supplies this callback; debugger replays must
     // not generate new guest interrupts.
     this.onFullSync = onFullSync;
