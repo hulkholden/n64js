@@ -1,6 +1,6 @@
 # n64js
 
-n64js is an n64 emulator written in (mostly) pure ES6 JavaScript. It runs many roms at full framerate.
+n64js is a Nintendo 64 emulator written in modern JavaScript that runs directly in your browser. It runs many ROMs at full framerate.
 
 ## Why?
 
@@ -8,269 +8,92 @@ Mostly for the challenge. I've spent ~25 years (on and off) working on N64 emula
 
 ## How To Run
 
-A hosted version is available on GitHub pages at https://hulkholden.github.io/n64js/.
+A hosted version is available on GitHub Pages at https://hulkholden.github.io/n64js/.
 
-## Development
+Click **Load** in the toolbar and choose a local N64 ROM file (`.z64`, `.v64`, or `.n64`). ROMs and save data stay locally in your browser.
 
-Install `bun`: https://bun.sh/.
+## Controls
 
-Install dependencies from the repository root:
+n64js supports both the keyboard and standard gamepads (via the browser's Gamepad API).
 
-```
-bun install
-```
+| N64 Input | Keyboard | Standard Gamepad |
+| --- | --- | --- |
+| **Analog Stick** | Arrow keys | Left Stick |
+| **Start** | `A` | Start |
+| **A** | `S` | Bottom face button (A / Cross) |
+| **B** | `X` | Right face button (B / Circle) |
+| **Z** | `Z` or `Y` | Right Trigger (R2 / RT) |
+| **L / R** | `C` / `V` | Left / Right Bumper (L1 / R1) |
+| **D-Pad** | `T` / `F` / `G` / `H` | D-Pad |
+| **C-Buttons** | `I` / `J` / `K` / `L` | Hold Left Trigger (L2 / LT) + face buttons |
 
-Compile sources (add `--watch` to automatically recompile on any change):
+## Graphics and Display Options
 
-```
-bun run build
-```
+Display settings are available in the floating options panel under **Graphics**:
 
-The generated `build/` directory is ignored by Git. Build locally before running
-the site. The footer shows `development` by default; to preview a release version,
-run `BUILD_VERSION=v1.0.1 bun run build`. `bun run build-debug` produces an
-unminified bundle with the same version handling. The Pages workflow sets
-`BUILD_VERSION` to the tag that triggered deployment.
-
-Run a local webserver in the root directory:
-
-```
-python3 -m http.server
-```
-
-Navigate to http://localhost:8000/.
-
-### Headless controller input
-
-Bun scripts can set controller input through the live `inputs` array returned by
-`createHeadlessEmulator`. For example, from a script in the repository root:
-
-```js
-import { createHeadlessEmulator, loadROMFile, runCycles } from './src/headless/headless_env.js';
-
-const emulator = await createHeadlessEmulator(await loadROMFile('path/to/game.z64'));
-const controller = emulator.inputs[0];
-controller.buttons = 0x1000; // Hold Start.
-controller.stick_x = -80;
-controller.stick_y = 0;
-runCycles(emulator, 10_000_000);
-controller.buttons = 0; // Release Start and centre the stick.
-controller.stick_x = 0;
-runCycles(emulator, 10_000_000);
-```
-
-`buttons` is a 16-bit button mask; `stick_x` and `stick_y` are signed 8-bit values.
-Update fields on the existing objects rather than replacing array entries. Each
-fresh emulator has four independent, neutral input states; only port 0 is
-connected by default. Changing input state does not connect another port.
-
-Pass `{ executeGraphics: true }` to `createHeadlessEmulator` when investigating
-graphics tasks or guest scheduling. This executes HLE display lists without
-pixels and raises DP interrupts on FullSync commands. The default skips lists
-and approximates one DP interrupt per task; games that split a frame across
-tasks, such as Griffey Slugfest and MLB, can stall under that approximation.
-
-The shared GBI display-list runner bounds synchronous work to one million
-commands, checked between batches. Exceeding that host safeguard raises
-`DisplayListLimitError`; inventory reports retain it as a halt with exception
-evidence, rather than claiming task completion. CPU producer waits receive a
-fresh budget on resume. Object-list microcodes use separate execution paths.
-
-### Querying graphics modes in ROM inventories
-
-New inventory runs collect distinct draw-time RDP states in
-`graphics.drawModes`. Query saved reports or an inventory directory:
-
-```sh
-bun run inventory-query /path/to/inventory --blend-mode 0xc811
-bun run inventory-query /path/to/inventory --blend-mode 0xc811 --cycle-type 2cycle
-bun run inventory-query /path/to/inventory --cycle-type copy --texture RGBA16
-bun run inventory-summary /path/to/inventory
-```
-
-`--blend-mode` accepts a decimal or `0x`-prefixed 16-bit value: the complete
-blender mux (`otherModeL >>> 16`), including both cycles. `--cycle-type` accepts
-`1cycle`, `2cycle`, `copy`, or `fill`. Combined blender/cycle filters must match
-the same draw state; microcode and texture filters need only match the same run.
-The summary exposes all collected states so you can discover values to query.
-
-Each state stores unsigned `otherModeH`, `otherModeL`, `combineHi`, and
-`combineLo` words plus a `draws` count. The command opcode byte is removed
-from `otherModeH`. Observations cover headless HLE and raw
-RDP draw submissions, including rectangles, untextured triangles, lines, and
-clears. Counts represent renderer submissions (triangle batches count once),
-not pixels or individual triangles. A recorded blender or combiner setting may
-be inactive in that cycle type; this is evidence of submitted state, not visible
-blending. Configured states never submitted to a draw are excluded.
-
-Older reports without this collector return **unknown** and need a new scan for
-graphics-mode coverage. A supported empty collector means **not observed** in
-that run. Partial runs can still supply matches; absence is not proof that a ROM
-never uses a mode.
-
-## Continuous integration
-
-Pull requests run three GitHub Actions workflows. Open the failing check on the
-PR for its logs and download the run's artifacts when investigating a failure.
-
-### Lint, tests and build
-
-The [CI workflow](.github/workflows/build.yml) runs ESLint, Bun tests and the
-production build on pull requests and pushes to `main`. Run the same checks
-locally from the repository root:
-
-```sh
-bun run lint
-bun test
-bun run build
-```
-
-Use `bun run lint:fix` to apply automatic lint fixes. Linting covers `src/`,
-including tests and benchmarks, `tools/`, and the ESLint config. Warnings fail
-the check as well as errors. Existing `no-unused-vars` findings are recorded in
-`eslint-suppressions.json` as a baseline of counts per file; increases fail CI.
-Other recommended rules remain fully enforced. When cleaning up existing unused
-variables, run `bun run lint --prune-suppressions` and commit the reduced baseline.
-
-Conditionals and loops require braces and multiline bodies. `bun run lint:fix`
-adds the braces, line breaks and indentation automatically. Device implementations
-in `src/devices/` may use compact braced blocks such as `if (flag) { update(); }`
-to keep register handling and conditional logging readable; device tests and
-benchmarks follow the normal multiline rule. Short functions may remain on one
-line.
-
-### N64 system tests
-
-The [system-test workflow](.github/workflows/systemtest.yml) builds pinned test
-ROMs from source and compares the PR against its base. It checks the main, TLB
-and 64-bit-addressing groups for new failures and lost coverage. The
-`n64-systemtest` artifact contains logs and JSON results for both revisions.
-See the [system-test guide](tools/systemtest/README.md) for comparison policy,
-configuration and debugging.
-
-### Texture sampler visuals
-
-The [texture-sampler workflow](.github/workflows/texture-sampler.yml) runs GPU
-pixel checks and compares synthetic rendered scenes with golden images in
-pinned Chromium with SwiftShader. It also verifies that a deliberately introduced
-sampling regression is detected. The `texture-sampler-visuals` artifact contains
-results and actual, golden and difference images for failed comparisons.
-See the [texture-sampler test guide](tools/texture_sampler/README.md) for running
-the checks locally, using the browser gallery and reviewing golden updates.
-
-### Audio HLE
-
-Audio HLE support is a work in progress, derived from captured RSP disassembly
-and libultra headers. Supported ABI1 variants include those used by Super Mario
-64, Tetrisphere, GoldenEye 007, Diddy Kong Racing and Blast Corps. Supported
-NAUDIO variants include those used by Army Men: Air Combat, Banjo-Kazooie and
-Donkey Kong 64. NEAD variants include Mario Kart 64, Star Fox 64,
-Shindou editions of Mario and Wave Race, Yoshi’s Story, 1080 Snowboarding,
-Ocarina of Time, Majora’s Mask, F-Zero X and Animal Forest.
-
-HLE is the default audio mode for supported microcodes; unreviewed identities
-and command shapes fall back to LLE. Select **Audio → Emulation Mode → LLE**
-to run all audio tasks on the RSP.
-
-## Publishing
-
-Push a new `v*` tag (for example, `v1.2.3`) to publish that commit to GitHub Pages.
-The tagged commit must include the Pages workflow. It installs dependencies using
-the pinned Bun version, builds the bundle, and deploys the site files directly as
-a Pages artifact. Generated files do not need to be committed, and ordinary
-branch pushes do not update the published site.
-
-One-time repository setup when migrating from branch-based Pages publishing:
-
-1. In **Settings > Pages**, set the build and deployment source to **GitHub Actions**.
-2. In **Settings > Environments > github-pages**, allow deployment tags matching
-   `v*` (the existing `gh-pages` branch rule does not allow tags).
-
-The deployment includes `index.html`, `n64js.css`, `ui.css`, `js/`, and the generated
-`build/` directory. Each deployment replaces the site at the existing Pages URL.
-
-## Compatibility
-
-Compatibility has improved a lot over the past few months.
-
-As of 2023-09-23 95% of [n64-systemtest](https://github.com/lemmy-64/n64-systemtest) tests now pass. 
-
-The areas where tests are failing are:
-
-* 64-bit memory access (rarely/never used by roms)
-* RDP (shouldn't be a problem, as n64js uses HLE)
-* Floating point accuracy
-
-The floating point issues are largely edge cases with rounding values close to the numerical limits for 32 bit floats.
-
-Beyond the things n64-systemtest covers, the main compatibility issues I'm aware of are:
-
-* imprecise cycle counting
-* graphics
-
-Imprecise cycle counting affects some roms more than others. GoldenEye in particular seems to hang when LLE audio emulation is enabled on the RSP.
-I suspect this is due to the CPU running faster than it should be and causing the game to overflow audio buffers.
-
-Graphics are rendered using high-level emulation and there are still a lot of TODOs. Many roms are playable but most have graphical issues of some kind.
-
-## CRT display effects
-
-Choose **Off**, **Simple**, or **Mattias** under **Debug → Graphics → CRT**.
-The default is **Off**. Both styles apply to the finished frame. Mattias adds colour
-separation, spatial ghosting, curvature, and animated scanlines that pause with emulation.
-
-**Internal Render Scale** defaults to **1×**, using the VI source resolution
-(often 320×240). Increase it for higher-resolution geometry. **Canvas Scale**
-controls display resolution independently: the final presentation pass upscales
-the frame and applies CRT effects at the canvas resolution. Use 1× internal
-rendering for a native-pixel CRT look; 2× gives 640×480 rendering for a 320×240 game.
-Progressive CPU framebuffers also upload native pixels; interlaced CPU video
-retains the existing field-weaving path.
+* **Internal Render Scale** defaults to **1×**, using the VI source resolution (often 320×240). Increase it (up to **4×**) for higher-resolution 3D geometry.
+* **Canvas Scale** controls the output display resolution independently of internal rendering. The final presentation pass upscales the frame and applies CRT effects at the canvas resolution. Use 1× internal rendering for a native-pixel CRT look; 2× gives 640×480 rendering for a 320×240 game. Progressive CPU framebuffers also upload native pixels; interlaced CPU video retains field weaving.
+* **CRT** offers **Off** (default), **Simple**, or **Mattias** effects applied to the finished frame. Mattias adds colour separation, spatial ghosting, adjustable curvature, and animated scanlines that pause with emulation.
 
 The Mattias style follows [MattiasCRT by Mattias Gustavsson](https://www.shadertoy.com/view/Ms23DR).
 Its implementation is adapted from his [MIT-licensed crtemu_pc.h](https://github.com/mattiasgustavsson/crtview/blob/de7897958ac1f346ca7fa3dbf5a57dab5fcc5bb3/source/crtemu_pc.h).
 The attribution and full MIT notice are retained in [crt_mattias.glsl](src/hle/graphics/shaders/crt_mattias.glsl), including in the bundled shader source.
 This adaptation uses the current frame for ghosting and omits the original library's temporal blur buffers and frame overlay.
 
-## Browser Compatibility
+## Audio
 
-Saving and loading require native `Uint8Array.prototype.toBase64()` and
-`Uint8Array.fromBase64()` support: Chrome/Edge 140+, Firefox 133+, or Safari 18.2+
-(including iOS). See [browser compatibility](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array/toBase64#browser_compatibility).
-Chrome is the preferred development browser.
+High-level audio emulation (HLE) is used by default for supported microcodes, derived from captured RSP disassembly and libultra headers:
+
+* **ABI1** variants including Super Mario 64, Tetrisphere, GoldenEye 007, Diddy Kong Racing, and Blast Corps.
+* **NAUDIO** variants including Army Men: Air Combat, Banjo-Kazooie, and Donkey Kong 64.
+* **NEAD** variants including Mario Kart 64, Star Fox 64, Shindou editions of Super Mario 64 and Wave Race 64, Yoshi's Story, 1080° Snowboarding, Ocarina of Time, Majora's Mask, Pokémon Stadium 2, F-Zero X, and Animal Forest.
+
+Unreviewed microcode identities and command shapes automatically fall back to low-level RSP emulation (LLE). Select **Audio → Emulation Mode → LLE** in the options panel to run all audio tasks on the RSP.
+
+## Compatibility
+
+Compatibility has improved significantly across CPU, graphics, audio, and timing. Over 95% of [n64-systemtest](https://github.com/lemmy-64/n64-systemtest) tests pass.
+
+The main areas where system tests or games still run into limitations are:
+
+* **Graphics**: Graphics are primarily rendered using WebGL high-level emulation (with experimental LLE RDP support). Many games are playable, though some microcodes (such as Factor 5's custom microcodes) or hardware-specific framebuffer effects still have unimplemented features or visual glitches.
+* **Cycle timing**: Instruction timing is still an approximation rather than cycle-accurate, which can affect timing-sensitive games.
+* **Edge-case CPU/FPU behaviour**: Some 64-bit addressing edge cases and floating-point rounding near numerical limits are not fully emulated.
 
 ## Performance
 
-I've been testing on an Apple M2 Max and most roms run at full framerate *most* of the time.
-LLE audio emulation seems to be the biggest performance hit. To date I've mostly been focused on compatibility so there are likely a lot of improvements to be made here.
+With dynamic CPU recompilation and HLE graphics/audio, most games run at full framerate on modern desktop hardware (tested primarily on Apple Silicon Macs). Games that fall back to LLE audio or experimental LLE graphics require significantly more CPU/GPU work.
+
+## Browser Compatibility
+
+Saving and loading require native `Uint8Array.prototype.toBase64()` and `Uint8Array.fromBase64()` support: Chrome/Edge 140+, Firefox 133+, or Safari 18.2+ (including iOS). See [browser compatibility](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array/toBase64#browser_compatibility). WebGL is also required.
+
+Chrome is the preferred browser and typically offers the best performance.
 
 ## Implementation Status
 
 * [ ] CPU
-  * [x] cop0 instructions
-  * [x] cop1 instructions
+  * [x] Interpreter & dynamic recompiler (JIT)
+  * [x] COP0 instructions
+  * [x] COP1 (FPU) instructions
   * [x] TLB
   * [ ] Cycle accuracy
 * [x] RSP
 * [ ] Controller
   * [x] Static key bindings
   * [ ] Configurable bindings
-  * [ ] Gamepad API
+  * [x] Gamepad API
 * [ ] Graphics
-  * [ ] HLE
-    * [ ] GBI0 - mostly implemented
-    * [ ] GBI1 - partially implemented
-    * [ ] GBI2 - partially implemented
-  * [ ] LLE - not implemented
-* [ ] Audio
-  * [ ] HLE - not implemented
-  * [x] LLE - implemented
+  * [x] HLE (GBI0, GBI1, GBI2, S2DEX, L3DEX, Turbo3D, T3DUX, ZSortp)
+  * [ ] LLE (experimental RDP support)
+* [x] Audio
+  * [x] HLE (supported ABI1, NAUDIO, and NEAD microcodes)
+  * [x] LLE
 * [ ] Save
-  * [x] Persistence (via localStorage)
+  * [x] Persistence (via `localStorage`)
   * [ ] Import/Export
-  * [x] Mempack
-  * [x] Eeprom 4k
-  * [x] Eeprom 16k
+  * [x] MemPack (Controller Pak)
+  * [x] EEPROM 4K & 16K
   * [x] SRAM
   * [x] FlashRAM
 
@@ -278,10 +101,14 @@ LLE audio emulation seems to be the biggest performance hit. To date I've mostly
 
 Here are some things I'd like to get around to:
 
-* Fix graphics issues
+* Continue fixing graphics issues and expanding microcode coverage
+* Configurable controller bindings
 * Save game import/export
 * Savestates
-* [Gamepad](https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API/Using_the_Gamepad_API) support.
+
+## Development
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for instructions on building locally, running tests and headless scripts, querying ROM inventories, CI workflows, and publishing. See [BENCHMARKS.md](BENCHMARKS.md) for benchmarking and profiling instructions.
 
 ## History
 
