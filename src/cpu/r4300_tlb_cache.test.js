@@ -24,6 +24,7 @@ function translationState(c) {
 
 function restoreTranslationState(c, state) {
   c.controlRegU64.set(state.control);
+  c.setControlU64(regs.controlEntryHi, state.control[regs.controlEntryHi]);
   c.pc = state.pc;
   c.nextPC = state.nextPC;
   c.delayPC = state.delayPC;
@@ -72,18 +73,47 @@ describe('cached TLB lookup', () => {
     expect(cpu.translateRead(base + 0x1000)).toBe(0x3000);
 
     cpu.tlbFindEntry = () => { throw new Error('Unexpected tlbFindEntry on warm page-frame cache hit'); };
+    cpu.getControlU32 = () => { throw new Error('Unexpected getControlU32 on warm page-frame cache hit'); };
     try {
-      expect(cpu.translateRead(base + 0xffc)).toBe(0x2ffc);
-      expect(cpu.translateWrite(base + 0xffc)).toBe(0x2ffc);
       expect(cpu.translateReadInternal(base + 0x100)).toBe(0x2100);
       expect(cpu.readInstructionForValidation(base + 0x10)).toBe(0x11223344);
+
+      cpu.tryTranslateRead = () => { throw new Error('Unexpected tryTranslateRead on warm translateRead'); };
+      cpu.translateReadSlow = () => { throw new Error('Unexpected translateReadSlow on warm translateRead'); };
+      expect(cpu.translateRead(base + 0xffc)).toBe(0x2ffc);
+      expect(cpu.translateWrite(base + 0xffc)).toBe(0x2ffc);
       expect(cpu.translateRead(base + 0x1ffc)).toBe(0x3ffc);
     } finally {
       delete cpu.tlbFindEntry;
+      delete cpu.getControlU32;
+      delete cpu.tryTranslateRead;
+      delete cpu.translateReadSlow;
     }
 
     // Read-only pages must not populate tlbWriteTags; writes still take the slow path and fault.
     expect(translate(cpu, 'translateWrite', base + 0x1ffc).result).toBe('Mod E_VEC');
+  });
+
+  test('calls tlbFindEntry only once on cold hits and on unmapped or invalid read faults', () => {
+    writeTLBEntry(cpu, 6, base, 0x87, 0xc1); // Valid even page, invalid odd page.
+    const findEntry = cpu.tlbFindEntry;
+    let lookups = 0;
+    cpu.tlbFindEntry = function (address) {
+      lookups++;
+      return findEntry.call(this, address);
+    };
+    try {
+      expect(cpu.translateRead(base)).toBe(0x2000);
+      expect(lookups).toBe(1);
+
+      expect(translate(cpu, 'translateRead', base + 0x1000).result).toBe('TLBL E_VEC');
+      expect(lookups).toBe(2);
+
+      expect(translate(cpu, 'translateRead', 0x24000000).result).toBe('TLBL UT_VEC');
+      expect(lookups).toBe(3);
+    } finally {
+      delete cpu.tlbFindEntry;
+    }
   });
 
   test('avoids conflict misses and full-cache flushes across GoldenEye 0x70000000 and 0x7f000000 segments', () => {
@@ -150,15 +180,34 @@ describe('cached TLB lookup', () => {
     expect(cpu.translateRead(base)).toBe(0x4000);
     // Exercise both guest EntryHi transfer widths, not just raw setters.
     cpu.moveToControl32(regs.controlEntryHi, 0x12);
+    expect(cpu.currentASID).toBe(0x12);
     expect(cpu.translateRead(base)).toBe(0x2000);
     cpu.moveToControl(regs.controlEntryHi, 0x34n);
+    expect(cpu.currentASID).toBe(0x34);
+    expect(cpu.translateRead(base)).toBe(0x4000);
+    cpu.setControlU32(regs.controlEntryHi, 0x12);
+    expect(cpu.translateRead(base)).toBe(0x2000);
+    cpu.setControlS32Extend(regs.controlEntryHi, 0x34);
+    expect(cpu.translateRead(base)).toBe(0x4000);
+    cpu.setControlU64(regs.controlEntryHi, 0x12n);
+    expect(cpu.translateRead(base)).toBe(0x2000);
+    cpu.maskControlBits32(regs.controlEntryHi, 0xff, 0x34);
+    expect(cpu.translateRead(base)).toBe(0x4000);
+    cpu.clearControlBits32(regs.controlEntryHi, 0x24);
+    cpu.setControlBits32(regs.controlEntryHi, 0x02);
+    expect(cpu.translateRead(base)).toBe(0x2000);
+    cpu.maskControlBits64(regs.controlEntryHi, 0xffn, 0x34n);
     expect(cpu.translateRead(base)).toBe(0x4000);
     cpu.setControlU32(regs.controlIndex, 2);
     cpu.tlbRead();
+    expect(cpu.currentASID).toBe(0x12);
     expect(cpu.translateRead(base)).toBe(0x2000);
     // Exception-side EntryHi writes change VPN bits but preserve the ASID.
     expect(translate(cpu, 'translateRead', 0x24000000).result).toBe('TLBL UT_VEC');
+    expect(cpu.currentASID).toBe(0x12);
     expect(cpu.translateRead(base)).toBe(0x2000);
+    cpu.reset();
+    expect(cpu.currentASID).toBe(0);
   });
 
   test('large-page hits do not hide overlapping smaller invalid/read-only pages', () => {

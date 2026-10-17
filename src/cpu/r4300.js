@@ -425,7 +425,6 @@ export class CPU0 {
     this.controlRegU32 = new Uint32Array(controlMem);
     this.controlRegS32 = new Int32Array(controlMem);
     this.controlRegU64 = new BigUint64Array(controlMem);
-    this.controlRegS64 = new BigInt64Array(controlMem);
     // This tracks the number of instructions executed.
     // Reads from the COUNT register return half this value
     // (i.e. COUNT increments by 1 for every 2 instructions executed).
@@ -468,6 +467,7 @@ export class CPU0 {
     // the smallest supported page granularity. Larger pages still use separate
     // slots per 4 KiB, so an overlapping smaller entry cannot be hidden by a
     // cached large-page match.
+    this.currentASID = 0;
     this.tlbCacheTags = new Int32Array(kTLBCacheSize);
     this.tlbCacheEntries = new Array(kTLBCacheSize).fill(null);
     this.tlbReadTags = new Int32Array(kTLBCacheSize);
@@ -639,35 +639,40 @@ export class CPU0 {
     this.multHiS32[1] = hi;
   }
 
-  setControlU32(r, v) { this.controlRegU32[r * 2 + 0] = v; }
-  setControlS32(r, v) { this.controlRegS32[r * 2 + 0] = v; }
+  setControlS32Extend(r, v) {
+    this.controlRegS32[r * 2 + 1] = v >> 31;
+    this.setControlU32(r, v);
+  }
+  setControlU32(r, v) {
+    this.controlRegU32[r * 2 + 0] = v;
+    if (r === cpu0reg.controlEntryHi) {
+      this.currentASID = v & TLBHI_PIDMASK32;
+    }
+  }
   getControlU32(r) { return this.controlRegU32[r * 2 + 0]; }
   getControlS32(r) { return this.controlRegS32[r * 2 + 0]; }
 
-  setControlS32Extend(r, v) {
-    this.controlRegS32[r * 2 + 0] = v;
-    this.controlRegS32[r * 2 + 1] = v >> 31;
+  setControlU64(r, v) {
+    this.controlRegU64[r] = v;
+    if (r === cpu0reg.controlEntryHi) {
+      this.currentASID = this.controlRegU32[cpu0reg.controlEntryHi * 2] & TLBHI_PIDMASK32;
+    }
   }
-
-  setControlU64(r, v) { this.controlRegU64[r] = v; }
-  setControlS64(r, v) { this.controlRegS64[r] = v; }
   getControlU64(r) { return this.controlRegU64[r]; }
-  getControlS64(r) { return this.controlRegS64[r]; }
 
   maskControlBits32(r, mask, value) {
-    const idx = r * 2 + 0;
-    this.controlRegU32[idx] = (this.controlRegU32[idx] & ~mask) | (value & mask);
+    this.setControlU32(r, (this.controlRegU32[r * 2 + 0] & ~mask) | (value & mask));
   }
-
-  setControlBits32(r, value) { this.controlRegU32[r * 2 + 0] |= value; }
-  clearControlBits32(r, value) { this.controlRegU32[r * 2 + 0] &= ~value; }
+  setControlBits32(r, value) {
+    this.setControlU32(r, this.controlRegU32[r * 2 + 0] | value);
+  }
+  clearControlBits32(r, value) {
+    this.setControlU32(r, this.controlRegU32[r * 2 + 0] & ~value);
+  }
 
   maskControlBits64(r, mask, value) {
-    this.controlRegU64[r] = (this.controlRegU64[r] & ~mask) | (value & mask);
+    this.setControlU64(r, (this.controlRegU64[r] & ~mask) | (value & mask));
   }
-
-  setControlBits64(r, value) { this.controlRegU64[r] |= value; }
-  clearControlBits64(r, value) { this.controlRegU64[r] &= ~value; }
 
   reset() {
     this.hardware.fragmentCache.reset();
@@ -679,6 +684,7 @@ export class CPU0 {
       this.gprU64[i] = 0n;
       this.controlRegU64[i] = 0n;
     }
+    this.currentASID = 0;
     for (let i = 0; i < 32; ++i) {
       this.tlbEntries[i].update(i, 0, 0x80000000n, 0, 0);
     }
@@ -1415,10 +1421,11 @@ export class CPU0 {
   }
 
   // Include the current ASID even for global matches: a different ASID
-  // could select an earlier non-global entry. Reading EntryHi here covers
-  // MTC0/DMTC0, TLBR and exception-side updates without setter hooks.
+  // could select an earlier non-global entry. currentASID is kept in sync
+  // with EntryHi writes so tlbCacheTag avoids a controlRegU32 load and mask
+  // on every mapped memory access.
   tlbCacheTag(page) {
-    return (page << 8) | (this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32);
+    return (page << 8) | this.currentASID;
   }
 
   tlbFindEntry(address) {
@@ -1450,7 +1457,7 @@ export class CPU0 {
     return entry;
   }
 
-  tlbFindEntryUncached(address, asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32) {
+  tlbFindEntryUncached(address, asid = this.currentASID) {
     // Preserve the first matching entry, including invalid/read-only pages;
     // the translation helpers below perform the access-specific fault checks.
     for (let i = 0; i < 32; ++i) {
@@ -1467,6 +1474,8 @@ export class CPU0 {
     return null;
   }
 
+  // Non-faulting translation for debugger and speculative trace validation
+  // callers. Returns null instead of raising a TLB exception on misses.
   tryTranslateRead(address) {
     const page = address >>> 12;
     const slot = tlbCacheSlot(page);
@@ -1518,21 +1527,45 @@ export class CPU0 {
     return ram.getUint32(physical);
   }
 
+  // Intentionally inline the tlbReadTags fast-path check here rather than
+  // delegating to `this.tryTranslateRead(address) ?? this.translateReadSlow(address)`:
+  // 1. Warm reads (~98% of mapped loads) avoid an extra method call and null check.
+  // 2. Cold misses and TLBL faults go straight to translateReadSlow and call
+  //    tlbFindEntry only once instead of scanning in tryTranslateRead and
+  //    then scanning a second time in translateReadSlow.
   translateRead(address) {
-    return this.tryTranslateRead(address) ?? this.translateReadSlow(address);
+    const page = address >>> 12;
+    const slot = tlbCacheSlot(page);
+    const tag = this.tlbCacheTag(page);
+    if (this.tlbReadTags[slot] === tag) {
+      return this.tlbPhysPages[slot] | (address & 0xfff);
+    }
+    return this.translateReadSlow(address);
   }
 
   translateReadSlow(address) {
+    // Handles cold valid hits (populating tlbReadTags/tlbPhysPages via
+    // tlbFindEntry) as well as UT_VEC/E_VEC TLBL faults in a single lookup.
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
       this.raiseTLBException(UT_VEC, cpu0reg.causeExcCodeTLBL, address);
       throw new EmulatedException('TLBL UT_VEC');
     }
 
-    this.raiseTLBException(E_VEC, cpu0reg.causeExcCodeTLBL, address);
-    throw new EmulatedException('TLBL E_VEC');
+    const odd = address & tlb.checkbit;
+    const entryLo = odd ? tlb.pfno : tlb.pfne;
+    if ((entryLo & TLBLO_V) === 0) {
+      this.raiseTLBException(E_VEC, cpu0reg.causeExcCodeTLBL, address);
+      throw new EmulatedException('TLBL E_VEC');
+    }
+
+    const phys = odd ? tlb.physOdd : tlb.physEven;
+    const offset = address & tlb.offsetMask;
+    return phys | offset;
   }
 
+  // Keep the tlbWriteTags fast-path check inline on the hot store path;
+  // cold hits and TLBS/Mod faults are handled in translateWriteSlow.
   translateWrite(address) {
     const page = address >>> 12;
     const slot = tlbCacheSlot(page);

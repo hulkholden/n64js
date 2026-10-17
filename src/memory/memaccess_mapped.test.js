@@ -45,6 +45,7 @@ describe('mapped memory handlers', () => {
       function outcome(operation, address, viaDevice, value) {
         const [method, deviceMethod, alignment, signShift] = operation;
         cpu.controlRegU64.set(control);
+        cpu.setControlU64(regs.controlEntryHi, control[regs.controlEntryHi]);
         cpu.pc = 0x80001004;
         cpu.nextPC = 0x80001008;
         cpu.delayPC = 0x80002000;
