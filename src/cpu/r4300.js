@@ -343,6 +343,7 @@ class TLBEntry {
     } else {
       this.cpu.invalidateTLBCache();
     }
+    this.cpu.tlbGeneration++;
   }
 }
 
@@ -474,6 +475,7 @@ export class CPU0 {
     this.tlbReadTags = new Int32Array(kTLBCacheSize);
     this.tlbWriteTags = new Int32Array(kTLBCacheSize);
     this.tlbPhysPages = new Int32Array(kTLBCacheSize);
+    this.tlbGeneration = 0;
     this.tlbEntries = [];
     for (let i = 0; i < 32; ++i) {
       this.tlbEntries.push(new TLBEntry(this));
@@ -983,7 +985,11 @@ export class CPU0 {
       let fragment = this.hardware.fragmentCache.lookupFragment(this.pc);
 
       while (!this.stuffToDo) {
-
+        // Check at dispatch, including cached successor links. Lookup alone
+        // cannot protect code whose translation changed in the previous trace.
+        if (fragment && (fragment.func || fragment.cachedFunc)) {
+          this.validateFragmentTranslations(fragment);
+        }
         if (fragment && fragment.func) {
           fragment = runFragment(fragment, this, eventQueue);
         } else {
@@ -1048,6 +1054,11 @@ export class CPU0 {
           const entryDelayPC = this.delayPC;
           this.branchTarget = null;
           const fragmentGeneration = fragment?.generation;
+          if (fragment) {
+            // Capture the fetch mapping before TLBWI/TLBWR or EntryHi writes
+            // can change the translation of the instruction being traced.
+            this.recordFragmentTranslation(fragment, pc);
+          }
           executeOp(instruction);
 
           this.pc = this.nextPC;
@@ -1527,25 +1538,64 @@ export class CPU0 {
     return this.tryTranslateRead(address) ?? 0;
   }
 
+  // Non-faulting translation for speculative code validation. Null is distinct
+  // from physical address zero, which can contain executable instructions.
+  translateInstructionAddress(address) {
+    if (address & 3) {
+      return null;
+    }
+    if (address >= 0x80000000 && address < 0xc0000000) {
+      return address & 0x1fffffff;
+    }
+    const translated = this.tryTranslateRead(address);
+    return translated === null ? null : translated >>> 0;
+  }
+
+  recordFragmentTranslation(fragment, address) {
+    if (address >= 0x80000000 && address < 0xc0000000) {
+      return;
+    }
+    if (fragment.instructionPages.size === 0) {
+      fragment.tlbGeneration = this.tlbGeneration;
+      fragment.asid = this.currentASID;
+    }
+    // Track every 4 KiB page, including delay slots and nonadjacent targets.
+    // Even a large TLB page may be shadowed by an earlier, smaller entry.
+    const page = (address & ~0xfff) >>> 0;
+    if (!fragment.instructionPages.has(page)) {
+      fragment.instructionPages.set(page, this.translateInstructionAddress(page));
+    }
+  }
+
+  validateFragmentTranslations(fragment) {
+    if (fragment.instructionPages.size === 0) {
+      return;
+    }
+    // currentASID is kept synchronized with EntryHi across both transfer widths,
+    // TLBR and raw setters. Exception updates change EntryHi's VPN while
+    // preserving its ASID.
+    const asid = this.currentASID;
+    if (fragment.tlbGeneration === this.tlbGeneration && fragment.asid === asid) {
+      return;
+    }
+    for (const [page, physical] of fragment.instructionPages) {
+      if (this.translateInstructionAddress(page) !== physical) {
+        fragment.invalidate();
+        return;
+      }
+    }
+    // Unrelated TLB writes and unchanged/global mappings keep their function.
+    fragment.tlbGeneration = this.tlbGeneration;
+    fragment.asid = asid;
+  }
+
   // Speculative trace validation must not raise exceptions or read devices.
   // If a later instruction is unmapped, fall back to interpretation so the
   // fault occurs at its actual PC, after the preceding instructions execute.
   readInstructionForValidation(address) {
-    if (address & 3) {
-      return null;
-    }
-    let physical;
-    if (address >= 0x80000000 && address < 0xc0000000) {
-      physical = address & 0x1fffffff;
-    } else {
-      const translated = this.tryTranslateRead(address);
-      if (translated === null) {
-        return null;
-      }
-      physical = translated >>> 0;
-    }
+    const physical = this.translateInstructionAddress(address);
     const ram = this.hardware.ram.dataView;
-    if (physical > ram.byteLength - 4) {
+    if (physical === null || physical > ram.byteLength - 4) {
       return null;
     }
     return ram.getUint32(physical);

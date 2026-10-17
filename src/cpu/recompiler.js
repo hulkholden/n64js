@@ -42,7 +42,7 @@ export class FragmentContext {
     this.pc = 0;
     this.instruction = 0;
     this.postPC = 0;
-    this.bailOut = false; // Set this if the op does something to manipulate event timers.
+    this.bailOut = false; // Set if the op changes timers, code or translations.
     this.nextPC = 0;
 
     this.needsDelayCheck = true; // Set on entry to generate handler. If set, must check for delayPC when updating the pc.
@@ -1047,6 +1047,9 @@ function generateMTC0(ctx) {
   if (ctx.instr_fs() === cpu0reg.controlStatus) {
     ctx.fragment.cop1statusKnown = false;
   }
+  if (ctx.instr_fs() === cpu0reg.controlEntryHi) {
+    ctx.bailOut = true;
+  }
   const impl = generateCop0TimingSync(ctx, true) + `c.execMTC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
   return generateGenericOpBoilerplate(impl, ctx);
 }
@@ -1054,6 +1057,9 @@ function generateMTC0(ctx) {
 function generateDMTC0(ctx) {
   if (ctx.instr_fs() === cpu0reg.controlStatus) {
     ctx.fragment.cop1statusKnown = false;
+  }
+  if (ctx.instr_fs() === cpu0reg.controlEntryHi) {
+    ctx.bailOut = true;
   }
   const impl = generateCop0TimingSync(ctx, true) + `c.execDMTC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
   return generateGenericOpBoilerplate(impl, ctx);
@@ -1075,6 +1081,13 @@ function generateCop0TimingSync(ctx, write) {
 }
 
 function generateTLB(ctx) {
+  // TLBR can change ASID; TLBWI/TLBWR can remap the executing code itself.
+  // End both tracing and generated execution here, preserving delay-slot state,
+  // so the dispatcher validates the next fetch in its new translation context.
+  const op = ctx.instr_tlbop();
+  if (op === 0x01 || op === 0x02 || op === 0x06) {
+    ctx.bailOut = true;
+  }
   const impl = `c.execTLB(${ctx.instr_tlbop()});`;
   return generateGenericOpBoilerplate(impl, ctx);
 }
