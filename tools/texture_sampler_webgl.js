@@ -25,6 +25,7 @@ import {
   RED,
   WHITE,
 } from './webgl_test_helpers.js';
+import { runHLECommandTests } from './hle_commands_webgl.js';
 import { runTMEMSamplingTests } from './tmem_sampling_webgl.js';
 
 const output = document.getElementById('results');
@@ -827,6 +828,7 @@ try {
     runLightColorTests,
     runModifyVertexTests,
     runPresentationTests,
+    runHLECommandTests,
   ];
   for (const runSuite of suiteRunners) {
     const results = runSuite(gl);

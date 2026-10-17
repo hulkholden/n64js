@@ -54,6 +54,12 @@ export class RSPState {
     this.rdpHalf1Cmd1 = 0;
     this.rdpHalf2Cmd1 = 0;
 
+    // Shared by S2DEX texture caching, SelectDL and SetStatus. These are RSP
+    // task state, so in-list microcode switches must not discard them.
+    this.s2dexStatus = new Uint32Array(4);
+    this.s2dexRenderMode = 0;
+    this.s2dexSelectDL = null;
+
     this.viewport = new Viewport();
 
     // matrix stacks
@@ -142,6 +148,10 @@ export class RSPState {
     this.rdpOtherModeL = 0x00500001;
     this.rdpOtherModeH = 0x00000000;
     this.noNearClipping = false;
+
+    this.s2dexStatus.fill(0);
+    this.s2dexRenderMode = 0;
+    this.s2dexSelectDL = null;
 
     this.projection = [Matrix4x4.identity()];
     this.modelview = [Matrix4x4.identity()];

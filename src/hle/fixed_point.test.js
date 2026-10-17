@@ -1,10 +1,32 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  clamp16, clampShifted32To16, signed16, unsigned16, fixed16FromParts, fixed16ToInt,
+  fixed16FromFloat, fixed16ToFloat, clamp16, clampShifted32To16, signed16, unsigned16, fixed16FromParts, fixed16ToInt,
   clampFixed16Hi, clampFixed16Lo, mulFixed16, mulFraction, mixSample, mulUnsignedFraction, clampFractionSum,
 } from './fixed_point.js';
 
-describe('audio fixed-point arithmetic', () => {
+test('float conversion retains signed, unsigned and wide fixed-point values', () => {
+  for (const [fixed, value] of [
+    [0, 0],
+    [-1, -1 / 65536],
+    [-0x18000, -1.5],
+    [0x7fffffff, 32768 - 1 / 65536],
+    [-0x80000000, -32768],
+    [0xffffffff, 65536 - 1 / 65536],
+    [0x100008000, 65536.5],
+    [-0x100004000, -65536.25],
+  ]) {
+    expect(fixed16ToFloat(fixed)).toBe(value);
+    expect(fixed16FromFloat(value)).toBe(fixed);
+  }
+});
+
+test('float encoding floors sub-LSB fractions toward negative infinity', () => {
+  expect(fixed16FromFloat(0.75 / 65536)).toBe(0);
+  expect(fixed16FromFloat(-0.25 / 65536)).toBe(-1);
+  expect(fixed16FromFloat(-1 - 0.25 / 65536)).toBe(-65537);
+});
+
+describe('fixed-point arithmetic', () => {
   test('word conversions wrap while signed saturation clamps', () => {
     expect(signed16(0x8000)).toBe(-32768);
     expect(signed16(0xffff)).toBe(-1);
@@ -94,7 +116,6 @@ describe('audio fixed-point arithmetic', () => {
     expect(mixSample(-32768, 12345, 0)).toBe(-32767);
   });
 });
-
 
 test('unsigned Q16 volumes floor negative products and Q15 sums round only once', () => {
   expect(mulUnsignedFraction(-1, 1)).toBe(-1);

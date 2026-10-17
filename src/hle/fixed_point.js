@@ -1,5 +1,6 @@
-// Scalar arithmetic shared by the audio HLE. Keep wide accumulators as Numbers
-// unless the RSP explicitly wraps them to 32 bits before shifting or saturation.
+// Fixed-point arithmetic shared by audio and graphics HLE. Keep wide
+// accumulators as Numbers unless the RSP explicitly wraps them to 32 bits
+// before shifting or saturation.
 // Keep helper call chains shallow so hot loops can inline their arithmetic
 // without allocating boxed Numbers for wide intermediate results.
 // Private constants let V8 fold arithmetic even though their public aliases
@@ -37,7 +38,16 @@ export function fixed16FromParts(hi, lo) {
   return hi * FRACTION_SCALE + lo;
 }
 
-// Drop 16 fractional bits, rounding negative values down as the RSP does.
+// Encode 16 fractional bits, rounding toward negative infinity without wrapping.
+export function fixed16FromFloat(value) {
+  return Math.floor(value * FRACTION_SCALE);
+}
+
+export function fixed16ToFloat(value) {
+  return value / FRACTION_SCALE;
+}
+
+// Drop fractional bits, rounding negative values down as the RSP does.
 export function fixed16ToInt(value) {
   return Math.floor(value / FRACTION_SCALE);
 }

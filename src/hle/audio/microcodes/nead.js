@@ -4,7 +4,7 @@ import { AudioBase, UnsupportedAudioCommand } from '../base.js';
 import { round8, round16, round32, round64 } from '../buffer.js';
 import {
   FIXED16_ONE, clamp16, mulUnsignedFraction, clampFractionSum, signed16, unsigned16, mixSample, clampFixed16Hi,
-} from '../fixed_point.js';
+} from '../../fixed_point.js';
 import * as nead from './nead_constants.js';
 
 export class NEADAudio extends AudioBase {

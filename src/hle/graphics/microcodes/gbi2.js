@@ -154,11 +154,7 @@ export class GBI2 extends GBIMicrocode {
   }
 
   executeBranchZ(cmd0, cmd1, dis) {
-    this.warnUnimplemented('BranchZ')
-
-    if (dis) {
-      dis.text(`gsSPBranchZ(/* TODO */);`);
-    }
+    this.branchZ(cmd0, cmd1, dis, false, this.version.includes('F3DZEX'));
   }
 
   executeLine3D(cmd0, cmd1, dis) {
@@ -358,7 +354,10 @@ export class GBI2 extends GBIMicrocode {
 
     switch (type) {
       case gbi.MoveWord.G_MW_MATRIX:
-        this.warnUnimplemented('MoveWord Matrix');
+        // The SDK removed InsertMatrix for F3DEX2, but raw MoveWord still
+        // writes MVP memory. It neither recomputes nor marks the matrix valid.
+        // See f3dex2.s: movewordTable, do_moveword and vertex_skip_recalc_mvp.
+        this.insertMatrix(offset, value, false);
         break;
       case gbi.MoveWord.G_MW_NUMLIGHT:
         {

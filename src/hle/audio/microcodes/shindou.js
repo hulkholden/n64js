@@ -1,5 +1,5 @@
 import { NEADAudio } from './nead.js';
-import { unsigned16 } from '../fixed_point.js';
+import { unsigned16 } from '../../fixed_point.js';
 import * as nead from './nead_constants.js';
 
 // Shindou uses packed INTERLEAVE lengths and replaces POLEF with a FIR filter.

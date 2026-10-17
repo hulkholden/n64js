@@ -6,7 +6,7 @@ import {
   FIXED16_ONE, UINT16_MAX, clamp16, signed16, unsigned16,
   fixed16FromParts, fixed16ToInt, clampFixed16Hi, clampFixed16Lo,
   mulFixed16, mulFraction, mixSample,
-} from '../fixed_point.js';
+} from '../../fixed_point.js';
 
 const OPCODE_SPNOOP = 0x00;
 const OPCODE_ADPCM = 0x01;
