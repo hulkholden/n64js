@@ -224,11 +224,11 @@ describe('self-looping fragments and self-loop cutoff', () => {
         const origStep = h.rsp.step;
         let stepCount = 0;
         if (scenario === 'rsp-break-iter-4') {
+          h.rsp.halted = false;
           h.rsp.step = function () {
             if (++stepCount === 20) {
               cpu.breakExecution();
             }
-            return origStep.call(this);
           };
         }
 
@@ -236,6 +236,7 @@ describe('self-looping fragments and self-loop cutoff', () => {
         const runCycles = scenario === 'event-deadline' ? 15 : 40;
         cpu.run(runCycles);
         h.rsp.step = origStep;
+        h.rsp.halted = true;
         expect(e.fatalError()).toBeNull();
 
         if (compiled && scenario === 'normal-exit') {

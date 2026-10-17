@@ -1005,12 +1005,14 @@ export class CPU0 {
           //   }
           // }
 
-          rsp.step();
-          if (this.stuffToDo) {
-            // RSP can generate interrupt which can be cleared by CPU.
-            // TODO: for performance we should throw an exception when
-            // an interrupt is raised and avoid testing this every instruction.
-            break;
+          if (!rsp.halted) {
+            rsp.step();
+            if (this.stuffToDo) {
+              // RSP can generate interrupt which can be cleared by CPU.
+              // TODO: for performance we should throw an exception when
+              // an interrupt is raised and avoid testing this every instruction.
+              break;
+            }
           }
 
           // Take a copy of this, so we can refer to it later.
@@ -3105,10 +3107,20 @@ function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null
 function emitTraceStep(fragment, step, ctx) {
   ctx.set(fragment, step.pc, step.instruction, step.postPC, step.nextPC);
 
-  // TODO: can we avoid the stuffToDo check? Throw exception?
+  // Hoist the !rsp.halted check into the generated trace so the JS JIT can fold
+  // redundant loads across consecutive instructions when the RSP is halted, and
+  // avoid calling rsp.step() on the common halted path.
+  // When !kAccurateCountUpdating, every instruction that can set c.stuffToDo
+  // checks it before falling through to the next instruction, and runImpl()
+  // enters fragments with c.stuffToDo === 0, so c.stuffToDo can only become
+  // non-zero here if rsp.step() ran and raised an interrupt or break.
   // TODO: we shouldn't need to set pc for every instruction - this is just to ensure delayedPCUpdate is flushed.
-  fragment.bodyCode += 'rsp.step();\n';
-  fragment.bodyCode += `if (c.stuffToDo) { c.pc = ${step.pc}; ${ctx.genReturnOps(fragment.opsCompiled - 1)} }\n`;
+  if (kAccurateCountUpdating) {
+    fragment.bodyCode += 'if (!rsp.halted) { rsp.step(); }\n';
+    fragment.bodyCode += `if (c.stuffToDo) { c.pc = ${step.pc}; ${ctx.genReturnOps(fragment.opsCompiled - 1)} }\n`;
+  } else {
+    fragment.bodyCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${step.pc}; ${ctx.genReturnOps(fragment.opsCompiled - 1)} } }\n`;
+  }
   fragment.bodyCode += '\n';
 
   generateCodeForOp(ctx);

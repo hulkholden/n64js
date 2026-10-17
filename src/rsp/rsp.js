@@ -491,9 +491,6 @@ export class RSP {
   }
 
   step() {
-    if (this.halted) {
-      return;
-    }
     this.nextPC = (this.delayPC || (this.pc + 4)) & 0xffc;
 
     const instr = this.imemDV.getUint32(this.pc, false);
@@ -506,9 +503,6 @@ export class RSP {
   }
 
   stepProfiled() {
-    if (this.halted) {
-      return;
-    }
     performanceProfile.counters.rspInstructions++;
     this.nextPC = (this.delayPC || (this.pc + 4)) & 0xffc;
 
