@@ -632,6 +632,10 @@ export class CPU0 {
     this.multHiS32[1] = hi;
   }
 
+  setControlS32Extend(r, v) {
+    this.controlRegS32[r * 2 + 1] = v >> 31;
+    this.setControlU32(r, v);
+  }
   setControlU32(r, v) {
     this.controlRegU32[r * 2 + 0] = v;
     if (r === cpu0reg.controlEntryHi) {
@@ -640,11 +644,6 @@ export class CPU0 {
   }
   getControlU32(r) { return this.controlRegU32[r * 2 + 0]; }
   getControlS32(r) { return this.controlRegS32[r * 2 + 0]; }
-
-  setControlS32Extend(r, v) {
-    this.controlRegS32[r * 2 + 1] = v >> 31;
-    this.setControlU32(r, v);
-  }
 
   setControlU64(r, v) {
     this.controlRegU64[r] = v;
