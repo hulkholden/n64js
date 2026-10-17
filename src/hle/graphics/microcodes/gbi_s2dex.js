@@ -1,4 +1,5 @@
 import { Commands } from '../../../lle/rdp_constants.js';
+import { fixed16FromFloat, fixed16ToFloat, fixed16ToInt } from '../../fixed_point.js';
 import { toString16, toString32 } from "../../../format";
 import * as gbi from '../gbi.js';
 import * as s2dex1 from './s2dex1_constants.js';
@@ -156,10 +157,10 @@ class ObjMatrix {
   }
 
   loadFullMatrix(dv, offset) {
-    this.a = dv.getInt32(offset + 0, false) / 65536;
-    this.b = dv.getInt32(offset + 4, false) / 65536;
-    this.c = dv.getInt32(offset + 8, false) / 65536;
-    this.d = dv.getInt32(offset + 12, false) / 65536;
+    this.a = fixed16ToFloat(dv.getInt32(offset + 0, false));
+    this.b = fixed16ToFloat(dv.getInt32(offset + 4, false));
+    this.c = fixed16ToFloat(dv.getInt32(offset + 8, false));
+    this.d = fixed16ToFloat(dv.getInt32(offset + 12, false));
     this.loadSubMatrix(dv, offset + 16);
   }
 
@@ -814,12 +815,12 @@ export class S2DEXCommon {
       totalScaleW = Math.max(1, Math.floor(baseW * scaleW / 1024));
       totalScaleH = Math.max(1, Math.floor(baseH * scaleH / 1024));
       // Retain 16 fractional bits until after adding the scaled extent.
-      const x = Math.floor(spr.objX * 4 * reciprocal(baseW) / 32) + snap(m.x * 4 + offset) * 65536;
-      const y = Math.floor(spr.objY * 4 * reciprocal(baseH) / 32) + snap(m.y * 4 + offset) * 65536;
-      x0 = Math.floor(x / 65536) / 4;
-      y0 = Math.floor(y / 65536) / 4;
-      x1 = Math.floor((x + Math.floor((spr.imageW - trim) * 32 * reciprocal(totalScaleW) / 256)) / 65536) / 4;
-      y1 = Math.floor((y + Math.floor((spr.imageH - trim) * 32 * reciprocal(totalScaleH) / 256)) / 65536) / 4;
+      const x = Math.floor(spr.objX * 4 * reciprocal(baseW) / 32) + fixed16FromFloat(snap(m.x * 4 + offset));
+      const y = Math.floor(spr.objY * 4 * reciprocal(baseH) / 32) + fixed16FromFloat(snap(m.y * 4 + offset));
+      x0 = fixed16ToInt(x) / 4;
+      y0 = fixed16ToInt(y) / 4;
+      x1 = fixed16ToInt(x + Math.floor((spr.imageW - trim) * 32 * reciprocal(totalScaleW) / 256)) / 4;
+      y1 = fixed16ToInt(y + Math.floor((spr.imageH - trim) * 32 * reciprocal(totalScaleH) / 256)) / 4;
     } else {
       x0 = snap(spr.objX * 4 + offset) / 4;
       y0 = snap(spr.objY * 4 + offset) / 4;

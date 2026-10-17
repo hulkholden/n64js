@@ -3,6 +3,7 @@
 import { toString8, toString16, toString32 } from '../../../format.js';
 import { Matrix4x4 } from '../../../graphics/Matrix4x4.js';
 import { Vector3 } from '../../../graphics/Vector3.js';
+import { fixed16FromFloat, fixed16ToFloat } from '../../fixed_point.js';
 import * as logger from '../../../logger.js';
 import { makeColorTextRGBA } from '../disassemble.js';
 import * as gbi from '../gbi.js';
@@ -117,7 +118,6 @@ export class GBIMicrocode {
   }
 
   loadMatrix(address, length) {
-    const recip = 1.0 / 65536.0;
     const dv = new DataView(this.ramDV.buffer, this.ramDV.byteOffset + address, this.ramDV.byteLength - address);
 
     if (length != 64) {
@@ -127,10 +127,10 @@ export class GBIMicrocode {
     // All signed 16.16 values are exactly representable in float64.
     const elements = new Float64Array(16);
     for (let i = 0; i < 4; ++i) {
-      elements[4 * 0 + i] = (dv.getInt16(i * 8 + 0) << 16 | dv.getUint16(i * 8 + 0 + 32)) * recip;
-      elements[4 * 1 + i] = (dv.getInt16(i * 8 + 2) << 16 | dv.getUint16(i * 8 + 2 + 32)) * recip;
-      elements[4 * 2 + i] = (dv.getInt16(i * 8 + 4) << 16 | dv.getUint16(i * 8 + 4 + 32)) * recip;
-      elements[4 * 3 + i] = (dv.getInt16(i * 8 + 6) << 16 | dv.getUint16(i * 8 + 6 + 32)) * recip;
+      elements[4 * 0 + i] = fixed16ToFloat(dv.getInt16(i * 8 + 0) << 16 | dv.getUint16(i * 8 + 0 + 32));
+      elements[4 * 1 + i] = fixed16ToFloat(dv.getInt16(i * 8 + 2) << 16 | dv.getUint16(i * 8 + 2 + 32));
+      elements[4 * 2 + i] = fixed16ToFloat(dv.getInt16(i * 8 + 4) << 16 | dv.getUint16(i * 8 + 4 + 32));
+      elements[4 * 3 + i] = fixed16ToFloat(dv.getInt16(i * 8 + 6) << 16 | dv.getUint16(i * 8 + 6 + 32));
     }
 
     return new Matrix4x4(elements);
@@ -161,10 +161,10 @@ export class GBIMicrocode {
     for (let i = 0; i < 2; i++) {
       // Matrix4x4 transposes the N64's row-vector layout on load.
       const index = ((first + i) % 4) * 4 + ((first + i) >>> 2);
-      const fixed = Math.floor(matrix.elems[index] * 65536) | 0;
+      const fixed = fixed16FromFloat(matrix.elems[index]) | 0;
       const half = i === 0 ? value >>> 16 : value & 0xffff;
       const updated = offset & 0x20 ? (fixed & 0xffff0000) | half : (half << 16) | (fixed & 0xffff);
-      matrix.elems[index] = updated / 65536;
+      matrix.elems[index] = fixed16ToFloat(updated);
     }
   }
 
@@ -386,7 +386,7 @@ export class GBIMicrocode {
         {
           // Screen Z is unsigned 16.16, already transformed by the viewport.
           // Undo only the VI mapping, retaining W for the perspective divide.
-          const screenZ = (value >>> 0) / 65536.0;
+          const screenZ = fixed16ToFloat(value >>> 0);
           vertex.screenZ = value | 0;
           const viTransform = this.renderer.nativeTransform.viTransform;
           vertex.pos.z = (screenZ - viTransform.trans.z) * vertex.pos.w / viTransform.scale.z;
@@ -420,8 +420,8 @@ export class GBIMicrocode {
     // Retain depth independently of the renderer's float32 coordinates and
     // subsequent viewport changes. HLE still uses floating-point projection;
     // bound its result to the RSP's nonnegative signed screen-depth range.
-    const screenZ = (pos.z / w * scale.z + trans.z) * 65536;
-    vertex.screenZ = Math.max(0, Math.min(0x7fffffff, Math.floor(screenZ))) | 0;
+    const screenZ = fixed16FromFloat(pos.z / w * scale.z + trans.z);
+    vertex.screenZ = Math.max(0, Math.min(0x7fffffff, screenZ)) | 0;
     pos.x = (pos.x * scale.x + w * (trans.x - viTrans.x)) / viScale.x;
     pos.y = (pos.y * scale.y + w * (trans.y - viTrans.y)) / viScale.y;
     pos.z = (pos.z * scale.z + w * (trans.z - viTrans.z)) / viScale.z;
@@ -1060,7 +1060,7 @@ export class GBIMicrocode {
     if (v === 0 || v === 0xffff) {
       return 1.0;
     }
-    return v / 65536.0;
+    return fixed16ToFloat(v);
   }
 }
 
