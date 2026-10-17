@@ -1,7 +1,7 @@
 // RDP rectangle parameters emitted by S2DEX 1.07 (Nushi Zuri 64) and
 // S2DEX xbus 2.06 (Command & Conquer) for synthetic 8x4 RGBA16 sprites.
 // Both microcodes produced identical packets. No game display lists or ROM
-// bytes are included. See tools/hle_command_semantics.md for provenance.
+// bytes are included.
 export const s2dexObjectCases = [
   {"options":{"mode":0},"rect":[10,20,18,24,0,0,1,1]},
   {"options":{"mode":1},"rect":[10,20,18,24,0,0,1,1]},
