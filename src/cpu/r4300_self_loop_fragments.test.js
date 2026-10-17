@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { performanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
 import * as regs from './cpu0reg.js';
+import { SP_DRAM_ADDR_REG, SP_MEM_ADDR_REG } from '../devices/sp_constants.js';
 import {
   ADDIU_T0_1,
   DEFAULT_PC,
@@ -47,6 +48,56 @@ function captureState(cpu, h) {
 }
 
 describe('self-looping fragments and self-loop cutoff', () => {
+  test('an RSP DMA started inside a compiled loop completes before the original event deadline', async () => {
+    const states = [];
+    for (const compiled of [false, true]) {
+      const { e, cpu, h, entry } = await createLoopFixture([
+        ADDIU_T0_1,
+        iop(5, 8, 9, -2), // BNE t0, t1, loop
+        0,
+      ]);
+      const prepare = () => {
+        cpu.pc = entry;
+        cpu.delayPC = null;
+        cpu.setRegS32Extend(8, 0);
+        cpu.setRegS32Extend(9, 100);
+      };
+      prepare();
+      if (compiled) {
+        const fragment = compileFragmentAt(cpu, entry, 3);
+        expect(fragment.getCode()).toContain('do {');
+      }
+      prepare();
+      cpu.controlCountValue = 0;
+      cpu.opsExecuted = 0;
+
+      h.ram.set32(0x3000, 0x12345678);
+      h.spRegDevice.write32(0xa4040000 + SP_MEM_ADDR_REG, 0);
+      h.spRegDevice.write32(0xa4040000 + SP_DRAM_ADDR_REG, 0x3000);
+      // The first RSP instruction starts a 64-byte DMA (8 cycles). It then
+      // polls DMA_BUSY and increments r3 only once the transfer completes.
+      [
+        0x40811000, // MTC0 r1, SP_RD_LEN
+        0x40023000, // MFC0 r2, SP_DMA_BUSY
+        iop(5, 2, 0, -2),
+        0,
+        iop(9, 3, 3, 1),
+        0x0000000d, // BREAK
+      ].forEach((word, i) => h.rsp.imem.set32(i * 4, word));
+      h.rsp.setRegS32(1, 63);
+      h.rsp.halted = false;
+      cpu.run(24);
+
+      expect(e.fatalError()).toBeNull();
+      expect(h.rsp.getRegS32(3)).toBe(1);
+      expect(h.rsp.halted).toBe(true);
+      expect(h.spRegDevice.dmaQueue).toHaveLength(0);
+      expect(h.sp_mem.getU32(0)).toBe(0x12345678);
+      states.push({ ...captureState(cpu, h), rspPC: h.rsp.pc });
+    }
+    expect(states[1]).toEqual(states[0]);
+  });
+
   for (const [name, branch] of [
     ['J', jump(DEFAULT_PC)],
     ['BEQ unconditional', iop(4, 0, 0, -1)],

@@ -3107,6 +3107,9 @@ function canCompileAsSelfLoop(fragment, c) {
 
 // Wraps a self-looping fragment body in a do-while loop that runs until the
 // next scheduled event deadline (cyclesToFirstEvent) or an early exit.
+// Recheck the live deadline after each iteration: RSP steps and device accesses
+// can schedule an earlier event. Add already-flushed fragment cycles to express
+// the remaining countdown relative to the beginning of this invocation.
 // Re-emitting the recorded trace steps with opsCounterVar = 'opsExecuted' lets
 // FragmentContext generate intra-iteration exits (stuffToDo checks, non-taken
 // loop branches, exceptions, and MFC0 Count cycle syncs) directly in terms of
@@ -3126,7 +3129,7 @@ function buildSelfLoopBodyCode(fragment) {
   flushDelayedPCUpdate(fragment, fragmentContext);
   fragmentContext.opsCounterVar = null;
 
-  return `const maxOps = c.eventQueue.cyclesToFirstEvent;\nlet opsExecuted = 0;\ndo {\n${fragment.bodyCode}opsExecuted += ${loopOps};\n} while (opsExecuted + ${loopOps} <= maxOps);\nreturn opsExecuted;\n`;
+  return `let opsExecuted = 0;\ndo {\n${fragment.bodyCode}opsExecuted += ${loopOps};\n} while (opsExecuted + ${loopOps} <= c.fragmentCycles + c.eventQueue.cyclesToFirstEvent);\nreturn opsExecuted;\n`;
 }
 
 function compileFragment(fragment, c = cpu0) {
