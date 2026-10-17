@@ -472,6 +472,9 @@ export class RSP {
   unhalt() {
     // TODO: should this just check the status bits?
     this.halted = false;
+    if (this.hardware.cpu0.fragmentOps !== null) {
+      this.hardware.cpu0.rspFragmentOps = this.hardware.cpu0.fragmentOps + 1;
+    }
 
     if (this.runEvent) {
       this.runEvent.stop();
@@ -499,6 +502,7 @@ export class RSP {
     this.executeOp(instr);
     this.pc = this.nextPC;
     this.delayPC = this.branchTarget;
+    this.hardware.cpu0.rspFragmentOps++;
   }
 
   stepProfiled() {
@@ -514,6 +518,7 @@ export class RSP {
     this.executeOp(instr);
     this.pc = this.nextPC;
     this.delayPC = this.branchTarget;
+    this.hardware.cpu0.rspFragmentOps++;
   }
 
   halt(statusBits) {
@@ -549,6 +554,9 @@ export class RSP {
   }
 
   moveFromControl(controlReg) {
+    if (this.hardware.cpu0.fragmentOps !== null) {
+      this.hardware.cpu0.fragmentOps = this.hardware.cpu0.rspFragmentOps;
+    }
     switch (controlReg) {
       case controlRegSPMemAddr:
       case controlRegSPRamAddr:
@@ -574,6 +582,9 @@ export class RSP {
   }
 
   moveToControl(controlReg, value) {
+    if (this.hardware.cpu0.fragmentOps !== null) {
+      this.hardware.cpu0.fragmentOps = this.hardware.cpu0.rspFragmentOps;
+    }
     switch (controlReg) {
       case controlRegSPMemAddr:
       case controlRegSPRamAddr:

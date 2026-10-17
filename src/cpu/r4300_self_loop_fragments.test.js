@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { performanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
+import { SP_DRAM_ADDR_REG, SP_MEM_ADDR_REG } from '../devices/sp_constants.js';
 import * as regs from './cpu0reg.js';
 import {
   ADDIU_T0_1,
@@ -251,6 +252,68 @@ describe('self-looping fragments and self-loop cutoff', () => {
       expect(states[1]).toEqual(states[0]);
     }
   });
+
+  for (const loopOps of [4, 12]) {
+    for (const dmaStartCycle of [0, loopOps * 2 + 2]) {
+      for (const syncCount of [false, true]) {
+        for (const profiled of [false, true]) {
+          test(`${loopOps}-op loop respects a new RSP DMA deadline at cycle ${dmaStartCycle}, Count sync=${syncCount}, profiling=${profiled}`, async () => {
+            const words = Array(loopOps).fill(ADDIU_T0_1);
+            if (syncCount) {
+              words[1] = 0x400b4800; // MFC0 t3, Count: charges preceding fragment cycles.
+            }
+            words[loopOps - 2] = iop(4, 0, 0, -(loopOps - 1)); // BEQ zero, zero, loop
+            words[loopOps - 1] = iop(9, 10, 10, 1); // ADDIU t2, t2, 1
+            const deadline = loopOps * 4;
+            const expectedCycles = dmaStartCycle + deadline;
+            const states = [];
+            for (const compiled of [false, true]) {
+              const { e, cpu, h, entry } = await createLoopFixture(words);
+              cpu.pc = entry;
+              cpu.delayPC = null;
+              if (compiled) {
+                const fragment = compileFragmentAt(cpu, entry, loopOps);
+                expect(fragment.opsCompiled).toBe(loopOps);
+                expect(fragment.getCode()).toContain('do {');
+              }
+
+              cpu.pc = entry;
+              cpu.delayPC = null;
+              cpu.controlCountValue = 0;
+              cpu.opsExecuted = 0;
+              cpu.gprU32.fill(0);
+
+              // Start a real DMA from the RSP either at the first instruction or
+              // mid-iteration after prior loop iterations have already elapsed.
+              const sp = h.spRegDevice;
+              sp.write32(0xa4040000 + SP_MEM_ADDR_REG, 0);
+              sp.write32(0xa4040000 + SP_DRAM_ADDR_REG, 0x4000);
+              h.sp_mem.clear();
+              h.rsp.imem.set32(dmaStartCycle * 4, 0x40881000); // MTC0 t0, SP_RD_LEN
+              h.rsp.setRegU32(8, deadline * 8 - 1);
+              h.rsp.halted = false;
+              const dmaComplete = sp.dmaComplete;
+              let completion;
+              sp.dmaComplete = function () {
+                dmaComplete.call(this);
+                completion = { cycles: cpu.controlCountValue, rspPC: h.rsp.pc };
+                cpu.breakExecution();
+              };
+
+              setPerformanceProfiling(profiled);
+              cpu.run(loopOps * 10);
+              expect(e.fatalError()).toBeNull();
+              expect(completion).toEqual({ cycles: expectedCycles, rspPC: expectedCycles * 4 });
+              expect(sp.dmaQueue).toHaveLength(0);
+              states.push(captureState(cpu, h));
+              setPerformanceProfiling(false);
+            }
+            expect(states[1]).toEqual(states[0]);
+          });
+        }
+      }
+    }
+  }
 
   test('rotated loop entered at its 2-op branch test traces across the back-edge and stops when falling through to entryPC', async () => {
     // Classic compiler while-loop layout entered at test (0x80001008):
@@ -524,6 +587,59 @@ describe('self-looping fragments and self-loop cutoff', () => {
       }
       expect(states[1]).toEqual(states[0]);
     }
+  });
+
+  test('compiled self-loop polling VI_V_CURRENT_LINE_REG observes live event countdown progress', async () => {
+    // 3-op loop polling VI_V_CURRENT_LINE_REG (0xa4400010) until scanline != 0:
+    //   0x80001000: LW    t1, 0x0010(s0)     (s0 = 0xa4400000)
+    //   0x80001004: BEQ   t1, r0, 0x80001000
+    //   0x80001008: ADDIU t0, t0, 1
+    //   0x8000100c: JR    ra
+    //   0x80001010: NOP
+    const words = [
+      iop(35, 16, 9, 0x10),  // LW    t1, 0x10(s0)
+      iop(4, 9, 0, -2),      // BEQ   t1, r0, -2 (0x80001000)
+      ADDIU_T0_1,            // ADDIU t0, t0, 1
+      JR_RA,
+      0,
+    ];
+    const states = [];
+    for (const compiled of [false, true]) {
+      const { e, cpu, h, entry } = await createLoopFixture(words);
+      // Configure VI so countPerScanline = 12 cycles (countPerVbl = 1200) and schedule VI interrupt.
+      h.viRegDevice.countPerScanline = 12;
+      h.viRegDevice.countPerVbl = 1200;
+      h.viRegDevice.mem.set32(0x18, 99); // VI_V_SYNC_REG = 99
+      if (compiled) {
+        cpu.pc = entry;
+        cpu.delayPC = null;
+        cpu.setRegS32Extend(16, 0xa4400000);
+        cpu.addEvent('VI Interrupt', 1200, () => {});
+        const frag = compileFragmentAt(cpu, entry, 3);
+        expect(frag.opsCompiled).toBe(3);
+        expect(frag.getCode()).toContain('do {');
+        cpu.removeEvent('VI Interrupt');
+      }
+
+      cpu.pc = entry;
+      cpu.delayPC = null;
+      cpu.controlCountValue = 0;
+      cpu.opsExecuted = 0;
+      cpu.gprU32.fill(0);
+      cpu.setRegS32Extend(16, 0xa4400000);
+      cpu.setRegS32Extend(31, entry + 0x0c);
+      // Start 10 cycles into scanline 0 (1190 cycles left until VBL), so scanline 2 is reached after 14 cycles.
+      cpu.addEvent('VI Interrupt', 1190, () => {});
+
+      setPerformanceProfiling(true);
+      cpu.run(60);
+      expect(e.fatalError()).toBeNull();
+      // Scanline 0 is even (field 0); bit 0 is masked by VI, so value becomes 2 at countExecuted >= 24 (14 elapsed cycles -> iter 5).
+      expect(cpu.getRegS32Lo(9)).toBe(2);
+      expect(cpu.getRegS32Lo(8)).toBe(6);
+      states.push(captureState(cpu, h));
+    }
+    expect(states[1]).toEqual(states[0]);
   });
 });
 
