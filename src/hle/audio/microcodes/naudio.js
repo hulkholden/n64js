@@ -6,7 +6,7 @@ import { round8, round16, round32 } from '../buffer.js';
 import {
   UINT16_MAX, signed16, unsigned16, clamp16,
   fixed16FromParts, fixed16ToInt, clampFixed16Hi, clampFixed16Lo, mulFraction, mixSample,
-} from '../fixed_point.js';
+} from '../../fixed_point.js';
 
 const OPCODE_ADPCM = 0x01;
 const OPCODE_CLEARBUFF = 0x02;
