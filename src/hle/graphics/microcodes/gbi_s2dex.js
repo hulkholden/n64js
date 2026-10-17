@@ -55,6 +55,10 @@ const G_OBJ_MTX = 0;
 const G_OBJ_SUBMTX = 2;
 const G_OBJ_FLAG_FLIPS = 0x01;
 const G_OBJ_FLAG_FLIPT = 0x10;
+const G_OBJRM_BILERP = 0x08;
+const G_OBJRM_SHRINKSIZE_1 = 0x10;
+const G_OBJRM_SHRINKSIZE_2 = 0x20;
+const G_OBJRM_WIDEN = 0x40;
 
 const kRenderNone = 0;
 const kRenderFullTransform = 1;
@@ -747,10 +751,10 @@ export class S2DEXCommon {
     const spr = this.sprite;
     const m = this.matrix;
     const mode = this.state.s2dexRenderMode;
-    const bilerp = (mode & 0x08) !== 0;
-    const shrink1 = (mode & 0x10) !== 0;
-    const shrink = (shrink1 ? 0.5 : 0) + ((mode & 0x20) ? 1 : 0);
-    const trim = 2 * shrink - ((mode & 0x40) ? 3 / 8 : 0);
+    const bilerp = (mode & G_OBJRM_BILERP) !== 0;
+    const shrink1 = (mode & G_OBJRM_SHRINKSIZE_1) !== 0;
+    const shrink = (shrink1 ? 0.5 : 0) + ((mode & G_OBJRM_SHRINKSIZE_2) ? 1 : 0);
+    const trim = 2 * shrink - ((mode & G_OBJRM_WIDEN) ? 3 / 8 : 0);
     if (spr.imageW <= trim || spr.imageH <= trim) {
       return;
     }
