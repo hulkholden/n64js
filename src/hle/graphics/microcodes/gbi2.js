@@ -124,20 +124,30 @@ export class GBI2 extends GBIMicrocode {
   readTexRectParams(dis) {
     const state = this.state;
     const pc = state.pc;
+    const end = Math.min(state.pcEnd || this.ramDV.byteLength, this.ramDV.byteLength);
+    if (pc && pc + 8 <= end) {
+      const command = this.ramDV.getUint32(pc) >>> 24;
+      // F3DEX2 retains RDPHalf1 in DMEM. All-Star Baseball omits it when
+      // subsequent rectangles use the same S/T, supplying only RDPHalf2.
+      if (command === gbi2.Commands.G_RDPHALF_2) {
+        state.nextCommand();
+        return [state.rdpHalf1Cmd1, state.cmd1];
+      }
+      if (command === gbi2.Commands.G_RDPHALF_1 && pc + 16 <= end &&
+          (this.ramDV.getUint32(pc + 8) >>> 24) === gbi2.Commands.G_RDPHALF_2) {
+        const params = super.readTexRectParams();
+        state.rdpHalf1Cmd1 = params[0];
+        return params;
+      }
+    }
     // Triple Play 2000 can end a list between RDPHalf1 and RDPHalf2.
     // Do not consume EndDL (or a branch) as rectangle data and run off the list.
-    const end = state.pcEnd || this.ramDV.byteLength;
-    if (!pc || pc + 16 > end || pc + 16 > this.ramDV.byteLength ||
-        (this.ramDV.getUint32(pc) >>> 24) !== gbi2.Commands.G_RDPHALF_1 ||
-        (this.ramDV.getUint32(pc + 8) >>> 24) !== gbi2.Commands.G_RDPHALF_2) {
-      const message = 'Incomplete GBI2 texture rectangle: expected RDPHalf1 and RDPHalf2';
-      this.warn(message);
-      if (dis) {
-        dis.text(message);
-      }
-      return null;
+    const message = 'Incomplete GBI2 texture rectangle: expected RDPHalf2 or RDPHalf1 and RDPHalf2';
+    this.warn(message);
+    if (dis) {
+      dis.text(message);
     }
-    return super.readTexRectParams();
+    return null;
   }
 
   executeVertex(cmd0, cmd1, dis) {
