@@ -7,7 +7,7 @@ import { disassembleInstruction } from './disassemble.js';
 import { toString32 } from '../format.js';
 import { assert } from '../assert.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
-import { simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
+import { OP_J, OP_BEQ, OP_BNE, OP_COP0, OP_CACHE, COP_MT, COP_DMT, simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
 
 const kDebugDynarec = false;
 const kValidateDynarecPCs = false;
@@ -85,6 +85,30 @@ export class FragmentContext {
   genSyncFragmentCycles(opsInIteration = this.fragment.opsCompiled - 1) {
     return `c.syncFragmentCycles(${this.opsCountExpr(opsInIteration)});`;
   }
+
+  // Emits the per-instruction RSP step and interrupt check that precedes each
+  // compiled CPU instruction.
+  // Hoist the !rsp.halted check into the generated trace so the JS JIT can fold
+  // redundant loads across consecutive instructions when the RSP is halted, and
+  // avoid calling rsp.step() on the common halted path.
+  // When !kAccurateCountUpdating, every instruction that can set c.stuffToDo
+  // checks it before falling through to the next instruction, and runImpl()
+  // enters fragments with c.stuffToDo === 0, so c.stuffToDo can only become
+  // non-zero here if rsp.step() ran and raised an interrupt or break.
+  genStepPreamble(stepPC = this.pc, opsBefore = this.fragment.opsCompiled - 1) {
+    if (kAccurateCountUpdating) {
+      return `if (!rsp.halted) { rsp.step(); }\nif (c.stuffToDo) { c.pc = ${stepPC}; ${this.genReturnOps(opsBefore)} }\n\n`;
+    }
+    return `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${stepPC}; ${this.genReturnOps(opsBefore)} } }\n\n`;
+  }
+
+  flushDelayedPCUpdate() {
+    // Check if the last op has a delayed pc update, and do it now.
+    if (this.delayedPCUpdate !== 0) {
+      this.fragment.bodyCode += `c.pc = ${toString32(this.delayedPCUpdate)};\n`;
+      this.delayedPCUpdate = 0;
+    }
+  }
   
   newFragment(opsCounterVar = null) {
     this.delayedPCUpdate = 0;
@@ -130,6 +154,31 @@ export class FragmentContext {
   instr_imm() { return imm(this.instruction); }
 
   instr_tlbop() { return tlbop(this.instruction); }
+}
+
+// Returns true if compiling `instruction` at `pc` sets `ctx.bailOut`, which
+// ends the trace immediately and prevents wrapping the fragment in a self-loop.
+export function instructionBailsOut(pc, instruction) {
+  switch (simpleOp(instruction)) {
+    case OP_J:
+      return kSpeedHackEnabled && jumpAddress(pc, instruction) === pc;
+    case OP_BEQ:
+    case OP_BNE:
+      return kSpeedHackEnabled && offset(instruction) === -1;
+    case OP_COP0: {
+      if (instruction & 0x02000000) {
+        return false;
+      }
+      const cop = copOp(instruction);
+      const reg = fs(instruction);
+      return (cop === COP_MT || cop === COP_DMT) &&
+        (reg === cpu0reg.controlCount || reg === cpu0reg.controlCompare);
+    }
+    case OP_CACHE:
+      return !n64js.cpu0.ignoreCacheOp(rt(instruction));
+    default:
+      return false;
+  }
 }
 
 export function generateCodeForOp(ctx) {
@@ -185,6 +234,37 @@ ${lines}
 }
 
 `;
+}
+
+export function emitTraceStep(fragment, step, ctx) {
+  ctx.set(fragment, step.pc, step.instruction, step.postPC, step.nextPC);
+  fragment.bodyCode += ctx.genStepPreamble();
+  generateCodeForOp(ctx);
+}
+
+// Compiles a fragment's recorded `traceSteps` in a single pass.
+// When `selfLoop` is true, emits intra-iteration exits relative to
+// `opsExecuted` and wraps the body in a do-while loop that runs until the next
+// scheduled event deadline (`cyclesToFirstEvent`) or an early exit.
+export function compileTraceSteps(fragment, ctx = new FragmentContext(), { selfLoop = false } = {}) {
+  const totalOps = fragment.traceSteps.length;
+  fragment.bodyCode = '';
+  fragment.needsDelayCheck = true;
+  fragment.cop1statusKnown = false;
+  fragment.usesCop1 = false;
+  ctx.newFragment(selfLoop ? 'opsExecuted' : null);
+
+  for (let i = 0; i < totalOps; i++) {
+    fragment.opsCompiled = i + 1;
+    emitTraceStep(fragment, fragment.traceSteps[i], ctx);
+  }
+  ctx.flushDelayedPCUpdate();
+
+  const bodyCode = selfLoop
+    ? `let opsExecuted = 0;\ndo {\n${fragment.bodyCode}opsExecuted += ${totalOps};\n} while (c.canContinueSelfLoop(opsExecuted, ${totalOps}));\nreturn opsExecuted;\n`
+    : `${fragment.bodyCode}${ctx.genReturnOps(totalOps)}\n`;
+  ctx.opsCounterVar = null;
+  return bodyCode;
 }
 
 // Indents all lines to the provided indent, removing any empty lines.
