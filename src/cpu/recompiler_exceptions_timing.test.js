@@ -480,6 +480,77 @@ for (const profiled of [false, true]) {
       expect(result.interruptRSPPCs).toEqual([12]);
     });
 
+    test('guarded loads preserve sign-extension, $zero destination, and trailing base-clobbering loads', async () => {
+      const setup = (c, h) => {
+        c.setRegS32Extend(4, 0x80003000);
+        h.ram.set32(0x3000, 0x76543210);
+        h.ram.set32(0x3004, 0x89abcdef);
+        h.ram.set32(0x3008, 0x80003010);
+        h.ram.set32(0x3010, 0x11223344);
+        h.ram.set32(0x3014, 0xfeedface);
+      };
+      const result = await compare([
+        0,
+        iop(decode.OP_LW, 4, 0, 0),
+        iop(decode.OP_LW, 4, 2, 0),
+        iop(decode.OP_LW, 4, 3, 4),
+        iop(decode.OP_LW, 4, 4, 8), // Clobbers base r4 at the end of the first group.
+        iop(decode.OP_LW, 4, 5, 0),
+        iop(decode.OP_LW, 4, 6, 4),
+      ], setup, setup);
+      expect(result.code).toContain('Guarded RAM LW group (4 loads)');
+      expect(result.code).toContain('Guarded RAM LW group (2 loads)');
+      expect(result.gpr[0]).toBe(0n);
+      expect(result.gpr[2]).toBe(0x76543210n);
+      expect(result.gpr[3]).toBe(BigInt.asUintN(64, -0x76543211n));
+      expect(result.gpr[4]).toBe(0xffffffff80003010n);
+      expect(result.gpr[5]).toBe(0x11223344n);
+      expect(result.gpr[6]).toBe(0xfffffffffeedfacen);
+    });
+
+    test('failed load group guard preserves an earlier load before a later TLB fault', async () => {
+      const setup = (c, h) => {
+        c.setRegS32Extend(4, 0x00403ffc);
+        c.setControlU32(regs.controlIndex, 0);
+        c.setControlU32(regs.controlPageMask, 0);
+        c.setControlU32(regs.controlEntryHi, 0x00402000);
+        c.setControlU32(regs.controlEntryLo0, 0xc7);
+        c.setControlU32(regs.controlEntryLo1, 0xc7);
+        c.tlbWriteIndex();
+        h.ram.set32(0x3000, 0x89abcdef);
+      };
+      const result = await compare([
+        0,
+        iop(decode.OP_LW, 4, 2, -0xffc),
+        iop(decode.OP_LW, 4, 3, 4),
+      ], setup);
+      expect(result.code).toContain('Guarded RAM LW group (2 loads)');
+      expect(result.gpr[2]).toBe(0xffffffff89abcdefn);
+      expect(result.gpr[3]).toBe(0n);
+      expect(result.epc).toBe(pc + 8);
+      expect(result.badVAddr).toBe(0x00404000);
+      expect(result.cause).toBe(0x08);
+    });
+
+    test('RAM load group retains active RSP steps and a mid-group RSP interrupt exit', async () => {
+      const setup = (c, h) => {
+        c.setControlU32(regs.controlStatus, 0x20000401);
+        c.statusRegisterChanged();
+        h.ram.set32(0x3000, 0x12345678);
+        h.ram.set32(0x3004, 0x89abcdef);
+        h.mi_reg.set32(0xc, 1); // SP interrupt mask.
+        h.sp_reg.set32(0x10, 0x40); // Interrupt on BREAK.
+        h.sp_mem.set32(0x1008, 0x0000000d); // BREAK before the second load.
+        h.rsp.unhalt();
+      };
+      const result = await compare([0, iop(decode.OP_LW, 4, 2), iop(decode.OP_LW, 4, 3, 4)], setup);
+      expect(result.code).toContain('Guarded RAM LW group (2 loads)');
+      expect(result.gpr[2]).toBe(0x12345678n);
+      expect(result.gpr[3]).toBe(0n);
+      expect(result.epc).toBe(pc + 8);
+      expect(result.interruptRSPPCs).toEqual([12]);
+    });
+
     test('a breakpoint after a RAM group charges only completed instructions', async () => {
       const result = await compare([0, iop(decode.OP_SW, 4, 2), iop(decode.OP_SW, 4, 2, 4), breakpointInstruction],
         c => {
