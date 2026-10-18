@@ -30,7 +30,6 @@ export async function runBranchBenchmarks({ iterations = 1_000_000, samples = 5 
     romBuffer: new ArrayBuffer(0x1000),
     rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
   });
-  globalThis.n64js.getSyncFlow = () => null;
   const data = inputs();
   const results = [];
   for (const compiled of [false, true]) {

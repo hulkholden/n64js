@@ -14,7 +14,6 @@ import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
 import { performanceProfile } from '../debug/performance_profile.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
 import { rsp } from '../rsp/rsp.js';
-import { syncFlow } from '../sync.js';
 
 window.n64js = window.n64js || {};
 
@@ -224,9 +223,6 @@ const kEventRunForCycles = 'Run For Cycles';
 function getAddress32VPN2(address) { return (address >>> 13); }
 function getAddress64VPN2(address) { return (address & TLBHI_VPN2MASK) >> TLBHI_VPN2SHIFT; }
 function getAddress64R(address) { return (address & TLBHI_RMASK) >> TLBHI_RSHIFT; }
-
-// Needs to be callable from dynarec.
-n64js.getSyncFlow = () => syncFlow;
 
 const s32SignBit = 0x8000_0000;
 const s64SignBit = 0x8000_0000_0000_0000n;
@@ -998,12 +994,6 @@ export class CPU0 {
           if (performanceProfile.enabled) {
             performanceProfile.counters.interpretedOps++;
           }
-          // if (syncFlow) {
-          //   if (!checkSyncState(syncFlow, this.pc)) {
-          //     n64js.halt('sync error');
-          //     break;
-          //   }
-          // }
 
           if (!rsp.halted) {
             rsp.step();
@@ -1351,11 +1341,8 @@ export class CPU0 {
     const min = wired >= 32 ? 0 : (wired & 31);
     const max = wired >= 32 ? 64 : 32;
 
-    let random = Math.floor(this.randomSource() * (max - min)) + min;
+    const random = Math.floor(this.randomSource() * (max - min)) + min;
     assert(random >= min && random < max, `Ooops - random should be in range [${min},${max}), but got ${random}`);
-    if (syncFlow) {
-      random = syncFlow.reflect32(random);
-    }
     return random;
   }
 
@@ -2946,67 +2933,6 @@ const simpleTable = validateSimpleOpTable([
   i => cpu0.execSD(rt(i), base(i), imms(i)),
 ]);
 
-function mix(a, b, c) {
-  a -= b; a -= c; a ^= (c >>> 13);
-  b -= c; b -= a; b ^= (a << 8);
-  c -= a; c -= b; c ^= (b >>> 13);
-  a -= b; a -= c; a ^= (c >>> 12);
-  b -= c; b -= a; b ^= (a << 16);
-  c -= a; c -= b; c ^= (b >>> 5);
-  a -= b; a -= c; a ^= (c >>> 3);
-  b -= c; b -= a; b ^= (a << 10);
-  // Keep the complete mixing sequence, even though this caller only uses a.
-  // eslint-disable-next-line no-useless-assignment
-  c -= a; c -= b; c ^= (b >>> 15);
-
-  return a;
-}
-
-function checkSyncState(sync, pc) {
-  if (!sync.sync32(pc, 'pc')) {
-    return false;
-  }
-
-  // let nextEvent = this.eventQueue.cyclesToFirstEvent;
-  // for (let event = eventQueue.firstEvent; event; event = event.next) {
-  //   if (event.type === kEventVbl || event.type == kEventCompare) {
-  //     break;
-  //   }
-  //   nextEvent += event.cyclesToNextEvent;
-  // }
-
-  // if (!sync.sync32(nextEvent, 'event'))
-  //   return false;
-
-  {
-    let a = 0;
-    for (let i = 0; i < 32; ++i) {
-      a = mix(a, cpu0.getRegU32Lo(i), 0);
-    }
-    a = a >>> 0;
-
-    if (!sync.sync32(a, 'regs')) {
-      return false;
-    }
-  }
-
-  // if(0) {
-  //   if (!sync.sync32(cpu0.multLoU32[0], 'multlo'))
-  //     return false;
-  //   if (!sync.sync32(cpu0.multHiU32[0], 'multhi'))
-  //     return false;
-  // }
-
-  // if(0) {
-  //   if (!sync.sync32(cpu0.controlCountValue, 'count'))
-  //     return false;
-  //   if (!sync.sync32(cpu0.getControlU32(cpu0reg.controlCompare), 'compare'))
-  //     return false;
-  // }
-
-  return true;
-}
-
 n64js.singleStep = function () {
   const breakpoints = n64js.breakpoints();
 
@@ -3207,11 +3133,6 @@ function compileFragment(fragment, c = cpu0) {
     performanceProfile.counters.fragmentCompilations++;
   }
   let header = '';
-  const sync = n64js.getSyncFlow();
-  if (sync) {
-    header += 'const sync = n64js.getSyncFlow();\n';
-  }
-
   if (fragment.usesCop1) {
     header += `const SR_CU1 = ${toString32(SR_CU1)};\n`;
     header += `const FPCSR_C = ${toString32(FPCSR_C)};\n`;
@@ -3240,5 +3161,4 @@ function compileFragment(fragment, c = cpu0) {
   }
 }
 
-n64js.checkSyncState = checkSyncState;    // Needs to be callable from dynarec
 n64js.executeOp = executeOp;

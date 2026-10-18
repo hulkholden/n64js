@@ -1,7 +1,6 @@
 /*global n64js*/
 
 import * as logger from './logger.js';
-import { syncInput } from './sync.js';
 import { n64_cic_nus_6105 } from './devices/cic.js';
 import { PIF_RAM_OFFSET } from './devices/pif.js';
 
@@ -329,16 +328,9 @@ class ControllerChannel extends Channel {
   readController(tx, rx, txBuf, rxBuf) {
     this.expectTx('kCmdControllerRead', tx, 1);
 
-    let buttons = this.inputs.buttons;
-    let stick_x = this.inputs.stick_x;
-    let stick_y = this.inputs.stick_y;
-
-    if (syncInput) {
-      syncInput.sync32(0xbeeff00d, 'input');
-      buttons = syncInput.reflect32(buttons); // FIXME reflect16
-      stick_x = syncInput.reflect32(stick_x); // FIXME reflect8
-      stick_y = syncInput.reflect32(stick_y); // FIXME reflect8
-    }
+    const buttons = this.inputs.buttons;
+    const stick_x = this.inputs.stick_x;
+    const stick_y = this.inputs.stick_y;
 
     rxBuf[0] = buttons >>> 8;
     rxBuf[1] = buttons & 0xff;
