@@ -2,12 +2,13 @@
 
 import * as cpu0reg from './cpu0reg.js';
 import { GPRFacts, constant64, isSigned32, isUnsigned32, isKnown32 } from './gpr_facts.js';
+import { RAMStoreGroup } from './ram_store_group.js';
 import { convertModeCeil, convertModeFloor, convertModeRound, convertModeTrunc } from './cpu1.js';
 import { disassembleInstruction } from './disassemble.js';
 import { toString32 } from '../format.js';
 import { assert } from '../assert.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
-import { OP_J, OP_BEQ, OP_BNE, OP_COP0, OP_CACHE, COP_MT, COP_DMT, simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
+import { OP_J, OP_BEQ, OP_BNE, OP_COP0, OP_SW, OP_CACHE, COP_MT, COP_DMT, simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
 
 const kDebugDynarec = false;
 const kValidateDynarecPCs = false;
@@ -53,6 +54,7 @@ export class FragmentContext {
     this.forwardedComparison = null;
     this.pendingComparison = null;
     this.opsCounterVar = null;
+    this.ramStoreGroup = new RAMStoreGroup();
   }
 
   genAssert(test, msg) {
@@ -103,6 +105,7 @@ export class FragmentContext {
   }
 
   flushDelayedPCUpdate() {
+    finishCodeGeneration(this);
     // Check if the last op has a delayed pc update, and do it now.
     if (this.delayedPCUpdate !== 0) {
       this.fragment.bodyCode += `c.pc = ${toString32(this.delayedPCUpdate)};\n`;
@@ -115,6 +118,7 @@ export class FragmentContext {
     this.gprFacts.reset();
     this.forwardedComparison = null;
     this.opsCounterVar = opsCounterVar;
+    this.ramStoreGroup.reset();
   }
 
   set(fragment, pc, instruction, postPC, nextPC) {
@@ -181,9 +185,39 @@ export function instructionBailsOut(pc, instruction) {
   }
 }
 
-export function generateCodeForOp(ctx) {
+export function generateCodeForOp(ctx, { includeStepPreamble = false } = {}) {
   ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
   ctx.isTrivial = false;
+
+  // Never specialize debug code or a dynamic delay-slot/trace boundary.
+  // SW cannot change its base, even when the value register aliases the base.
+  const groupStore = !kDebugDynarec && !kValidateDynarecPCs && !kAccurateCountUpdating &&
+    simpleOp(ctx.instruction) === OP_SW && !ctx.needsDelayCheck && ctx.postPC === ctx.pc + 4;
+  if (ctx.ramStoreGroup.count && (!groupStore ||
+      !ctx.ramStoreGroup.canAppend(ctx.instr_base(), ctx.instr_imms(), ctx.pc))) {
+    finishCodeGeneration(ctx);
+  }
+
+  if (groupStore) {
+    if (ctx.ramStoreGroup.count === 0) {
+      if (includeStepPreamble) {
+        ctx.fragment.bodyCode += ctx.genStepPreamble();
+      }
+      if (ctx.delayedPCUpdate !== 0) {
+        ctx.fragment.bodyCode += `// Applying delayed pc\nc.pc = ${toString32(ctx.delayedPCUpdate)};\n`;
+        ctx.delayedPCUpdate = 0;
+      }
+    }
+    ctx.gprFacts.update(ctx.instruction);
+    ctx.forwardedComparison = null;
+    ctx.fragment.needsDelayCheck = false;
+    ctx.ramStoreGroup.add(ctx, includeStepPreamble);
+    return;
+  }
+
+  if (includeStepPreamble) {
+    ctx.fragment.bodyCode += ctx.genStepPreamble();
+  }
 
   let preflight = '';
   if (kValidateDynarecPCs) {
@@ -228,18 +262,16 @@ export function generateCodeForOp(ctx) {
   const dasm = disassembleInstruction(ctx.pc, ctx.instruction, false);
   const lines = redentLines(fn_code, '  ');
 
-  ctx.fragment.bodyCode += `// ${dasm.disassembly}
-{
-${lines}
+  ctx.fragment.bodyCode += `// ${dasm.disassembly}\n{\n${lines}\n}\n\n`;
 }
 
-`;
+export function finishCodeGeneration(ctx) {
+  ctx.ramStoreGroup.finish(ctx);
 }
 
 export function emitTraceStep(fragment, step, ctx) {
   ctx.set(fragment, step.pc, step.instruction, step.postPC, step.nextPC);
-  fragment.bodyCode += ctx.genStepPreamble();
-  generateCodeForOp(ctx);
+  generateCodeForOp(ctx, { includeStepPreamble: true });
 }
 
 // Compiles a fragment's recorded `traceSteps` in a single pass.
