@@ -1,7 +1,7 @@
-import { executeDisplayList } from '../src/hle/graphics/display_list.js';
-import { RDPGraphics } from '../src/hle/graphics/rdp_graphics.js';
-import { Sprite2D } from '../src/hle/graphics/microcodes/sprite2d.js';
-import { RDPBuffer } from '../src/lle/rdp.js';
+import { executeDisplayList } from '../../src/hle/graphics/display_list.js';
+import { RDPGraphics } from '../../src/hle/graphics/rdp_graphics.js';
+import { Sprite2D } from '../../src/hle/graphics/microcodes/sprite2d.js';
+import { RDPBuffer } from '../../src/lle/rdp.js';
 import { sprite2DCases, writeSprite2DFixture } from './sprite2d_cases.js';
 import { createWebGLHarness } from './webgl_test_helpers.js';
 

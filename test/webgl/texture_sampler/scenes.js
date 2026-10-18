@@ -1,8 +1,8 @@
-import * as gbi from '../../src/hle/graphics/gbi.js';
-import { Renderer } from '../../src/hle/graphics/renderer.js';
-import { RenderTargets } from '../../src/hle/graphics/render_targets.js';
-import { RSPState } from '../../src/hle/graphics/rsp_state.js';
-import { TriangleBuffer } from '../../src/hle/graphics/triangle_buffer.js';
+import * as gbi from '../../../src/hle/graphics/gbi.js';
+import { Renderer } from '../../../src/hle/graphics/renderer.js';
+import { RenderTargets } from '../../../src/hle/graphics/render_targets.js';
+import { RSPState } from '../../../src/hle/graphics/rsp_state.js';
+import { TriangleBuffer } from '../../../src/hle/graphics/triangle_buffer.js';
 
 export const nativeWidth = 128;
 export const nativeHeight = 96;

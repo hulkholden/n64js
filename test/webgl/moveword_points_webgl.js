@@ -1,6 +1,6 @@
 import { renderModifyVertexScene } from './modify_vertex_webgl.js';
-import { executeDisplayList } from '../src/hle/graphics/display_list.js';
-import { GBI2 } from '../src/hle/graphics/microcodes/gbi2.js';
+import { executeDisplayList } from '../../src/hle/graphics/display_list.js';
+import { GBI2 } from '../../src/hle/graphics/microcodes/gbi2.js';
 import { createWebGLHarness, evaluateChecks } from './webgl_test_helpers.js';
 
 // A real display list uses WCW's ForceMatrix pair, then explicitly invalidates it.

@@ -1,12 +1,12 @@
-// Build: bun build tools/texture_sampler_webgl.js --outfile=build/texture_sampler_webgl.js
-// Serve the repository root, then open /tools/texture_sampler_webgl.html.
+// Build: bun build test/webgl/texture_sampler_webgl.js --outfile=build/texture_sampler_webgl.js
+// Serve the repository root, then open /test/webgl/texture_sampler_webgl.html.
 // These tests exercise the real renderer, generated shaders and GPU readback.
-import * as gbi from '../src/hle/graphics/gbi.js';
-import { Renderer } from '../src/hle/graphics/renderer.js';
-import { RenderTargets } from '../src/hle/graphics/render_targets.js';
-import { RSPState } from '../src/hle/graphics/rsp_state.js';
-import { TriangleBuffer } from '../src/hle/graphics/triangle_buffer.js';
-import { GBIMicrocode } from '../src/hle/graphics/microcodes/gbi_microcode.js';
+import * as gbi from '../../src/hle/graphics/gbi.js';
+import { Renderer } from '../../src/hle/graphics/renderer.js';
+import { RenderTargets } from '../../src/hle/graphics/render_targets.js';
+import { RSPState } from '../../src/hle/graphics/rsp_state.js';
+import { TriangleBuffer } from '../../src/hle/graphics/triangle_buffer.js';
+import { GBIMicrocode } from '../../src/hle/graphics/microcodes/gbi_microcode.js';
 import { runPresentationTests } from './presentation_webgl.js';
 import { runRDPTests } from './rdp_webgl.js';
 import { runAffineProjectionTests } from './affine_projection_webgl.js';

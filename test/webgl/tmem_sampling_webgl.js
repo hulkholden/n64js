@@ -1,7 +1,7 @@
-import * as gbi from '../src/hle/graphics/gbi.js';
-import { decodeTile } from '../src/hle/graphics/debug_texture.js';
-import { Renderer } from '../src/hle/graphics/renderer.js';
-import { RSPState } from '../src/hle/graphics/rsp_state.js';
+import * as gbi from '../../src/hle/graphics/gbi.js';
+import { decodeTile } from '../../src/hle/graphics/debug_texture.js';
+import { Renderer } from '../../src/hle/graphics/renderer.js';
+import { RSPState } from '../../src/hle/graphics/rsp_state.js';
 
 // Compare against independent CPU decoding and filtering, plus physical-memory cases
 // that a finite RGBA image cannot represent (bank aliases and unmasked reads).

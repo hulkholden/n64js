@@ -2,7 +2,7 @@ import { convertTexels } from '../debug_texture.js';
 import { afterEach, describe, expect, test } from 'bun:test';
 import { GBI1SDEX, GBI2SDEX } from './gbi_s2dex.js';
 import { RSPState } from '../rsp_state.js';
-import { bgCopyCase, bgCopyFormats } from '../../../../tools/s2dex_bg_copy_cases.js';
+import { bgCopyCase, bgCopyFormats } from '../../../../test/webgl/s2dex_bg_copy_cases.js';
 import * as gbi from '../gbi.js';
 
 const savedN64js = globalThis.n64js;

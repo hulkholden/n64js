@@ -1,9 +1,9 @@
-import { VIRegDevice } from '../src/devices/vi.js';
-import { MemoryRegion } from '../src/memory/memory_region.js';
-import { Framebuffer16, Framebuffer32 } from '../src/graphics/framebuffer.js';
-import { OS_TV_NTSC } from '../src/system_constants.js';
-import { CRTMode, graphicsOptions } from '../src/hle/graphics/graphics_options.js';
-import { ImageFormat, ImageSize } from '../src/hle/graphics/gbi.js';
+import { VIRegDevice } from '../../src/devices/vi.js';
+import { MemoryRegion } from '../../src/memory/memory_region.js';
+import { Framebuffer16, Framebuffer32 } from '../../src/graphics/framebuffer.js';
+import { OS_TV_NTSC } from '../../src/system_constants.js';
+import { CRTMode, graphicsOptions } from '../../src/hle/graphics/graphics_options.js';
+import { ImageFormat, ImageSize } from '../../src/hle/graphics/gbi.js';
 import { assertPixels, createWebGLHarness, RED, BLUE } from './webgl_test_helpers.js';
 import { runInterlacedPresentationTests } from './interlaced_presentation_webgl.js';
 

@@ -1,6 +1,6 @@
-import * as gbi from '../src/hle/graphics/gbi.js';
-import { GBIMicrocode } from '../src/hle/graphics/microcodes/gbi_microcode.js';
-import { TriangleBuffer } from '../src/hle/graphics/triangle_buffer.js';
+import * as gbi from '../../src/hle/graphics/gbi.js';
+import { GBIMicrocode } from '../../src/hle/graphics/microcodes/gbi_microcode.js';
+import { TriangleBuffer } from '../../src/hle/graphics/triangle_buffer.js';
 import { assertPixels, createWebGLHarness, loadTestTexture, testTexture,
   RED, GREEN, BLUE, WHITE, solid } from './webgl_test_helpers.js';
 

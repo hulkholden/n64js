@@ -1,12 +1,12 @@
 # Texture sampler visual tests
 
 This gallery complements the explicit GPU pixel checks in
-`tools/texture_sampler_webgl.js`. It exercises production TMEM loading, decoding,
+`test/webgl/texture_sampler_webgl.js`. It exercises production TMEM loading, decoding,
 texture caching, tile state, combiners, shader generation, `texRect`, `texRectRot`
 and `flushTris`. Only RAM and the primitives are synthetic. No ROM is needed,
 and there is no separate reference sampler in the test.
 
-The [Texture sampler visuals workflow](../../.github/workflows/texture-sampler.yml)
+The [Texture sampler visuals workflow](../../../.github/workflows/texture-sampler.yml)
 runs both suites with `bun run test:visual --self-test` on every pull request.
 
 ## Open the gallery
@@ -19,7 +19,7 @@ bun run build:visual
 python3 -m http.server 8000
 ```
 
-Open [the gallery](http://localhost:8000/tools/texture_sampler_visual.html).
+Open [the gallery](http://localhost:8000/test/webgl/texture_sampler_visual.html).
 Each scene shows the live rendering, a checked-in golden PNG and a difference
 heatmap. Select native or 2× internal resolution and one of four deterministic
 scroll frames. Rebuild and refresh after changing code. “Render again” reruns
@@ -34,23 +34,23 @@ options, tolerance and baseline capture provenance.
 To run just the explicit GPU pixel checks in the browser, build their bundle:
 
 ```sh
-bun build tools/texture_sampler_webgl.js --outfile=build/texture_sampler_webgl.js
+bun build test/webgl/texture_sampler_webgl.js --outfile=build/texture_sampler_webgl.js
 ```
 
-Then open [the pixel-check page](http://localhost:8000/tools/texture_sampler_webgl.html)
+Then open [the pixel-check page](http://localhost:8000/test/webgl/texture_sampler_webgl.html)
 on the same local server. The checks run automatically and report their results.
 
 The pixel checks also include GBI1/GBI2 `MoveWord LightCol` lighting. To view
-that scene with labels, build `bun build tools/light_color_webgl.js
+that scene with labels, build `bun build test/webgl/light_color_webgl.js
 --outfile=build/light_color_webgl.js` and open
-[the lighting scene](http://localhost:8000/tools/light_color_webgl.html).
+[the lighting scene](http://localhost:8000/test/webgl/light_color_webgl.html).
 It compares cached vertices, diffuse and ambient updates, and the duplicate
 colour word in the last light slot using the production vertex loader and renderer.
 
 The pixel checks also cover GBI1/GBI2 `ModifyVertex RGBA` writes through display
 lists, including opaque color, partial alpha blending and zero alpha. Build
-`bun build tools/modify_vertex_webgl.js --outfile=build/modify_vertex_webgl.js`
-and open [the color/alpha scene](http://localhost:8000/tools/modify_vertex_webgl.html)
+`bun build test/webgl/modify_vertex_webgl.js --outfile=build/modify_vertex_webgl.js`
+and open [the color/alpha scene](http://localhost:8000/test/webgl/modify_vertex_webgl.html)
 to view the same cached vertices before and after the commands. Lighting and fog
 are enabled after the vertex load to check that the supplied RGBA is used directly.
 
@@ -100,7 +100,7 @@ This writes PNGs and capture metadata to
 `build/texture-sampler-results/candidate/`. It **never updates checked-in goldens**.
 Review the candidates against the existing goldens, difference images and
 each scene's stated expectation. For intentional changes, copy only the
-reviewed images and their capture metadata into `tools/texture_sampler/goldens/`,
+reviewed images and their capture metadata into `test/webgl/texture_sampler/goldens/`,
 then rerun the comparison and include those changes in the PR.
 
 The PNGs are regression baselines from a previous emulator run, not proof of
@@ -128,7 +128,7 @@ check too; no production source or golden is modified.
 
 ## Vertex fog pixel checks
 
-`tools/fog_webgl.js` runs in the same pixel-check page and CI job. It loads
+`test/webgl/fog_webgl.js` runs in the same pixel-check page and CI job. It loads
 synthetic vertices through the standard GBI path, draws with the production
 renderer, and compares framebuffer bytes with hand-calculated expectations.
 It covers zero/partial/full fog, per-vertex clamping, screen-linear shade alpha

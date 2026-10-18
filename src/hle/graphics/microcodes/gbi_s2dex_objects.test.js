@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { drawS2DEXObject, s2dexObjectCases } from '../../../../tools/s2dex_object_cases.js';
+import { drawS2DEXObject, s2dexObjectCases } from '../../../../test/webgl/s2dex_object_cases.js';
 import { RSPState } from '../rsp_state.js';
 import { GBI1SDEX, GBI2SDEX } from './gbi_s2dex.js';
 
