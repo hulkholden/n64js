@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8">
-<title>ModifyVertex browser scene</title>
+<title>MoveWord LightCol browser scene</title>
 <style>
   body { background: #e8edf4; color: #183047; font: 16px system-ui; margin: 30px; }
   main { background: white; padding: 28px; width: 830px; border-radius: 12px; }
@@ -15,13 +15,13 @@
   canvas { width: 800px; height: 360px; }
 </style>
 <main>
-  <h1>ModifyVertex XYSCREEN · GBI1 and GBI2</h1>
-  <p>Same cached triangle, unequal perspective W. Screen writes move it right or across the left edge.</p>
+  <h1>MoveWord LightCol · GBI1 and GBI2</h1>
+  <p>Same lights and vertices. Only the light-color commands change subsequent shading.</p>
   <div class="labels">
-    <span>Original<br>No screen write</span>
-    <span>XYSCREEN update<br>Move right 160.25 px</span>
-    <span>Same update<br>Changed RSP viewport</span>
-    <span>Signed XYSCREEN<br>Move left 80.25 px</span>
+    <span>Cached vertices<br>Red retained</span>
+    <span>Diffuse update<br>Green</span>
+    <span>Ambient update<br>Green + blue</span>
+    <span>Light 8 · copy word<br>Blue ambient</span>
   </div>
   <section>
     <span class="row">GBI1</span><span class="row second">GBI2</span>
@@ -30,11 +30,11 @@
 </main>
 <pre id="results">Running…</pre>
 <script type="module">
-  import { runModifyVertexTests } from '../build/modify_vertex_webgl.js';
+  import { runLightColorTests } from '../../build/light_color_webgl.js';
   globalThis.n64js = { warn: console.warn };
   try {
     const gl = document.getElementById('display').getContext('webgl2', { antialias: false });
-    const lines = runModifyVertexTests(gl);
+    const lines = runLightColorTests(gl);
     document.getElementById('results').textContent = lines.join('\n');
     document.title = `${lines.length} passed`;
   } catch (error) {

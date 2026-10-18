@@ -116,7 +116,7 @@ bun run build
 ```
 
 Use `bun run lint:fix` to apply automatic lint fixes. Linting covers `src/`,
-including tests and benchmarks, `tools/`, and the ESLint config. Warnings fail
+including tests and benchmarks, `test/`, `tools/`, and the ESLint config. Warnings fail
 the check as well as errors. Existing `no-unused-vars` findings are recorded in
 `eslint-suppressions.json` as a baseline of counts per file; increases fail CI.
 Other recommended rules remain fully enforced. When cleaning up existing unused
@@ -145,7 +145,7 @@ pixel checks and compares synthetic rendered scenes with golden images in
 pinned Chromium with SwiftShader. It also verifies that a deliberately introduced
 sampling regression is detected. The `texture-sampler-visuals` artifact contains
 results and actual, golden and difference images for failed comparisons.
-See the [texture-sampler test guide](tools/texture_sampler/README.md) for running
+See the [texture-sampler test guide](test/webgl/texture_sampler/README.md) for running
 the checks locally, using the browser gallery and reviewing golden updates.
 
 ## Publishing

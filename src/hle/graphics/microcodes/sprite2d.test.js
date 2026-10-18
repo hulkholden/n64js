@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import '../../../headless/headless_env.js';
-import { sprite2DCases, writeSprite2DFixture } from '../../../../tools/sprite2d_cases.js';
+import { sprite2DCases, writeSprite2DFixture } from '../../../../test/webgl/sprite2d_cases.js';
 import { RDPBuffer } from '../../../lle/rdp.js';
 import { executeDisplayList } from '../display_list.js';
 import { identifyMicrocode, MicrocodeId } from '../microcode_identifier.js';

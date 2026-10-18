@@ -4,7 +4,7 @@ import globals from 'globals';
 
 export default [
   {
-    files: ['src/**/*.js', 'js/**/*.js', 'tools/**/*.js', 'eslint.config.js'],
+    files: ['src/**/*.js', 'js/**/*.js', 'test/**/*.js', 'tools/**/*.js', 'eslint.config.js'],
     ...js.configs.recommended,
     plugins: { '@stylistic': stylistic },
     rules: {
@@ -41,30 +41,16 @@ export default [
     rules: { '@stylistic/indent': ['error', 4, { SwitchCase: 1 }] },
   },
   {
-    files: ['src/**/*.js', 'js/**/*.js'],
+    files: ['src/**/*.js', 'js/**/*.js', 'test/webgl/**/*.js'],
+    ignores: ['test/webgl/texture_sampler/run.js'],
     languageOptions: { globals: globals.browser },
   },
   {
-    files: ['src/**/*.test.js', 'src/**/*.bench.js', 'src/headless/**/*.js', 'src/systemtest/**/*.js', 'src/inventory/**/*.js'],
+    files: ['src/**/*.test.js', 'src/**/*.bench.js', 'src/headless/**/*.js', 'src/systemtest/**/*.js', 'src/inventory/**/*.js', 'tools/**/*.js', 'test/webgl/texture_sampler/run.js'],
     languageOptions: { globals: { ...globals.nodeBuiltin, ...globals.bunBuiltin } },
   },
   {
     files: ['src/**/*.test.js', 'src/headless/headless_env.js'],
     languageOptions: { globals: { n64js: 'readonly' } },
-  },
-  {
-    files: ['tools/**/*.js'],
-    languageOptions: { sourceType: 'commonjs', globals: globals.node },
-  },
-  {
-    files: ['tools/build.js', 'tools/systemtest/**/*.js', 'tools/texture_sampler/run.js'],
-    languageOptions: {
-      sourceType: 'module',
-      globals: { ...globals.nodeBuiltin, ...globals.bunBuiltin },
-    },
-  },
-  {
-    files: ['tools/l3dex_webgl.js', 'tools/conker_webgl.js', 'tools/texture_sampler_webgl.js', 'tools/presentation_webgl.js', 'tools/interlaced_presentation_webgl.js', 'tools/fog_webgl.js', 'tools/tmem_sampling_webgl.js', 'tools/rdp_webgl.js', 'tools/affine_projection_webgl.js', 'tools/rdp_packet_fixtures.js', 'tools/light_color_webgl.js', 'tools/modify_vertex_webgl.js', 'tools/primitive_depth_webgl.js', 'tools/moveword_points_webgl.js', 'tools/s2dex_bg_*.js', 'tools/s2dex_object_cases.js', 'tools/hle_commands_webgl.js', 'tools/sprite2d_cases.js', 'tools/sprite2d_webgl.js', 'tools/texture_sampler/scenes.js', 'tools/texture_sampler/visual.js', 'tools/webgl_test_helpers.js'],
-    languageOptions: { sourceType: 'module', globals: globals.browser },
   },
 ];

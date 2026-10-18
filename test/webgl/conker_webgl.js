@@ -1,6 +1,6 @@
-import { executeDisplayList } from '../src/hle/graphics/display_list.js';
-import * as gbi from '../src/hle/graphics/gbi.js';
-import { GBI2Conker } from '../src/hle/graphics/microcodes/gbi2_conker.js';
+import { executeDisplayList } from '../../src/hle/graphics/display_list.js';
+import * as gbi from '../../src/hle/graphics/gbi.js';
+import { GBI2Conker } from '../../src/hle/graphics/microcodes/gbi2_conker.js';
 import { CLEAR, WHITE, assertPixels, createWebGLHarness, loadTestTexture, testTexture } from './webgl_test_helpers.js';
 
 export function runConkerTests(gl) {

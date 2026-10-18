@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { chromium } from 'playwright';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const visualBundle = 'build/texture_sampler_visual.js';
 const imageFields = ['actual', 'golden', 'difference'];
 
@@ -75,7 +75,7 @@ function readOptions() {
   }
 
   const output = resolve(root, values.output, values.capture ? 'candidate' : '.');
-  const goldens = resolve(root, 'tools/texture_sampler/goldens');
+  const goldens = resolve(root, 'test/webgl/texture_sampler/goldens');
   if (output === goldens || output.startsWith(goldens + sep)) {
     throw new Error('Capture to a separate directory, review the images, then copy approved files into goldens.');
   }
@@ -90,8 +90,8 @@ function readOptions() {
 
 function buildBundles() {
   const bundles = [
-    ['tools/texture_sampler/visual.js', visualBundle],
-    ['tools/texture_sampler_webgl.js', 'build/texture_sampler_webgl.js'],
+    ['test/webgl/texture_sampler/visual.js', visualBundle],
+    ['test/webgl/texture_sampler_webgl.js', 'build/texture_sampler_webgl.js'],
   ];
 
   for (const [entry, bundle] of bundles) {
@@ -154,7 +154,7 @@ async function runPixelChecks(page, url) {
   // The module runs the GPU suites synchronously, delaying the load event.
   // Navigation only needs to commit; completion has its own bounded budget
   // for software rendering on slower CI runners.
-  await page.goto(`${url}/tools/texture_sampler_webgl.html`, { waitUntil: 'commit' });
+  await page.goto(`${url}/test/webgl/texture_sampler_webgl.html`, { waitUntil: 'commit' });
   await page.waitForFunction(() => /passed|FAIL/.test(document.title), null, { timeout: 120000 });
 
   const results = await page.locator('#results').innerText();
@@ -168,7 +168,7 @@ async function runPixelChecks(page, url) {
 }
 
 async function loadVisualTests(page, url, hardware) {
-  await page.goto(`${url}/tools/texture_sampler_visual.html?headless`);
+  await page.goto(`${url}/test/webgl/texture_sampler_visual.html?headless`);
   await page.waitForFunction(() => window.samplerVisualTests || document.title.startsWith('FAIL'));
 
   const ready = await page.evaluate(() => Boolean(window.samplerVisualTests));
@@ -235,7 +235,7 @@ async function runVisualTests(page, cases, { capture, output }) {
 function reportResults(results, { capture, output }) {
   const directory = relative(root, output);
   if (capture) {
-    console.log(`Captured ${results.length} candidates in ${directory}. Review before copying into tools/texture_sampler/goldens/.`);
+    console.log(`Captured ${results.length} candidates in ${directory}. Review before copying into test/webgl/texture_sampler/goldens/.`);
     return 0;
   }
 

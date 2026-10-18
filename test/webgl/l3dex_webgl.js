@@ -1,5 +1,5 @@
-import { executeDisplayList } from '../src/hle/graphics/display_list.js';
-import { GBI2L3DEX } from '../src/hle/graphics/microcodes/gbi_l3dex.js';
+import { executeDisplayList } from '../../src/hle/graphics/display_list.js';
+import { GBI2L3DEX } from '../../src/hle/graphics/microcodes/gbi_l3dex.js';
 import { CLEAR, RED, BLUE, assertPixels, createWebGLHarness } from './webgl_test_helpers.js';
 
 export function runL3DEXTests(gl) {

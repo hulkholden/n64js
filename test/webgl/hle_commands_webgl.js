@@ -1,7 +1,7 @@
-import { executeDisplayList } from '../src/hle/graphics/display_list.js';
-import { GBI1 } from '../src/hle/graphics/microcodes/gbi1.js';
-import { GBI2 } from '../src/hle/graphics/microcodes/gbi2.js';
-import { GBI1SDEX, GBI2SDEX } from '../src/hle/graphics/microcodes/gbi_s2dex.js';
+import { executeDisplayList } from '../../src/hle/graphics/display_list.js';
+import { GBI1 } from '../../src/hle/graphics/microcodes/gbi1.js';
+import { GBI2 } from '../../src/hle/graphics/microcodes/gbi2.js';
+import { GBI1SDEX, GBI2SDEX } from '../../src/hle/graphics/microcodes/gbi_s2dex.js';
 import { drawS2DEXObject, s2dexObjectCases } from './s2dex_object_cases.js';
 import { assertPixels, createWebGLHarness, withMockMemory } from './webgl_test_helpers.js';
 

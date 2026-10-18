@@ -1,8 +1,8 @@
-import { VIRegDevice } from '../src/devices/vi.js';
-import { MemoryRegion } from '../src/memory/memory_region.js';
-import { Framebuffer16, Framebuffer32 } from '../src/graphics/framebuffer.js';
-import { OS_TV_NTSC, OS_TV_PAL } from '../src/system_constants.js';
-import { CRTMode, graphicsOptions } from '../src/hle/graphics/graphics_options.js';
+import { VIRegDevice } from '../../src/devices/vi.js';
+import { MemoryRegion } from '../../src/memory/memory_region.js';
+import { Framebuffer16, Framebuffer32 } from '../../src/graphics/framebuffer.js';
+import { OS_TV_NTSC, OS_TV_PAL } from '../../src/system_constants.js';
+import { CRTMode, graphicsOptions } from '../../src/hle/graphics/graphics_options.js';
 import { assertFramebufferGrid, createTestTexture, RED, BLUE } from './webgl_test_helpers.js';
 
 // Compare shader field assembly with CPU VI sampling, including different

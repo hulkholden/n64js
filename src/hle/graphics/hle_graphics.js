@@ -50,7 +50,7 @@ export function dispatchGraphicsTask(hardware, mode, task) {
 
   // T3DUX transform-only objects expose fixed-point results and adjacent DMEM
   // through DMA. Run the whole task on the RSP to preserve those bytes, prior
-  // object state, and interleaved RDP output (see tools/t3dux_writeback.md).
+  // object state, and interleaved RDP output.
   if ((microcode.id === MicrocodeId.T3DUX || microcode.id === MicrocodeId.T3DUX_BRAVE) &&
     t3duxNeedsWriteback(hardware.cachedMemDevice.mem.dataView, task.dataPtr)) {
     return false;

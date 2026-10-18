@@ -23,7 +23,7 @@ section { position: relative; padding-left: 30px; margin-top: 12px; }
 </main>
 <pre id="results">Running…</pre>
 <script type="module">
-import { runMoveWordPointsTests } from '../build/moveword_points_webgl.js';
+import { runMoveWordPointsTests } from '../../build/moveword_points_webgl.js';
 globalThis.n64js = { warn: console.warn };
 try {
   const gl = id => document.getElementById(id).getContext('webgl2', { antialias: false });

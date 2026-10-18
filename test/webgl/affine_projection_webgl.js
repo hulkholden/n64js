@@ -1,8 +1,8 @@
-import { Matrix4x4 } from '../src/graphics/Matrix4x4.js';
-import * as gbi from '../src/hle/graphics/gbi.js';
-import { T3DUX } from '../src/hle/graphics/microcodes/t3dux.js';
-import { TriangleBuffer } from '../src/hle/graphics/triangle_buffer.js';
-import { Turbo3D } from '../src/hle/graphics/microcodes/turbo3d.js';
+import { Matrix4x4 } from '../../src/graphics/Matrix4x4.js';
+import * as gbi from '../../src/hle/graphics/gbi.js';
+import { T3DUX } from '../../src/hle/graphics/microcodes/t3dux.js';
+import { TriangleBuffer } from '../../src/hle/graphics/triangle_buffer.js';
+import { Turbo3D } from '../../src/hle/graphics/microcodes/turbo3d.js';
 import {
   BLUE,
   CLEAR,

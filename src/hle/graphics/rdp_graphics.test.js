@@ -3,7 +3,7 @@ import { RDPGraphics } from './rdp_graphics.js';
 import { NullRenderer } from './null_renderer.js';
 import { RSPState } from './rsp_state.js';
 import { RDPBuffer } from '../../lle/rdp.js';
-import { trianglePacket } from '../../../tools/rdp_packet_fixtures.js';
+import { trianglePacket } from '../../../test/webgl/rdp_packet_fixtures.js';
 import { createHeadlessEmulator } from '../../headless/headless_env.js';
 import * as gbi from './gbi.js';
 

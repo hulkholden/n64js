@@ -1,6 +1,6 @@
-import * as gbi from '../src/hle/graphics/gbi.js';
-import { RDPBuffer } from '../src/lle/rdp.js';
-import { RDPGraphics } from '../src/hle/graphics/rdp_graphics.js';
+import * as gbi from '../../src/hle/graphics/gbi.js';
+import { RDPBuffer } from '../../src/lle/rdp.js';
+import { RDPGraphics } from '../../src/hle/graphics/rdp_graphics.js';
 import { trianglePacket } from './rdp_packet_fixtures.js';
 import {
   BLUE,
