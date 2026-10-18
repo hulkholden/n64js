@@ -37,7 +37,6 @@ export async function createTestEmulator() {
     romBuffer: new ArrayBuffer(0x1000),
     rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
   });
-  globalThis.n64js.getSyncFlow = () => null;
   return emulator;
 }
 
@@ -49,7 +48,6 @@ export async function createTestCPU() {
 export function createTestHardware() {
   const hardware = new Hardware({ save: 'Eeprom4k' }, { headless: true });
   initCPU(hardware);
-  globalThis.n64js.getSyncFlow = () => null;
   return hardware;
 }
 
@@ -58,11 +56,9 @@ export function resetTestHardware(hardware) {
   hardware.cpu0.reset();
   hardware.cpu0.setControlU32(regs.controlStatus, 0);
   hardware.ram.clear();
-  globalThis.n64js.getSyncFlow = () => null;
 }
 
 export function compileOp(word, { pc = DEFAULT_PC, postPC = pc + 4, nextPC = postPC, needsDelayCheck, cop1statusKnown } = {}) {
-  globalThis.n64js.getSyncFlow = () => null;
   const fragment = new Fragment(pc);
   fragment.opsCompiled = 1;
   if (needsDelayCheck !== undefined) {
@@ -78,7 +74,6 @@ export function compileOp(word, { pc = DEFAULT_PC, postPC = pc + 4, nextPC = pos
 }
 
 export function compileOps(words, { pc = DEFAULT_PC, ctx = new FragmentContext(), fragment = new Fragment(pc), target } = {}) {
-  globalThis.n64js.getSyncFlow = () => null;
   words.forEach((word, index) => {
     fragment.opsCompiled++;
     const addr = pc + index * 4;

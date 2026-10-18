@@ -19,7 +19,6 @@ import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './r
 import { initRSP } from './rsp/rsp.js';
 import { categoryCodeDescriptionFromU8, countryNorthAmerica, OS_TV_NTSC, tvTypeFromCountry } from './system_constants.js';
 import { UI } from './ui/ui.js';
-import { initSync, syncActive, syncTick } from './sync.js';
 import { dbgGUI } from './debug/dbg_ui.js';
 
 window.n64js = window.n64js || {};
@@ -198,7 +197,7 @@ function updateLoopAnimframe(now = performance.now()) {
     // Don't slow down debugger if we're waiting for a display list to be debugged.
     const debugging = dbg.active && !debugDisplayListRequested();
     let frames = framePacer.framesDue(now, hardware.viRegDevice.refreshRate);
-    if (debugging || syncActive()) {
+    if (debugging) {
       framePacer.reset();
       frames = 1;
     }
@@ -207,11 +206,7 @@ function updateLoopAnimframe(now = performance.now()) {
       if (hardware.aiRegDevice.shouldSkipFrame()) {
         break;
       }
-      let maxCycles = debugging ? dbg.debugCycles : kCyclesPerUpdate;
-      if (syncActive()) {
-        // Check how many cycles we can safely execute.
-        maxCycles = syncTick(maxCycles);
-      }
+      const maxCycles = debugging ? dbg.debugCycles : kCyclesPerUpdate;
       if (maxCycles <= 0) {
         break;
       }
@@ -288,8 +283,6 @@ n64js.addResetCallback = (fn) => {
 n64js.reset = () => {
   framePacer.reset();
   breakpoints.reset();
-
-  initSync();
 
   hardware.reset();
 

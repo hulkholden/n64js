@@ -176,11 +176,6 @@ export function generateCodeForOp(ctx) {
 
   ctx.fragment.bailedOut |= ctx.bailOut;
 
-  const sync = n64js.getSyncFlow();
-  if (sync) {
-    fn_code = `if (!n64js.checkSyncState(sync, ${toString32(ctx.pc)})) { ${ctx.genReturnOps(ctx.fragment.opsCompiled - 1)} }\n${fn_code}`;
-  }
-
   const dasm = disassembleInstruction(ctx.pc, ctx.instruction, false);
   const lines = redentLines(fn_code, '  ');
 

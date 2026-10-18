@@ -73,10 +73,5 @@
     "no-unused-vars": {
       "count": 4
     }
-  },
-  "src/sync.js": {
-    "no-unused-vars": {
-      "count": 6
-    }
   }
 }
