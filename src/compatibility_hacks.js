@@ -163,6 +163,17 @@ export const compatibilityHacks = {
       { address: 0x80059b20, expected: 0x14200031, replacement: 0x10000031 }, // BNE at, zero -> B
     ],
   },
+  '9cf75b9fa008fed2': {
+    name: 'Quake 64 (USA)',
+    enabled: true,
+    issue: 'https://github.com/hulkholden/n64js/issues/448',
+    // Same retrace-backlog overflow and command-buffer aliasing during
+    // osContInit's 500 ms wait as Europe (14 NTSC retraces queue up and cause
+    // AudioTask #1 and #2 to alias buffer 0 at 0x80113a80).
+    instructionPatches: [
+      { address: 0x80059b00, expected: 0x14200031, replacement: 0x10000031 }, // BNE at, zero -> B
+    ],
+  },
   '9dae5305c1e0d8ea': {
     name: 'Xena - Warrior Princess - The Talisman of Fate (USA)',
     enabled: true,

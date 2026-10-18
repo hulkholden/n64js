@@ -276,30 +276,33 @@ describe('ROM compatibility instruction patches', () => {
   });
 });
 
-describe('Quake 64 Europe startup wait', () => {
-  const quakeEuropeId = '741d9316346ddc65';
-  const branchAddress = 0x80059b20;
-  const skipWaitTarget = 0x80059be8;
+describe('Quake 64 startup wait', () => {
   const delaySlot = 0x0302082b; // SLTU at, t8, v0
+  const cases = [
+    { name: 'Europe', id: '741d9316346ddc65', branchAddress: 0x80059b20, skipWaitTarget: 0x80059be8 },
+    { name: 'USA', id: '9cf75b9fa008fed2', branchAddress: 0x80059b00, skipWaitTarget: 0x80059bc8 },
+  ];
 
-  async function startupFixture(enableCompatibilityHacks) {
-    const emulator = await fixture(quakeEuropeId, { enableCompatibilityHacks });
+  async function startupFixture(id, branchAddress, enableCompatibilityHacks) {
+    const emulator = await fixture(id, { enableCompatibilityHacks });
     emulator.hardware.ram.set32(branchAddress - 0x80000000, original);
     emulator.hardware.ram.set32(branchAddress - 0x80000000 + 4, delaySlot);
     emulator.cpu0.pc = branchAddress;
     return emulator;
   }
 
-  test('skips the osContInit 500 ms wait branch when enabled and enters the wait when disabled', async () => {
-    const enabled = await startupFixture(true);
-    enabled.cpu0.run(2);
-    expect(enabled.cpu0.pc).toBe(skipWaitTarget);
-    expect(enabled.hardware.ram.getU32(branchAddress - 0x80000000)).toBe(replacement);
-    expect(enabled.cpu0.compatibilityHacks).toBeNull();
+  for (const { name, id, branchAddress, skipWaitTarget } of cases) {
+    test(`${name} skips the osContInit 500 ms wait branch when enabled and enters the wait when disabled`, async () => {
+      const enabled = await startupFixture(id, branchAddress, true);
+      enabled.cpu0.run(2);
+      expect(enabled.cpu0.pc).toBe(skipWaitTarget);
+      expect(enabled.hardware.ram.getU32(branchAddress - 0x80000000)).toBe(replacement);
+      expect(enabled.cpu0.compatibilityHacks).toBeNull();
 
-    const disabled = await startupFixture(false);
-    disabled.cpu0.run(2);
-    expect(disabled.cpu0.pc).toBe(branchAddress + 8);
-    expect(disabled.hardware.ram.getU32(branchAddress - 0x80000000)).toBe(original);
-  });
+      const disabled = await startupFixture(id, branchAddress, false);
+      disabled.cpu0.run(2);
+      expect(disabled.cpu0.pc).toBe(branchAddress + 8);
+      expect(disabled.hardware.ram.getU32(branchAddress - 0x80000000)).toBe(original);
+    });
+  }
 });
