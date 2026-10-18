@@ -10,19 +10,11 @@ import { GBI2Conker } from './microcodes/gbi2_conker.js';
 import { GBI2FLX } from './microcodes/gbi2_flx.js';
 import { GBI1SDEX, GBI2SDEX } from './microcodes/gbi_s2dex.js';
 import { graphicsOptions } from './graphics_options.js';
-import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microcode_identifier.js';
+import { identifyMicrocode, MicrocodeId, microcodePrefixLength, supportsHLE } from './microcode_identifier.js';
 import { Turbo3D } from './microcodes/turbo3d.js';
 import { T3DUX } from './microcodes/t3dux.js';
 import { ZSortP } from './microcodes/zsortp.js';
 import { Sprite2D } from './microcodes/sprite2d.js';
-
-const unsupportedHLEMicrocodes = new Set([
-  MicrocodeId.ZSORT_BOSS,
-  MicrocodeId.F5_INDI,
-  MicrocodeId.F5_ROGUE,
-  MicrocodeId.F5_NABOO,
-  MicrocodeId.HVQM2,
-]);
 
 class UnsupportedMicrocodeError extends Error {
   constructor(info) {
@@ -37,7 +29,7 @@ export function assertHLESupported(info) {
   // Falling back to GBI0 reads unrelated data as commands; skipping execution
   // and signalling task completion cannot satisfy their CPU/RSP handshake.
   // LLE fallback is only safe at task start, before any HLE execution.
-  if (unsupportedHLEMicrocodes.has(info.id)) {
+  if (!supportsHLE(info.id)) {
     throw new UnsupportedMicrocodeError(info);
   }
 }

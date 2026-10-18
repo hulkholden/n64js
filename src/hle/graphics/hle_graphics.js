@@ -9,16 +9,9 @@ import { RDPGraphics } from './rdp_graphics.js';
 import { RSPState } from './rsp_state.js';
 import { Renderer } from './renderer.js';
 import { graphicsOptions } from './graphics_options.js';
-import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microcode_identifier.js';
+import { identifyMicrocode, MicrocodeId, microcodePrefixLength, requiresLLE } from './microcode_identifier.js';
 import { toString32 } from '../../format.js';
 import { t3duxNeedsWriteback } from './microcodes/t3dux.js';
-
-const lleMicrocodes = new Set([
-  MicrocodeId.HVQM2,
-  MicrocodeId.ZSORT_BOSS,
-  MicrocodeId.F5_INDI,
-  MicrocodeId.F5_NABOO,
-]);
 
 window.n64js = window.n64js || {};
 
@@ -51,7 +44,7 @@ export function dispatchGraphicsTask(hardware, mode, task) {
   // Indiana Jones and Battle for Naboo use linked blocks, code overlays and RDP
   // output buffers. Preserve those protocols by running their original RSP code;
   // SP completion and DP FullSync must come from execution, not a skipped task.
-  if (mode !== EmulationMode.HLE || lleMicrocodes.has(microcode.id)) {
+  if (mode !== EmulationMode.HLE || requiresLLE(microcode.id)) {
     return false;
   }
 

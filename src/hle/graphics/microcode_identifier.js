@@ -28,6 +28,24 @@ export const MicrocodeId = Object.freeze({
   SPRITE2D: 26,    // Nintendo's original sprite microcode (before S2DEX)
 });
 
+// Microcodes default to HLE. These exceptions either run on the RSP at task
+// start or reject HLE without selecting an automatic LLE fallback.
+const microcodeExecutionOverrides = new Map([
+  [MicrocodeId.F5_INDI, 'lle'],
+  [MicrocodeId.ZSORT_BOSS, 'lle'],
+  [MicrocodeId.F5_ROGUE, 'unsupported'],
+  [MicrocodeId.HVQM2, 'lle'],
+  [MicrocodeId.F5_NABOO, 'lle'],
+]);
+
+export function supportsHLE(id) {
+  return !microcodeExecutionOverrides.has(id);
+}
+
+export function requiresLLE(id) {
+  return microcodeExecutionOverrides.get(id) === 'lle';
+}
+
 const microcodeProfiles = new Map([
   [MicrocodeId.SPRITE2D, { family: 'Sprite2D', variant: null }],
   [MicrocodeId.GBI0_EARLY, { family: 'GBI0', variant: 'EARLY' }],
