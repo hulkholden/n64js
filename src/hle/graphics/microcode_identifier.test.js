@@ -5,7 +5,7 @@ import { TaskOffsets } from '../rsp_task_constants.js';
 import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microcode_identifier.js';
 
 describe('microcode identification', () => {
-  test('identifies Naboo without selecting the Indiana Jones skip path or GBI0 fallback', () => {
+  test('identifies Naboo separately from Indiana Jones and the GBI0 fallback', () => {
     const hash = 0x1f59be1a;
     for (const version of ['', 'RSP Gfx ucode F3DEX fifo 2.0']) {
       expect(identifyMicrocode(version, hash)).toEqual({

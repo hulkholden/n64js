@@ -60,6 +60,10 @@ The main areas where system tests or games still run into limitations are:
 * **Cycle timing**: Instruction timing is still an approximation rather than cycle-accurate, which can affect timing-sensitive games.
 * **Edge-case CPU/FPU behaviour**: Some 64-bit addressing edge cases and floating-point rounding near numerical limits are not fully emulated.
 
+Indiana Jones automatically uses low-level RSP execution for its custom graphics
+microcode, including when HLE graphics is selected. Its output uses the
+experimental RDP renderer and requires more CPU work than HLE graphics.
+
 ## Performance
 
 With dynamic CPU recompilation and HLE graphics/audio, most games run at full framerate on modern desktop hardware (tested primarily on Apple Silicon Macs). Games that fall back to LLE audio or experimental LLE graphics require significantly more CPU/GPU work.

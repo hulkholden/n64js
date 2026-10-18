@@ -11,7 +11,7 @@ export const MicrocodeId = Object.freeze({
   GBI0_GE: 9,      // Golden Eye
   GBI2_CONKER: 10, // Conker BFD
   GBI0_PD: 11,     // Perfect Dark
-  F5_INDI: 12,     // Indiana Jones (recognized, but HLE is not implemented)
+  F5_INDI: 12,     // Indiana Jones (executes on the RSP)
   ZSORTP: 13,      // Mia Hamm / World League Soccer (recognized, but HLE is not implemented)
   TURBO3D: 14,     // Dark Rift (object lists, not GBI commands)
   ZSORT_BOSS: 15,  // Stunt Racer / World Driver (executes on the RSP)
@@ -100,8 +100,7 @@ const sprite2DPrefixHashes = new Set([
 
 /**
  * Identifies the microcode without constructing a handler or producing side effects.
- * F5_INDI is recognized but has no HLE handler; its graphics tasks are skipped.
- * ZSORT_BOSS executes on the RSP; F5_ROGUE and F5_NABOO are rejected by HLE execution.
+ * F5_INDI and ZSORT_BOSS execute on the RSP; F5_ROGUE and F5_NABOO are rejected by HLE execution.
  * HVQM2 video tasks use the RSP interpreter, even in graphics HLE mode.
  * Family and variant describe the microcode; detection='fallback' means
  * GBI0 was assumed, not positively identified. A null variant selects the base

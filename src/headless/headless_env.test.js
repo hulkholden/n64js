@@ -263,6 +263,9 @@ rogueCode.set([8, 1, 12, 9, 2, 0, 12, 5], rogueCode.length - 8);
 // Synthetic bytes with hash 0x1f59be1a, not Naboo microcode.
 const nabooCode = new Uint8Array(0x1000);
 nabooCode.set([1, 4, 13, 7, 8, 13, 15, 13], nabooCode.length - 8);
+// Synthetic base-17 digits with hash 0xdd57a04e, not Indiana Jones microcode.
+const indiCode = new Uint8Array(0x1000);
+indiCode.set([9, 0, 14, 6, 16, 5, 10, 2], indiCode.length - 8);
 // Synthetic prefix with hash 0xeb70fcb5; no game code is included.
 const hvqmCode = new Uint8Array(0x1000);
 hvqmCode.set([9, 10, 11, 0, 1, 11, 12, 15], microcodePrefixLength - 8);
@@ -272,6 +275,94 @@ const unsupportedMicrocodes = [
 ];
 
 describe('headless graphics execution', () => {
+  test.each([false, true])('executes Indiana Jones linked tasks without synthetic completion (draws=%s)', async executeGraphics => {
+    const seen = [], loaded = [];
+    const emulator = await createEmulator({ executeGraphics,
+      onGraphicsTask: info => seen.push(info), onMicrocodeLoad: info => loaded.push(info) });
+    const { cpu0, hardware } = emulator;
+    prepareGraphicsTask(emulator, '', indiCode);
+    hardware.sp_mem.set32(0xfc0 + TaskOffsets.dataPtr, 0x3000);
+    hardware.spRegDevice.spUpdateStatus(SP_SET_INTR_BREAK);
+    cpu0.pc = 0x80007000;
+    cpu0.setControlU32(controlStatus, 0);
+    cpu0.cop1ControlChanged();
+    hardware.ram.set32(0x7000, 0x1000ffff); // CPU waits while the RSP runs.
+
+    // Stand-in RSP program, not the game's microcode. Read linked 0x108-byte
+    // blocks (8-byte header + 0x100-byte payload), DMA two raw RDP commands
+    // from each, and finish only after consuming the final block. A self-link
+    // exercises bounded execution while the CPU has not published more work.
+    const program = [
+      0x8c110ff0,             // lw s1, OSTask.dataPtr(zero)
+      0x24125000,             // output RDP buffer = 0x5000
+      0x24080270, 0x40880000, // next: SP_MEM_ADDR = 0x270
+      0x40910800,             // SP_DRAM_ADDR = s1
+      0x24080107, 0x40881000, // SP_RD_LEN = 0x107
+      0x40083000, 0x1500fffe, 0, // wait for input DMA
+      0x8c110270,             // s1 = next block pointer
+      0x24080278, 0x40880000, // SP_MEM_ADDR = payload
+      0x40920800,             // SP_DRAM_ADDR = output buffer
+      0x2408000f, 0x40881800, // SP_WR_LEN = 15
+      0x40083000, 0x1500fffe, 0, // wait for output DMA
+      0x40924000,             // DPC_START = output buffer
+      0x26480010, 0x40884800, // DPC_END = output buffer + 16
+      0x1620ffeb, 0,          // bne s1, zero, next
+      0x24080000 | SP_SET_SIG2, 0x40882000,
+      0x0000000d,             // break, with interrupt-on-break enabled
+    ];
+    program.forEach((word, i) => hardware.sp_mem.set32(0x1000 + i * 4, word));
+    hardware.ram.set32(0x3000, 0x3000); // CPU producer has not published block 2.
+    hardware.ram.set32(0x3008, 0xf7000000); // SetFillColor
+    hardware.ram.set32(0x300c, 0x12345678);
+    hardware.ram.set32(0x3010, 0xe7000000); // PipeSync, no DP interrupt
+    hardware.ram.set32(0x3208, 0xf7000000);
+    hardware.ram.set32(0x320c, 0xabcdef01);
+    hardware.ram.set32(0x3210, 0xe9000000); // FullSync in the final block
+    let dp = 0;
+    const interruptDP = hardware.miRegDevice.interruptDP.bind(hardware.miRegDevice);
+    hardware.miRegDevice.interruptDP = () => { dp++; interruptDP(); };
+
+    startRSPTask(emulator);
+    expect(seen).toMatchObject([{ id: MicrocodeId.F5_INDI, detection: 'hash' }]);
+    let sp = 0;
+    const interruptSP = hardware.miRegDevice.interruptSP.bind(hardware.miRegDevice);
+    hardware.miRegDevice.interruptSP = () => { sp++; interruptSP(); };
+    expect(hardware.rsp.halted).toBe(false);
+    expect(hardware.spRegDevice.hleTask).toBeNull();
+    const complete = SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT;
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & complete).toBe(0);
+    expect(dp).toBe(0);
+    runCycles(emulator, 10_000);
+    expect(hardware.rsp.halted).toBe(false);
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & complete).toBe(0);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_SP | MI_INTR_DP)).toBe(0);
+    expect([sp, dp]).toEqual([0, 0]);
+    expect(hardware.ram.getU32(0x5004)).toBe(0x12345678);
+    if (executeGraphics) {
+      expect(hardware.graphics.state.fillColor).toBe(0x12345678);
+    }
+
+    // Real CPU instructions publish the second block while the RSP is active.
+    cpu0.pc = 0x80007100;
+    [0x3c088000, 0x24093200, 0xad093000, 0x1000ffff, 0].forEach((word, i) => hardware.ram.set32(0x7100 + i * 4, word));
+    runCycles(emulator, 10_000);
+    expect(hardware.ram.getU32(0x5004)).toBe(0xabcdef01);
+    expect(hardware.rsp.halted).toBe(true);
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & complete).toBe(complete);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_SP | MI_INTR_DP)).toBe(MI_INTR_SP | MI_INTR_DP);
+    expect([sp, dp]).toEqual([1, 1]);
+    expect(loaded).toEqual([]);
+    if (executeGraphics) {
+      expect(hardware.graphics.state.fillColor).toBe(0xabcdef01);
+    }
+
+    prepareGraphicsTask(emulator);
+    setGraphicsCommands(emulator, [[0xe9000000, 0], [0xdf000000, 0]]);
+    startAndCompleteRSPTask(emulator);
+    expect(loaded.map(info => info.id)).toEqual(executeGraphics ? [MicrocodeId.GBI2] : []);
+    expect(dp).toBe(2);
+  });
+
   for (const hash of [0x26da8a4c, 0xdd560323]) {
     test.each([false, true])(`runs T3DUX ${hash.toString(16)} writeback tasks on the RSP (draws=%s)`, async executeGraphics => {
       const loaded = [];
@@ -633,12 +724,15 @@ describe('headless graphics execution', () => {
     expect(hardware.cpu1.control[31]).toBe(0x01010800);
   });
 
-  test.each([...unsupportedMicrocodes, { family: 'ZSortBOSS', version: '', code: bossCode, detection: 'hash' }])('rejects $family tasks and in-list loads before parsing their commands', async ({ family, variant, version, code, detection }) => {
+  test.each([...unsupportedMicrocodes,
+    { family: 'ZSortBOSS', version: '', code: bossCode, detection: 'hash', inListOnly: true },
+    { family: 'F5', variant: 'INDI', version: '', code: indiCode, detection: 'hash', inListOnly: true },
+  ])('rejects $family tasks and in-list loads before parsing their commands', async ({ family, variant, version, code, detection, inListOnly }) => {
     const previousHaltOnWarning = graphicsOptions.haltOnWarning;
     try {
       // Unsupported execution must stop even when ordinary warnings are ignored.
       graphicsOptions.haltOnWarning = false;
-      for (const inList of (family === 'ZSortBOSS' ? [true] : [false, true])) {
+      for (const inList of (inListOnly ? [true] : [false, true])) {
         const seen = [];
         const loaded = [];
         const halted = [];
@@ -682,6 +776,10 @@ describe('headless graphics execution', () => {
           expect(halted[0].details.error.message).toContain('F5/NABOO');
           expect(halted[0].details.error.message).toContain('0x1f59be1a');
           expect(seen[0].variant).toBe(inList ? null : 'NABOO');
+        }
+        if (variant === 'INDI') {
+          expect(halted[0].details.error.message).toContain('F5/INDI');
+          expect(halted[0].details.error.message).toContain('0xdd57a04e');
         }
         if (family === 'ZSortBOSS') {
           expect(halted[0].details.error.message).toContain('0xe281945c');
