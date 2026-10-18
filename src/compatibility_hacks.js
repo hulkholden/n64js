@@ -14,6 +14,33 @@
 // the replacement; the delay is still charged only when that site executes.
 // These approximate missing timing costs, not a cache or pipeline timing model.
 export const compatibilityHacks = {
+  '0b15d45cf1c20c47': {
+    name: 'Extreme-G XG2 (USA)',
+    enabled: true,
+    // The foreground and background asset loaders share two DMA buffers. Our
+    // approximate CPU timing lets the foreground reach osRecvMesg before its
+    // first 1 KiB DMA finishes (the LZSS setup takes ~16.6k cycles; PI needs
+    // ~18k). Blocking there schedules the background loader, which overwrites
+    // the same buffer and corrupts the foreground asset before the title screen.
+    //
+    // Poll the completion queue before a pending osRecvMesg, keeping interrupts
+    // enabled and the current thread runnable. Preserve the helper's existing
+    // no-transfer/already-consumed checks, receive, counter and buffer switch.
+    // This is a guest workaround for missing CPU timing costs, not a change to
+    // global PI timing or an RDP rendering fix.
+    instructionPatches: xg2StreamWaitPatches(0x8005aa98, 0xcdf8, 0x8007cd08, 0x8005a978),
+  },
+  '85ec851131775a4b': {
+    name: 'Extreme-G XG2 (Europe)',
+    enabled: true,
+    // Same shared-buffer wait as USA, at this revision's stream helper/queue.
+    instructionPatches: xg2StreamWaitPatches(0x8005aad8, 0xce38, 0x8007cde8, 0x8005a9b8),
+  },
+  '819b9b3911ad33d5': {
+    name: 'Extreme-G XG2 (Japan)',
+    enabled: true,
+    instructionPatches: xg2StreamWaitPatches(0x8005ab08, 0xd198, 0x8007ce98, 0x8005a9e8),
+  },
   '59825e661dbd98d0': {
     name: 'Pocket Monsters Stadium (Japan)',
     enabled: true,
@@ -171,3 +198,38 @@ export const compatibilityHacks = {
     ],
   },
 };
+
+// Relocate the same small stream-helper rewrite for each verified XG2 image.
+// Two instructions are freed by toggling the 0/1 buffer index with XORI and
+// branching directly to the epilogue when no more data needs prefetching. The
+// next-transfer length is cleared before either returning or calling prefetch,
+// which sets it to the new transfer length. Those slots hold the queue poll.
+function xg2StreamWaitPatches(entry, countOffset, receive, prefetch) {
+  const jump = address => 0x08000000 | ((address >>> 2) & 0x03ffffff);
+  const jal = address => 0x0c000000 | ((address >>> 2) & 0x03ffffff);
+  const loadCount = 0x8e220000 | countOffset;
+  const storeCount = 0xae220000 | countOffset;
+  const original = [
+    0x27a50010, jal(receive), 0x24060001, loadCount, 0x2442ffff, storeCount,
+    0x8e030008, 0x8e040014, 0x8e050004, 0x24020001, 0xae00000c, 0x00431023,
+    0xae020008, 0x14a00003, 0xae040010, jump(entry + 0x7c), 0xae000014,
+    jal(prefetch), 0x02002021,
+  ];
+  const replacement = [
+    0x8c820008, // poll: LW v0, validCount(a0)
+    0x1040fffe, // BEQ v0, zero, poll
+    0x27a50010, // ADDIU a1, sp, 0x10 (delay slot)
+    jal(receive), 0x24060001, loadCount, 0x2442ffff, storeCount,
+    0x8e030008, 0x8e040014, 0x8e050004,
+    0x38620001, // XORI v0, v1, 1: toggle the double-buffer index.
+    0xae00000c, 0xae020008, 0xae040010,
+    0x10a00003, // BEQ a1, zero, epilogue
+    0xae000014, // Clear next length; prefetch sets it if more data remains.
+    jal(prefetch), 0x02002021,
+  ];
+  return [
+    // Keep the zero-outstanding-DMA bypass, retargeted to the buffer switch.
+    { address: entry + 0x24, expected: 0x10400008, replacement: 0x1040000a },
+    ...original.map((expected, i) => ({ address: entry + 0x30 + i * 4, expected: expected >>> 0, replacement: replacement[i] >>> 0 })),
+  ];
+}

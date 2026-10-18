@@ -144,7 +144,7 @@ void main(void) {
   // the near plane must retain their depth slope on the visible side.
   highp float z = vClipZ * gl_FragCoord.w;
   if (z > 1.0) discard; // NoN still clips the far plane.
-  gl_FragDepth = clamp(z * 0.5 + 0.5, 0.0, 1.0);
+  gl_FragDepth = gl_DepthRange.near + gl_DepthRange.diff * clamp(z * 0.5 + 0.5, 0.0, 1.0);
 #endif
   highp vec2 uv = textureCoordinates();
   vec4 tex0 = sampleN64Texture(uv, uTexScale0, uTexOffset0, uTile0);

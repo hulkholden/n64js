@@ -50,4 +50,18 @@ export class NativeTransform {
       display1.x, display1.y, depth, 1.0
     ];
   }
+
+  // The four corners are supplied in triangle-strip order, as in texRectRot.
+  calculateRectVerticesRot(x0, y0, x1, y1, x2, y2, x3, y3, depth) {
+    const display0 = this.convertN64ToDisplay(new Vector2(x0, y0));
+    const display1 = this.convertN64ToDisplay(new Vector2(x1, y1));
+    const display2 = this.convertN64ToDisplay(new Vector2(x2, y2));
+    const display3 = this.convertN64ToDisplay(new Vector2(x3, y3));
+    return [
+      display0.x, display0.y, depth, 1.0,
+      display1.x, display1.y, depth, 1.0,
+      display2.x, display2.y, depth, 1.0,
+      display3.x, display3.y, depth, 1.0
+    ];
+  }
 }
