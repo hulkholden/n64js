@@ -734,7 +734,10 @@ export class GBIMicrocode {
       dis.text(`gsDPSetPrimDepth(${z},${dz});`);
     }
 
-    // FIXME
+    // The RDP ignores Z's high bit; delta Z uses all 16 bits. Keep the
+    // register values independent of the RSP viewport and vertex matrices.
+    this.state.primDepth = z & 0x7fff;
+    this.state.primDeltaZ = dz;
   }
 
   executeSetEnvColor(cmd0, cmd1, dis) {

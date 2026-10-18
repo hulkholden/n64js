@@ -105,7 +105,9 @@ export class RSPState {
     // RDP conversion coefficients persist across RSP tasks, like combiner state.
     this.convert = new Int32Array(6);
 
-    this.primDepth = 0.0;
+    // RDP primitive Z (15-bit integer) and delta Z, retained across tasks.
+    this.primDepth = 0;
+    this.primDeltaZ = 0;
 
     this.fogParameters = new FogParameters();
 

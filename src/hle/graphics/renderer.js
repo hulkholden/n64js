@@ -460,14 +460,11 @@ export class Renderer extends RendererBase {
     const display1 = this.nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
     const display2 = this.nativeTransform.convertN64ToDisplay(new Vector2(x2, y2));
     const display3 = this.nativeTransform.convertN64ToDisplay(new Vector2(x3, y3));
-    const depthSourcePrim = (this.state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
-    const depth = depthSourcePrim ? this.state.primDepth : 0.0;
-
     const vertices = [
-      display0.x, display0.y, depth, 1.0,
-      display1.x, display1.y, depth, 1.0,
-      display2.x, display2.y, depth, 1.0,
-      display3.x, display3.y, depth, 1.0
+      display0.x, display0.y, 0, 1.0,
+      display1.x, display1.y, 0, 1.0,
+      display2.x, display2.y, 0, 1.0,
+      display3.x, display3.y, 0, 1.0
     ];
     const uvs = [
       s0, t0,
@@ -502,14 +499,21 @@ export class Renderer extends RendererBase {
     // TODO: decal mode.
     //if (gRDPOtherMode.zmode == ZMODE_DEC) ...
 
-    // Disable depth testing
+    const depthSourcePrim = (this.state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
+    // A constant window-depth range replaces interpolated Z without changing
+    // RSP clipping. XG2 uses this to put its sky behind the track. Divide by
+    // 2^15, matching the RDP triangle path's 15.16 fixed-point depth scale.
+    const depth = this.state.primDepth / 0x8000;
+    gl.depthRange(depthSourcePrim ? depth : 0, depthSourcePrim ? depth : 1);
+
     const zGeomMode = (this.state.geometryMode.zbuffer) !== 0;
     const zCmpRenderMode = (this.state.rdpOtherModeL & gbi.RenderMode.Z_CMP) !== 0;
     const zUpdRenderMode = (this.state.rdpOtherModeL & gbi.RenderMode.Z_UPD) !== 0;
+    const compare = (zGeomMode || depthSourcePrim) && zCmpRenderMode;
 
-    if ((zGeomMode && zCmpRenderMode) || zUpdRenderMode) {
+    if (compare || zUpdRenderMode) {
       gl.enable(gl.DEPTH_TEST);
-      gl.depthFunc(gl.LEQUAL);
+      gl.depthFunc(compare ? gl.LEQUAL : gl.ALWAYS);
     } else {
       gl.disable(gl.DEPTH_TEST);
     }

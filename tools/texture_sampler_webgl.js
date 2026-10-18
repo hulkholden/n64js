@@ -28,6 +28,7 @@ import {
 import { runSprite2DTests } from './sprite2d_webgl.js';
 import { runHLECommandTests } from './hle_commands_webgl.js';
 import { runTMEMSamplingTests } from './tmem_sampling_webgl.js';
+import { runPrimitiveDepthTests } from './primitive_depth_webgl.js';
 
 const output = document.getElementById('results');
 try {
@@ -650,8 +651,8 @@ try {
   clearDepthScene();
   state.noNearClipping = true;
   state.rdpOtherModeL = gbi.DepthSource.G_ZS_PRIM;
-  state.primDepth = -4;
-  renderer.texRect(0, 0, 0, 320, 240, 0, 0, 0, 0);
+  renderer.lleRect(0, renderer.nativeTransform.calculateRectVertices(0, 0, 320, 240, -4),
+    [0, 0, 0, 0, 0, 0, 0, 0], [0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff]);
   checkDepth('RDP rectangles retain ordinary clipping after NoN triangles', [BLUE, BLUE, BLUE, BLUE]);
 
   // Wave Race changes the scissor around its rotating course preview. Check
@@ -817,6 +818,7 @@ try {
     runPresentationTests,
     runHLECommandTests,
     runSprite2DTests,
+    runPrimitiveDepthTests,
   ];
   for (const runSuite of suiteRunners) {
     const results = runSuite(gl);

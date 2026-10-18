@@ -117,20 +117,19 @@ describe('NullRenderer', () => {
     expect(state.nextCommand()).toBe(false);
   });
 
-  test('uses the current VI dimensions and RDP depth source for rectangle vertices', () => {
+  test('uses current VI dimensions and leaves primitive depth to the rasterizer', () => {
     const state = new RSPState();
     const renderer = new NullRenderer(state);
     renderer.nativeTransform.initDimensions(640, 480);
-    state.primDepth = 0.75;
+    state.primDepth = 0x7fff;
 
     for (const source of [gbi.DepthSource.G_ZS_PIXEL, gbi.DepthSource.G_ZS_PRIM]) {
       state.rdpOtherModeL = source;
-      const depth = source === gbi.DepthSource.G_ZS_PRIM ? 0.75 : 0;
       expect(renderer.calculateRectVertices(0, 0, 640, 480)).toEqual([
-        -1, 1, depth, 1,
-        1, 1, depth, 1,
-        -1, -1, depth, 1,
-        1, -1, depth, 1,
+        -1, 1, 0, 1,
+        1, 1, 0, 1,
+        -1, -1, 0, 1,
+        1, -1, 0, 1,
       ]);
     }
   });
