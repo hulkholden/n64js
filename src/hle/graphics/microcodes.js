@@ -10,7 +10,7 @@ import { GBI2Conker } from './microcodes/gbi2_conker.js';
 import { GBI2FLX } from './microcodes/gbi2_flx.js';
 import { GBI1SDEX, GBI2SDEX } from './microcodes/gbi_s2dex.js';
 import { graphicsOptions } from './graphics_options.js';
-import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microcode_identifier.js';
+import { identifyMicrocode, MicrocodeId, microcodePrefixLength, supportsHLE } from './microcode_identifier.js';
 import { Turbo3D } from './microcodes/turbo3d.js';
 import { T3DUX } from './microcodes/t3dux.js';
 import { ZSortP } from './microcodes/zsortp.js';
@@ -28,8 +28,8 @@ export function assertHLESupported(info) {
   // These families have their own command formats and SP signal protocols.
   // Falling back to GBI0 reads unrelated data as commands; skipping execution
   // and signalling task completion cannot satisfy their CPU/RSP handshake.
-  // HVQM2 and BOSS ZSort can only fall back to LLE at task start, before any HLE execution.
-  if (info.id === MicrocodeId.ZSORT_BOSS || info.id === MicrocodeId.F5_ROGUE || info.id === MicrocodeId.F5_NABOO || info.id === MicrocodeId.HVQM2) {
+  // LLE fallback is only safe at task start, before any HLE execution.
+  if (!supportsHLE(info.id)) {
     throw new UnsupportedMicrocodeError(info);
   }
 }

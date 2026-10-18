@@ -9,8 +9,7 @@ import { RDPGraphics } from './rdp_graphics.js';
 import { RSPState } from './rsp_state.js';
 import { Renderer } from './renderer.js';
 import { graphicsOptions } from './graphics_options.js';
-import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microcode_identifier.js';
-import * as logger from '../../logger.js';
+import { identifyMicrocode, MicrocodeId, microcodePrefixLength, requiresLLE } from './microcode_identifier.js';
 import { toString32 } from '../../format.js';
 import { t3duxNeedsWriteback } from './microcodes/t3dux.js';
 
@@ -20,7 +19,6 @@ let numDisplayListsRendered = 0;
 let gl = null; // WebGL context for the canvas.
 let renderer;
 let rdpGraphics;
-let warnedF5Indi = false;
 
 const state = new RSPState();
 const debugController = new DebugController(state, replayDList);
@@ -43,7 +41,10 @@ export function dispatchGraphicsTask(hardware, mode, task) {
   // pixels to RDRAM and signal completion itself.
   // BOSS ZSort combines graphics/audio and CPU/RSP signal exchanges. Execute
   // its actual instructions and render the resulting RDP stream.
-  if (mode !== EmulationMode.HLE || microcode.id === MicrocodeId.HVQM2 || microcode.id === MicrocodeId.ZSORT_BOSS) {
+  // Indiana Jones and Battle for Naboo use linked blocks, code overlays and RDP
+  // output buffers. Preserve those protocols by running their original RSP code;
+  // SP completion and DP FullSync must come from execution, not a skipped task.
+  if (mode !== EmulationMode.HLE || requiresLLE(microcode.id)) {
     return false;
   }
 
@@ -63,20 +64,7 @@ export function dispatchGraphicsTask(hardware, mode, task) {
   // the CPU handle FullSync while SP still appears busy, eventually stalling
   // Utchan Nanchan's scheduler. Taz Express also needs the submission delay.
   // The SP event supplies nominal latency, not an RSP timing model.
-  let continuation = () => {
-    // TODO: implement Factor 5's Indiana Jones microcode. Its linked display
-    // lists loop indefinitely in the GBI0 fallback. Skip parsing them while
-    // preserving normal task completion and interrupts for the guest.
-    if (microcode.id === MicrocodeId.F5_INDI) {
-      if (!warnedF5Indi) {
-        logger.log('Skipping unsupported Factor 5 Indiana Jones graphics microcode');
-        warnedF5Indi = true;
-      }
-      hardware.miRegDevice.interruptDP();
-      return null;
-    }
-    return hardware.graphics.processTask(task);
-  };
+  let continuation = () => hardware.graphics.processTask(task);
   const resume = () => {
     continuation = continuation();
     if (continuation) {

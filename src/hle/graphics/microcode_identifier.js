@@ -11,7 +11,7 @@ export const MicrocodeId = Object.freeze({
   GBI0_GE: 9,      // Golden Eye
   GBI2_CONKER: 10, // Conker BFD
   GBI0_PD: 11,     // Perfect Dark
-  F5_INDI: 12,     // Indiana Jones (recognized, but HLE is not implemented)
+  F5_INDI: 12,     // Indiana Jones (executes on the RSP)
   ZSORTP: 13,      // Mia Hamm / World League Soccer (recognized, but HLE is not implemented)
   TURBO3D: 14,     // Dark Rift (object lists, not GBI commands)
   ZSORT_BOSS: 15,  // Stunt Racer / World Driver (executes on the RSP)
@@ -22,11 +22,29 @@ export const MicrocodeId = Object.freeze({
   GBI1_TEXA: 20,   // Tamagotchi World: F3DTEX/A texture commands
   HVQM2: 21,       // Yakouchuu II video decoder (executed by the RSP interpreter)
   GBI0_EARLY: 22,  // Saikyou Habu Shougi: early MoveWord encoding
-  F5_NABOO: 23,    // Battle for Naboo (recognized, but HLE is not implemented)
+  F5_NABOO: 23,    // Battle for Naboo (executes on the RSP)
   GBI2_FLX: 24,    // F-Zero X: normal-indexed alpha lighting
   GBI2_L3DEX: 25,  // L3DEX2 line and wireframe rendering
   SPRITE2D: 26,    // Nintendo's original sprite microcode (before S2DEX)
 });
+
+// Microcodes default to HLE. These exceptions either run on the RSP at task
+// start or reject HLE without selecting an automatic LLE fallback.
+const microcodeExecutionOverrides = new Map([
+  [MicrocodeId.F5_INDI, 'lle'],
+  [MicrocodeId.ZSORT_BOSS, 'lle'],
+  [MicrocodeId.F5_ROGUE, 'unsupported'],
+  [MicrocodeId.HVQM2, 'lle'],
+  [MicrocodeId.F5_NABOO, 'lle'],
+]);
+
+export function supportsHLE(id) {
+  return !microcodeExecutionOverrides.has(id);
+}
+
+export function requiresLLE(id) {
+  return microcodeExecutionOverrides.get(id) === 'lle';
+}
 
 const microcodeProfiles = new Map([
   [MicrocodeId.SPRITE2D, { family: 'Sprite2D', variant: null }],
@@ -100,8 +118,7 @@ const sprite2DPrefixHashes = new Set([
 
 /**
  * Identifies the microcode without constructing a handler or producing side effects.
- * F5_INDI is recognized but has no HLE handler; its graphics tasks are skipped.
- * ZSORT_BOSS executes on the RSP; F5_ROGUE and F5_NABOO are rejected by HLE execution.
+ * F5_INDI, F5_NABOO and ZSORT_BOSS execute on the RSP; F5_ROGUE is rejected by HLE execution.
  * HVQM2 video tasks use the RSP interpreter, even in graphics HLE mode.
  * Family and variant describe the microcode; detection='fallback' means
  * GBI0 was assumed, not positively identified. A null variant selects the base
