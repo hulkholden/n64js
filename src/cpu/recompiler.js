@@ -2,13 +2,13 @@
 
 import * as cpu0reg from './cpu0reg.js';
 import { GPRFacts, constant64, isSigned32, isUnsigned32, isKnown32 } from './gpr_facts.js';
-import { RAMStoreGroup } from './ram_store_group.js';
+import { RAMAccessGroup } from './ram_access_group.js';
 import { convertModeCeil, convertModeFloor, convertModeRound, convertModeTrunc } from './cpu1.js';
 import { disassembleInstruction } from './disassemble.js';
 import { toString32 } from '../format.js';
 import { assert } from '../assert.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
-import { OP_J, OP_BEQ, OP_BNE, OP_COP0, OP_SW, OP_CACHE, COP_MT, COP_DMT, simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
+import { OP_J, OP_BEQ, OP_BNE, OP_COP0, OP_CACHE, COP_MT, COP_DMT, simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
 
 const kDebugDynarec = false;
 const kValidateDynarecPCs = false;
@@ -54,7 +54,7 @@ export class FragmentContext {
     this.forwardedComparison = null;
     this.pendingComparison = null;
     this.opsCounterVar = null;
-    this.ramStoreGroup = new RAMStoreGroup();
+    this.ramAccessGroup = new RAMAccessGroup();
   }
 
   genAssert(test, msg) {
@@ -118,7 +118,7 @@ export class FragmentContext {
     this.gprFacts.reset();
     this.forwardedComparison = null;
     this.opsCounterVar = opsCounterVar;
-    this.ramStoreGroup.reset();
+    this.ramAccessGroup.reset();
   }
 
   set(fragment, pc, instruction, postPC, nextPC) {
@@ -189,29 +189,8 @@ export function generateCodeForOp(ctx, { includeStepPreamble = false } = {}) {
   ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
   ctx.isTrivial = false;
 
-  // Never specialize debug code or a dynamic delay-slot/trace boundary.
-  // SW cannot change its base, even when the value register aliases the base.
-  const groupStore = !kDebugDynarec && !kValidateDynarecPCs && !kAccurateCountUpdating &&
-    simpleOp(ctx.instruction) === OP_SW && !ctx.needsDelayCheck && ctx.postPC === ctx.pc + 4;
-  if (ctx.ramStoreGroup.count && (!groupStore ||
-      !ctx.ramStoreGroup.canAppend(ctx.instr_base(), ctx.instr_imms(), ctx.pc))) {
-    finishCodeGeneration(ctx);
-  }
-
-  if (groupStore) {
-    if (ctx.ramStoreGroup.count === 0) {
-      if (includeStepPreamble) {
-        ctx.fragment.bodyCode += ctx.genStepPreamble();
-      }
-      if (ctx.delayedPCUpdate !== 0) {
-        ctx.fragment.bodyCode += `// Applying delayed pc\nc.pc = ${toString32(ctx.delayedPCUpdate)};\n`;
-        ctx.delayedPCUpdate = 0;
-      }
-    }
-    ctx.gprFacts.update(ctx.instruction);
-    ctx.forwardedComparison = null;
-    ctx.fragment.needsDelayCheck = false;
-    ctx.ramStoreGroup.add(ctx, includeStepPreamble);
+  if (!kDebugDynarec && !kValidateDynarecPCs && !kAccurateCountUpdating &&
+      ctx.ramAccessGroup.tryAdd(ctx, includeStepPreamble)) {
     return;
   }
 
@@ -266,7 +245,7 @@ export function generateCodeForOp(ctx, { includeStepPreamble = false } = {}) {
 }
 
 export function finishCodeGeneration(ctx) {
-  ctx.ramStoreGroup.finish(ctx);
+  ctx.ramAccessGroup.finish(ctx);
 }
 
 export function emitTraceStep(fragment, step, ctx) {
@@ -1653,11 +1632,13 @@ function generateCop1MemoryAccess(op, ctx) {
   const suffix = unchecked ? 'Unchecked' : '';
   const impl = `c.exec${op}${suffix}(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   ctx.fragment.cop1statusKnown = true;
-  if (unchecked) {
-    return generateMemoryAccessBoilerplate(impl, ctx, uncheckedCop1MemoryEffects);
-  }
-  // A usability exception can redirect execution and return normally.
-  return generateGenericOpBoilerplate(impl, ctx);
+  // A checked usability exception can redirect execution and return normally,
+  // but memory instructions never introduce a branch delay slot.
+  return generateMemoryAccessBoilerplate(
+    impl,
+    ctx,
+    unchecked ? uncheckedCop1MemoryEffects : conservativeMemoryEffects,
+  );
 }
 
 function generateLWC1(ctx) {
@@ -1979,7 +1960,9 @@ function generateLInstrStub(ctx) {
 }
 
 function generateCop1(ctx) {
-  const fn = cop1TableGen[copOp(ctx.instruction)];
+  const cop1Op = copOp(ctx.instruction);
+  const isBranch = cop1Op === 8 && ((ctx.instruction >>> 18) & 0x7) === 0;
+  const fn = cop1TableGen[cop1Op];
 
   const opImpl = fn(ctx);
 
@@ -1991,6 +1974,9 @@ function generateCop1(ctx) {
     // Assert that cop1 is enabled
     impl += ctx.genAssert('(c.getControlU32(12) & SR_CU1) !== 0', 'cop1 should be enabled');
     impl += addNewlines(opImpl);
+    if (ctx.isTrivial) {
+      return generateTrivialOpBoilerplate(impl, ctx);
+    }
   } else {
     impl += 'if( (c.getControlU32(12) & SR_CU1) === 0 ) {\n';
     impl += `  n64js.executeCop1_disabled(${toString32(ctx.instruction)});\n`;
@@ -2000,13 +1986,11 @@ function generateCop1(ctx) {
 
     ctx.isTrivial = false;    // Not trivial!
     ctx.fragment.cop1statusKnown = true;
-    return generateGenericOpBoilerplate(impl, ctx);   // Ensure we generate full boilerplate here, even for trivial ops
   }
 
-  if (ctx.isTrivial) {
-    return generateTrivialOpBoilerplate(impl, ctx);
-  }
-  return generateGenericOpBoilerplate(impl, ctx);
+  const code = generateGenericOpBoilerplate(impl, ctx);
+  ctx.needsDelayCheck = isBranch;
+  return code;
 }
 
 function generateBreakpoint(ctx) {
