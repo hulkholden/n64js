@@ -456,16 +456,7 @@ export class Renderer extends RendererBase {
   }
 
   texRectRot(tileIdx, x0, y0, x1, y1, x2, y2, x3, y3, s0, t0, s1, t1) {
-    const display0 = this.nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
-    const display1 = this.nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
-    const display2 = this.nativeTransform.convertN64ToDisplay(new Vector2(x2, y2));
-    const display3 = this.nativeTransform.convertN64ToDisplay(new Vector2(x3, y3));
-    const vertices = [
-      display0.x, display0.y, 0, 1.0,
-      display1.x, display1.y, 0, 1.0,
-      display2.x, display2.y, 0, 1.0,
-      display3.x, display3.y, 0, 1.0
-    ];
+    const vertices = this.nativeTransform.calculateRectVerticesRot(x0, y0, x1, y1, x2, y2, x3, y3, 0);
     const uvs = [
       s0, t0,
       s1, t0,
