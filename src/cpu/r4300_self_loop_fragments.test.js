@@ -2,16 +2,21 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { performanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
 import { SP_DRAM_ADDR_REG, SP_MEM_ADDR_REG } from '../devices/sp_constants.js';
 import * as regs from './cpu0reg.js';
+import * as decode from './decode.js';
+import { Fragment } from './fragments.js';
 import {
   ADDIU_T0_1,
   DEFAULT_PC,
   JR_RA,
+  cacheOp,
   compileFragmentAt,
   compileOp,
+  copMove,
   createTestEmulator,
   iop,
   jump,
 } from './test_helpers.js';
+import { compileTraceSteps, instructionBailsOut } from './recompiler.js';
 
 afterEach(() => {
   setPerformanceProfiling(false);
@@ -642,5 +647,40 @@ describe('self-looping fragments and self-loop cutoff', () => {
     }
     expect(states[1]).toEqual(states[0]);
   });
+
+  test('instructionBailsOut matches recompiler bailout classification and compileTraceSteps compiles in one pass', async () => {
+    const { hardware } = await createTestEmulator();
+    const cases = [
+      [DEFAULT_PC, jump(DEFAULT_PC), true],
+      [DEFAULT_PC, jump(DEFAULT_PC + 8), false],
+      [DEFAULT_PC, iop(decode.OP_BEQ, 8, 9, -1), true],
+      [DEFAULT_PC, iop(decode.OP_BNE, 8, 9, -1), true],
+      [DEFAULT_PC, iop(decode.OP_BEQ, 8, 9, -2), false],
+      [DEFAULT_PC, copMove(decode.OP_COP0, decode.COP_MT, 8, regs.controlCount), true],
+      [DEFAULT_PC, copMove(decode.OP_COP0, decode.COP_DMT, 8, regs.controlCompare), true],
+      [DEFAULT_PC, copMove(decode.OP_COP0, decode.COP_MT, 8, regs.controlStatus), false],
+      [DEFAULT_PC, cacheOp(0x00, 8, 0), true],  // I-cache Index Invalidate (not ignored)
+      [DEFAULT_PC, cacheOp(0x01, 8, 0), false], // D-cache Index Writeback Invalidate (ignored)
+      [DEFAULT_PC, ADDIU_T0_1, false],
+    ];
+    for (const [pc, word, expected] of cases) {
+      expect(instructionBailsOut(pc, word)).toBe(expected);
+      expect(Boolean(compileOp(word, { pc }).bailedOut)).toBe(expected);
+    }
+
+    const fragment = new Fragment(DEFAULT_PC, hardware.fragmentCache);
+    fragment.recordInstruction(DEFAULT_PC, ADDIU_T0_1, DEFAULT_PC + 4, DEFAULT_PC + 4);
+    fragment.recordInstruction(DEFAULT_PC + 4, iop(decode.OP_BNE, 8, 9, -2), DEFAULT_PC + 8, DEFAULT_PC);
+    fragment.recordInstruction(DEFAULT_PC + 8, ADDIU_T0_1, DEFAULT_PC, DEFAULT_PC + 4);
+
+    const linearCode = compileTraceSteps(fragment, undefined, { selfLoop: false });
+    expect(linearCode).not.toContain('do {');
+    expect(linearCode).toContain('return 3;');
+
+    const loopCode = compileTraceSteps(fragment, undefined, { selfLoop: true });
+    expect(loopCode).toContain('let opsExecuted = 0;\ndo {\n');
+    expect(loopCode).toContain('while (c.canContinueSelfLoop(opsExecuted, 3));');
+  });
 });
+
 

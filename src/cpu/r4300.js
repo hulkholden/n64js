@@ -12,7 +12,7 @@ import * as logger from '../logger.js';
 import * as memaccess from '../memory/memaccess.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
 import { performanceProfile } from '../debug/performance_profile.js';
-import { FragmentContext, generateCodeForOp } from './recompiler.js';
+import { FragmentContext, compileTraceSteps, instructionBailsOut } from './recompiler.js';
 import { rsp } from '../rsp/rsp.js';
 
 window.n64js = window.n64js || {};
@@ -3001,7 +3001,6 @@ const fragmentContext = new FragmentContext();
 function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null) {
   assert(!fragment.func, `attempting to append op to already-compiled fragment ${toString32(fragment.entryPC)}`);
   if (fragment.opsCompiled === 0) {
-    fragmentContext.newFragment();
     fragment.entryDelayPC = entryDelayPC;
   }
 
@@ -3011,8 +3010,10 @@ function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null
   // }
 
   fragment.opsCompiled++;
-  const step = fragment.recordInstruction(entry_pc, instruction, c.pc, c.nextPC);
-  emitTraceStep(fragment, step, fragmentContext);
+  fragment.recordInstruction(entry_pc, instruction, c.pc, c.nextPC);
+  if (instructionBailsOut(entry_pc, instruction)) {
+    fragment.bailedOut = true;
+  }
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
   // TODO: the stuffToDo check won't work for fragments interrupted via exceptions. 
@@ -3024,40 +3025,8 @@ function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null
   if (shouldCompile) {
     compileFragment(fragment, c);
     fragment = c.hardware.fragmentCache.lookupFragment(c.pc);
-  } else {
-    fragment.bodyCode += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`;
   }
   return fragment;
-}
-
-function emitTraceStep(fragment, step, ctx) {
-  ctx.set(fragment, step.pc, step.instruction, step.postPC, step.nextPC);
-
-  // Hoist the !rsp.halted check into the generated trace so the JS JIT can fold
-  // redundant loads across consecutive instructions when the RSP is halted, and
-  // avoid calling rsp.step() on the common halted path.
-  // When !kAccurateCountUpdating, every instruction that can set c.stuffToDo
-  // checks it before falling through to the next instruction, and runImpl()
-  // enters fragments with c.stuffToDo === 0, so c.stuffToDo can only become
-  // non-zero here if rsp.step() ran and raised an interrupt or break.
-  // TODO: we shouldn't need to set pc for every instruction - this is just to ensure delayedPCUpdate is flushed.
-  if (kAccurateCountUpdating) {
-    fragment.bodyCode += 'if (!rsp.halted) { rsp.step(); }\n';
-    fragment.bodyCode += `if (c.stuffToDo) { c.pc = ${step.pc}; ${ctx.genReturnOps(fragment.opsCompiled - 1)} }\n`;
-  } else {
-    fragment.bodyCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${step.pc}; ${ctx.genReturnOps(fragment.opsCompiled - 1)} } }\n`;
-  }
-  fragment.bodyCode += '\n';
-
-  generateCodeForOp(ctx);
-}
-
-function flushDelayedPCUpdate(fragment, ctx) {
-  // Check if the last op has a delayed pc update, and do it now.
-  if (ctx.delayedPCUpdate !== 0) {
-    fragment.bodyCode += `c.pc = ${toString32(ctx.delayedPCUpdate)};\n`;
-    ctx.delayedPCUpdate = 0;
-  }
 }
 
 // Decides whether the instruction just appended should terminate the trace due
@@ -3102,47 +3071,20 @@ function canCompileAsSelfLoop(fragment, c) {
   return loopsToEntry && withinBodyLimit && !fragment.bailedOut;
 }
 
-// Wraps a self-looping fragment body in a do-while loop that runs until the
-// next scheduled event deadline (cyclesToFirstEvent) or an early exit.
-// Re-emitting the recorded trace steps with opsCounterVar = 'opsExecuted' lets
-// FragmentContext generate intra-iteration exits (stuffToDo checks, non-taken
-// loop branches, exceptions, and MFC0 Count cycle syncs) directly in terms of
-// opsExecuted + stepOffset without string post-processing.
-function buildSelfLoopBodyCode(fragment) {
-  const loopOps = fragment.opsCompiled;
-  fragment.bodyCode = '';
-  fragment.needsDelayCheck = true;
-  fragment.cop1statusKnown = false;
-  fragment.usesCop1 = false;
-  fragmentContext.newFragment('opsExecuted');
-
-  for (let i = 0; i < fragment.traceSteps.length; i++) {
-    fragment.opsCompiled = i + 1;
-    emitTraceStep(fragment, fragment.traceSteps[i], fragmentContext);
-  }
-  flushDelayedPCUpdate(fragment, fragmentContext);
-  fragmentContext.opsCounterVar = null;
-
-  // RSP steps and CPU MMIO can schedule an earlier event while the loop runs.
-  // Recheck the live deadline before starting another iteration.
-  return `let opsExecuted = 0;\ndo {\n${fragment.bodyCode}opsExecuted += ${loopOps};\n} while (c.canContinueSelfLoop(opsExecuted, ${loopOps}));\nreturn opsExecuted;\n`;
-}
-
 function compileFragment(fragment, c = cpu0) {
   if (performanceProfile.enabled) {
     performanceProfile.counters.fragmentCompilations++;
   }
+
+  const bodyCode = compileTraceSteps(fragment, fragmentContext, {
+    selfLoop: canCompileAsSelfLoop(fragment, c),
+  });
+
   let header = '';
   if (fragment.usesCop1) {
     header += `const SR_CU1 = ${toString32(SR_CU1)};\n`;
     header += `const FPCSR_C = ${toString32(FPCSR_C)};\n`;
   }
-
-  flushDelayedPCUpdate(fragment, fragmentContext);
-
-  const bodyCode = canCompileAsSelfLoop(fragment, c)
-    ? buildSelfLoopBodyCode(fragment)
-    : `${fragment.bodyCode}${fragmentContext.genReturnOps(fragment.opsCompiled)}\n`;
 
   const code = `
   return function fragment_${toString32(fragment.entryPC)}_${fragment.opsCompiled}() {

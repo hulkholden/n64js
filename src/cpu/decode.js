@@ -39,6 +39,7 @@ export const OP_SW = 0x2b;
 export const OP_SDL = 0x2c;
 export const OP_SDR = 0x2d;
 export const OP_SWR = 0x2e;
+export const OP_CACHE = 0x2f;
 export const OP_LL = 0x30;
 export const OP_LWC1 = 0x31;
 export const OP_LWC2 = 0x32;
