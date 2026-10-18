@@ -5,7 +5,7 @@ import * as regs from './cpu0reg.js';
 import * as decode from './decode.js';
 import { Fragment } from './fragments.js';
 import { initCPU } from './r4300.js';
-import { FragmentContext, generateCodeForOp } from './recompiler.js';
+import { FragmentContext, finishCodeGeneration, generateCodeForOp } from './recompiler.js';
 
 export const DEFAULT_PC = 0x80001000;
 export const JR_RA = 0x03e00008;
@@ -70,6 +70,7 @@ export function compileOp(word, { pc = DEFAULT_PC, postPC = pc + 4, nextPC = pos
   const ctx = new FragmentContext();
   ctx.set(fragment, pc, word >>> 0, postPC, nextPC);
   generateCodeForOp(ctx);
+  finishCodeGeneration(ctx);
   return fragment;
 }
 
@@ -81,6 +82,7 @@ export function compileOps(words, { pc = DEFAULT_PC, ctx = new FragmentContext()
     ctx.set(fragment, addr, word >>> 0, postPC, postPC);
     generateCodeForOp(ctx);
   });
+  finishCodeGeneration(ctx);
   return fragment;
 }
 

@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { Fragment } from './fragments.js';
+import { FragmentContext, finishCodeGeneration } from './recompiler.js';
 import {
   DEFAULT_PC,
   JR_RA,
   cacheOp,
   compileOp,
+  compileOps,
   createTestEmulator,
   trainLoopAt,
   trainTraceAt,
@@ -28,6 +30,27 @@ function cache(emulator, compiled, op, address) {
     cpu.run(1);
   }
 }
+
+test('guarded RAM stores retain compiled code until the guest invalidates the I-cache', async () => {
+  const emulator = await fixture();
+  const targetPC = 0x8011a860;
+  const target = trainLoopAt(emulator, targetPC);
+  const c = emulator.cpu0;
+  c.setRegS32Extend(4, targetPC);
+  c.setRegS32Extend(2, JR_RA); // JR ra
+  c.setRegS32Extend(3, 0x25080002); // ADDIU t0,t0,2
+  const fragment = new Fragment(DEFAULT_PC);
+  const ctx = new FragmentContext();
+  compileOps([0, 0xac820000, 0xac830004], { pc: DEFAULT_PC, ctx, fragment }); // NOP; SW v0,0(a0); SW v1,4(a0)
+  finishCodeGeneration(ctx);
+  expect(fragment.bodyCode).toContain('Guarded RAM SW group');
+  c.pc = fragment.entryPC;
+  new Function('c', fragment.bodyCode)(c);
+  expect(emulator.hardware.ram.getU32((targetPC & 0x7fffff) + 4)).toBe(0x25080002);
+  expect(target.func).toBeFunction();
+  cache(emulator, true, 0x10, targetPC);
+  expect(target.func).toBeUndefined();
+});
 
 for (const compiled of [false, true]) {
   describe(`${compiled ? 'compiled' : 'interpreted'} CACHE invalidation`, () => {
