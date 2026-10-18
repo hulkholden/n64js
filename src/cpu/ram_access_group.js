@@ -240,7 +240,7 @@ export class RAMAccessGroup {
     this.count++;
   }
 
-  emitAccessBlock(ctx, i, includeComment = true) {
+  emitAccessBlock(ctx, i, includeComment = false) {
     const pc = this.pcs[i];
     const opsBefore = this.opsBefore[i];
     const offset = this.offsets[i];
@@ -282,7 +282,7 @@ export class RAMAccessGroup {
         : '';
       const comment = `// ${disassembleInstruction(pc, this.instructions[i], false).disassembly}\n`;
       fast += `${stepPreamble}${comment}${spec.emitFast(i, rt, offset - minOffset)}`;
-      slow += `${stepPreamble}${this.emitAccessBlock(ctx, i, i > 0)}`;
+      slow += `${stepPreamble}${this.emitAccessBlock(ctx, i)}`;
     }
     fast += `  c.pc = ${toString32(this.lastPC + 4)};\n`;
     const slowParams = ctx.opsCounterVar ? `c, rsp, ${ctx.opsCounterVar}` : 'c, rsp';
