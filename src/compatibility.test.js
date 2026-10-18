@@ -275,3 +275,31 @@ describe('ROM compatibility instruction patches', () => {
     }
   });
 });
+
+describe('Quake 64 Europe startup wait', () => {
+  const quakeEuropeId = '741d9316346ddc65';
+  const branchAddress = 0x80059b20;
+  const skipWaitTarget = 0x80059be8;
+  const delaySlot = 0x0302082b; // SLTU at, t8, v0
+
+  async function startupFixture(enableCompatibilityHacks) {
+    const emulator = await fixture(quakeEuropeId, { enableCompatibilityHacks });
+    emulator.hardware.ram.set32(branchAddress - 0x80000000, original);
+    emulator.hardware.ram.set32(branchAddress - 0x80000000 + 4, delaySlot);
+    emulator.cpu0.pc = branchAddress;
+    return emulator;
+  }
+
+  test('skips the osContInit 500 ms wait branch when enabled and enters the wait when disabled', async () => {
+    const enabled = await startupFixture(true);
+    enabled.cpu0.run(2);
+    expect(enabled.cpu0.pc).toBe(skipWaitTarget);
+    expect(enabled.hardware.ram.getU32(branchAddress - 0x80000000)).toBe(replacement);
+    expect(enabled.cpu0.compatibilityHacks).toBeNull();
+
+    const disabled = await startupFixture(false);
+    disabled.cpu0.run(2);
+    expect(disabled.cpu0.pc).toBe(branchAddress + 8);
+    expect(disabled.hardware.ram.getU32(branchAddress - 0x80000000)).toBe(original);
+  });
+});

@@ -149,6 +149,20 @@ export const compatibilityHacks = {
       { address: 0x800cc6c0, expected: 0x14200031, replacement: 0x10000031 }, // BNE at, zero -> B
     ],
   },
+  '741d9316346ddc65': {
+    name: 'Quake 64 (Europe)',
+    enabled: true,
+    issue: 'https://github.com/hulkholden/n64js/issues/448',
+    // The scheduler registers its VI retrace queue before spinning until the
+    // main thread finishes osContInit and audio startup. During osContInit's
+    // 500 ms wait, 11 VI retraces queue up and later drain in one burst,
+    // overflowing the 4-slot audio task queue and aliasing both command-list
+    // buffers so alAudioFrame overwrites an active LLE audio task. Skip only
+    // the 500 ms wait.
+    instructionPatches: [
+      { address: 0x80059b20, expected: 0x14200031, replacement: 0x10000031 }, // BNE at, zero -> B
+    ],
+  },
   '9dae5305c1e0d8ea': {
     name: 'Xena - Warrior Princess - The Talisman of Fate (USA)',
     enabled: true,
