@@ -2,6 +2,8 @@
 
 Helpers use Python 3 on macOS/Linux (the runner uses `fcntl` advisory locks) and the repository's Bun inventory CLIs. Check runtime and paths on another machine.
 
+This page describes the bundled **sequential, matched-settings** helpers. For concurrent workers with performance comparisons excluded, use the [parallel compatibility recipe](parallel.md). These helpers assume one manifest per seed and identical settings; do not use them unchanged for sharded scans or a changed timeout.
+
 ## Prepare
 
 Use absolute paths and a new archive directory. Confirm the intended completed full baseline and desired merged revision.

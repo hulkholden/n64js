@@ -51,6 +51,13 @@ scans, and generate reports from canonical ROM hashes and seeds. See
 for commands, required baseline artifacts, and platform requirements. Keep ROMs
 and generated inventory archives outside the repository.
 
+For concurrent emulator workers with performance comparisons excluded, use the
+[parallel inventory recipe](.agents/skills/n64js-inventory/references/parallel.md).
+It includes a reusable request, the four-worker/180-second starting profile,
+safe sharding and resume, and matched sequential regression controls. The bundled
+Python helpers remain sequential; the recipe describes coordination around the
+native batch CLI.
+
 ### Headless controller input
 
 Bun scripts can set controller input through the live `inputs` array returned by

@@ -17,9 +17,14 @@ Produce a reproducible corpus comparison and evidence-backed next actions. Use t
 
 ## Run reliably
 
-Read [references/execution.md](references/execution.md) when preparing, launching or recovering a run. Bundled helpers archive a clean checkout and Bun, run the batch sequentially, bound diagnostic logs, compare summaries and replay completion regressions with old-code controls.
+Choose the execution profile before preparing the archive:
 
-- Match the baseline settings. Historical runs used seeds 1–3, 1,800 VI retraces, 5 billion cycles, 60 seconds, Bun 1.3.14, random-controller v1 and HLE. These are examples, not permanent defaults.
+- For matched sequential comparisons, read [references/execution.md](references/execution.md). Bundled helpers archive a clean checkout and Bun, bound diagnostic logs, compare summaries and replay completion regressions with old-code controls.
+- For requests such as "run inventory in parallel mode, ignoring performance issues", read [references/parallel.md](references/parallel.md). This recipe uses concurrent native batch queues, a declared larger timeout, and compatibility/warning comparisons without performance claims. The bundled Python helpers are sequential; they do not implement a parallel CLI mode.
+
+For either profile:
+
+- Match the baseline settings unless the selected profile intentionally changes them; record each difference. Historical sequential runs used seeds 1–3, 1,800 VI retraces, 5 billion cycles, 60 seconds, Bun 1.3.14, random-controller v1 and HLE. These are examples, not permanent defaults.
 - Match by byte-order-normalized SHA-256 and seed, never filename. Preserve regional/revision variants; deduplicate byte-order aliases. Report added, removed and unidentified images separately.
 - Run a short real-ROM preflight before thousands of workers. Missing modules, ROM paths or runtime are harness failures, not compatibility results.
 - Retain structured reports, manifests, runtime/source provenance and replay evidence. Continuously drain diagnostic pipes but cap stored text: an earlier unbounded log reached 30 GB.
@@ -32,7 +37,7 @@ The helpers create `summary.json`, `baseline-summary.json`, `comparison.json`, `
 
 - Verify every input has a terminal disposition and every expected hash/seed is accounted for. Check settings, source revision/hash, runtime, malformed reports and unmatched identities. Never present a partial scan as a full comparison.
 - Report run completion, ROMs completing every/some/no seeds, and early-stop reasons. Keep completion gains, newly failing cases, changed failures and coverage changes distinct.
-- Recheck formerly completed runs that now stop early on both retained checkouts with original settings. Replays validate the ROM hash; keep original reports immutable. Missing controls remain unverified.
+- Recheck formerly completed runs that now stop early on both retained checkouts with matching settings. When the parallel profile changes the timeout, replay the current report on both versions at the same current budget, sequentially. Replays validate the ROM hash; keep original reports immutable. Missing controls remain unverified.
 - Separate repeated hard failures, timing-sensitive timeouts, non-reproducing cases, failed old-code controls and harness errors. Repeated timeouts alone do not establish performance or emulation regressions; graphics workload may have increased.
 - Inspect VI counts and graphics/texture coverage as well as status. A timed-out game can advance from a few VIs to hundreds; a completed game can gain graphics activity without an outcome change.
 - Group leads by stack, command path and microcode identity, not only exception wording. A shared stack is not proof of a shared root cause.
