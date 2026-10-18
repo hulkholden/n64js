@@ -271,16 +271,21 @@ const hvqmCode = new Uint8Array(0x1000);
 hvqmCode.set([9, 10, 11, 0, 1, 11, 12, 15], microcodePrefixLength - 8);
 const unsupportedMicrocodes = [
   { family: 'F5', version: '', code: rogueCode, detection: 'hash' },
-  { family: 'F5', variant: 'NABOO', version: '', code: nabooCode, detection: 'hash' },
 ];
+const factor5RSPMicrocodes = [
+  { name: 'Indiana Jones', id: MicrocodeId.F5_INDI, variant: 'INDI', code: indiCode },
+  { name: 'Battle for Naboo', id: MicrocodeId.F5_NABOO, variant: 'NABOO', code: nabooCode },
+];
+const factor5RSPCases = factor5RSPMicrocodes.flatMap(info =>
+  [false, true].map(executeGraphics => ({ ...info, executeGraphics })));
 
 describe('headless graphics execution', () => {
-  test.each([false, true])('executes Indiana Jones linked tasks without synthetic completion (draws=%s)', async executeGraphics => {
+  test.each(factor5RSPCases)('executes $name linked tasks without synthetic completion (draws=$executeGraphics)', async ({ id, code, executeGraphics }) => {
     const seen = [], loaded = [];
     const emulator = await createEmulator({ executeGraphics,
       onGraphicsTask: info => seen.push(info), onMicrocodeLoad: info => loaded.push(info) });
     const { cpu0, hardware } = emulator;
-    prepareGraphicsTask(emulator, '', indiCode);
+    prepareGraphicsTask(emulator, '', code);
     hardware.sp_mem.set32(0xfc0 + TaskOffsets.dataPtr, 0x3000);
     hardware.spRegDevice.spUpdateStatus(SP_SET_INTR_BREAK);
     cpu0.pc = 0x80007000;
@@ -323,7 +328,7 @@ describe('headless graphics execution', () => {
     hardware.miRegDevice.interruptDP = () => { dp++; interruptDP(); };
 
     startRSPTask(emulator);
-    expect(seen).toMatchObject([{ id: MicrocodeId.F5_INDI, detection: 'hash' }]);
+    expect(seen).toMatchObject([{ id, detection: 'hash' }]);
     let sp = 0;
     const interruptSP = hardware.miRegDevice.interruptSP.bind(hardware.miRegDevice);
     hardware.miRegDevice.interruptSP = () => { sp++; interruptSP(); };
@@ -726,7 +731,7 @@ describe('headless graphics execution', () => {
 
   test.each([...unsupportedMicrocodes,
     { family: 'ZSortBOSS', version: '', code: bossCode, detection: 'hash', inListOnly: true },
-    { family: 'F5', variant: 'INDI', version: '', code: indiCode, detection: 'hash', inListOnly: true },
+    ...factor5RSPMicrocodes.map(info => ({ ...info, family: 'F5', version: '', detection: 'hash', inListOnly: true })),
   ])('rejects $family tasks and in-list loads before parsing their commands', async ({ family, variant, version, code, detection, inListOnly }) => {
     const previousHaltOnWarning = graphicsOptions.haltOnWarning;
     try {
@@ -811,7 +816,9 @@ describe('headless graphics execution', () => {
     expect(emulator.hardware.spRegDevice.hleTask).toBeNull();
   });
 
-  test.each(unsupportedMicrocodes)('leaves $family available to explicit LLE without claiming HLE execution', async ({ family, version, code, detection }) => {
+  test.each([...unsupportedMicrocodes,
+    ...factor5RSPMicrocodes.map(info => ({ ...info, family: 'F5', version: '', detection: 'hash' })),
+  ])('leaves $family available to explicit LLE without claiming HLE execution', async ({ family, version, code, detection }) => {
     const previousMode = graphicsOptions.emulationMode;
     try {
       graphicsOptions.emulationMode = EmulationMode.LLE;

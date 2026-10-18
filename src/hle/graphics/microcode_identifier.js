@@ -22,7 +22,7 @@ export const MicrocodeId = Object.freeze({
   GBI1_TEXA: 20,   // Tamagotchi World: F3DTEX/A texture commands
   HVQM2: 21,       // Yakouchuu II video decoder (executed by the RSP interpreter)
   GBI0_EARLY: 22,  // Saikyou Habu Shougi: early MoveWord encoding
-  F5_NABOO: 23,    // Battle for Naboo (recognized, but HLE is not implemented)
+  F5_NABOO: 23,    // Battle for Naboo (executes on the RSP)
   GBI2_FLX: 24,    // F-Zero X: normal-indexed alpha lighting
   GBI2_L3DEX: 25,  // L3DEX2 line and wireframe rendering
   SPRITE2D: 26,    // Nintendo's original sprite microcode (before S2DEX)
@@ -100,7 +100,7 @@ const sprite2DPrefixHashes = new Set([
 
 /**
  * Identifies the microcode without constructing a handler or producing side effects.
- * F5_INDI and ZSORT_BOSS execute on the RSP; F5_ROGUE and F5_NABOO are rejected by HLE execution.
+ * F5_INDI, F5_NABOO and ZSORT_BOSS execute on the RSP; F5_ROGUE is rejected by HLE execution.
  * HVQM2 video tasks use the RSP interpreter, even in graphics HLE mode.
  * Family and variant describe the microcode; detection='fallback' means
  * GBI0 was assumed, not positively identified. A null variant selects the base

@@ -41,11 +41,12 @@ export function dispatchGraphicsTask(hardware, mode, task) {
   // pixels to RDRAM and signal completion itself.
   // BOSS ZSort combines graphics/audio and CPU/RSP signal exchanges. Execute
   // its actual instructions and render the resulting RDP stream.
-  // Indiana Jones uses linked command blocks, DMA-loaded overlays and RDP
-  // output buffers. Preserve those protocols by running its original RSP code;
+  // Indiana Jones and Battle for Naboo use linked blocks, code overlays and RDP
+  // output buffers. Preserve those protocols by running their original RSP code;
   // SP completion and DP FullSync must come from execution, not a skipped task.
   if (mode !== EmulationMode.HLE || microcode.id === MicrocodeId.HVQM2 ||
-    microcode.id === MicrocodeId.ZSORT_BOSS || microcode.id === MicrocodeId.F5_INDI) {
+    microcode.id === MicrocodeId.ZSORT_BOSS || microcode.id === MicrocodeId.F5_INDI ||
+    microcode.id === MicrocodeId.F5_NABOO) {
     return false;
   }
 

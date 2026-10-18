@@ -60,9 +60,10 @@ The main areas where system tests or games still run into limitations are:
 * **Cycle timing**: Instruction timing is still an approximation rather than cycle-accurate, which can affect timing-sensitive games.
 * **Edge-case CPU/FPU behaviour**: Some 64-bit addressing edge cases and floating-point rounding near numerical limits are not fully emulated.
 
-Indiana Jones automatically uses low-level RSP execution for its custom graphics
-microcode, including when HLE graphics is selected. Its output uses the
-experimental RDP renderer and requires more CPU work than HLE graphics.
+Indiana Jones and Battle for Naboo automatically use low-level RSP execution for
+their custom graphics microcodes, including when HLE graphics is selected. Their
+output uses the experimental RDP renderer and requires more CPU work than HLE
+graphics.
 
 ## Performance
 
