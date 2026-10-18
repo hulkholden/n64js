@@ -16,6 +16,14 @@ import { T3DUX } from './microcodes/t3dux.js';
 import { ZSortP } from './microcodes/zsortp.js';
 import { Sprite2D } from './microcodes/sprite2d.js';
 
+const unsupportedHLEMicrocodes = new Set([
+  MicrocodeId.ZSORT_BOSS,
+  MicrocodeId.F5_INDI,
+  MicrocodeId.F5_ROGUE,
+  MicrocodeId.F5_NABOO,
+  MicrocodeId.HVQM2,
+]);
+
 class UnsupportedMicrocodeError extends Error {
   constructor(info) {
     const variant = info.variant ? `/${info.variant}` : '';
@@ -29,8 +37,7 @@ export function assertHLESupported(info) {
   // Falling back to GBI0 reads unrelated data as commands; skipping execution
   // and signalling task completion cannot satisfy their CPU/RSP handshake.
   // LLE fallback is only safe at task start, before any HLE execution.
-  if (info.id === MicrocodeId.ZSORT_BOSS || info.id === MicrocodeId.F5_INDI ||
-    info.id === MicrocodeId.F5_ROGUE || info.id === MicrocodeId.F5_NABOO || info.id === MicrocodeId.HVQM2) {
+  if (unsupportedHLEMicrocodes.has(info.id)) {
     throw new UnsupportedMicrocodeError(info);
   }
 }
