@@ -8,7 +8,24 @@ import { disassembleInstruction } from './disassemble.js';
 import { toString32 } from '../format.js';
 import { assert } from '../assert.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
-import { OP_J, OP_BEQ, OP_BNE, OP_COP0, OP_CACHE, COP_MT, COP_DMT, simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
+import {
+  OP_SPECIAL, OP_REGIMM, OP_J, OP_JAL, OP_BEQ, OP_BNE, OP_BLEZ, OP_BGTZ,
+  OP_ADDIU, OP_SLTI, OP_SLTIU, OP_ANDI, OP_ORI, OP_XORI, OP_LUI,
+  OP_COP0, OP_COP1, OP_DADDIU, OP_CACHE,
+  REGIMM_BLTZ, REGIMM_BGEZ,
+  SPECIAL_SLL, SPECIAL_SRL, SPECIAL_SRA, SPECIAL_SLLV, SPECIAL_SRLV, SPECIAL_SRAV,
+  SPECIAL_JR, SPECIAL_JALR, SPECIAL_MFHI, SPECIAL_MTHI, SPECIAL_MFLO, SPECIAL_MTLO,
+  SPECIAL_DSLLV, SPECIAL_DSRLV, SPECIAL_DSRAV,
+  SPECIAL_MULT, SPECIAL_MULTU, SPECIAL_DIV, SPECIAL_DIVU,
+  SPECIAL_DMULT, SPECIAL_DMULTU, SPECIAL_DDIV, SPECIAL_DDIVU,
+  SPECIAL_ADDU, SPECIAL_SUBU, SPECIAL_AND, SPECIAL_OR, SPECIAL_XOR, SPECIAL_NOR,
+  SPECIAL_SLT, SPECIAL_SLTU, SPECIAL_DADDU, SPECIAL_DSUBU,
+  SPECIAL_DSLL, SPECIAL_DSRL, SPECIAL_DSRA, SPECIAL_DSLL32, SPECIAL_DSRL32, SPECIAL_DSRA32,
+  COP_MF, COP_DMF, COP_CF, COP_MT, COP_DMT, COP_BC,
+  COP1_FMT_S, COP1_FMT_D, COP1_FMT_W,
+  simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp,
+  fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress,
+} from './decode.js';
 
 const kDebugDynarec = false;
 const kValidateDynarecPCs = false;
@@ -48,6 +65,7 @@ export class FragmentContext {
 
     this.needsDelayCheck = true; // Set on entry to generate handler. If set, must check for delayPC when updating the pc.
     this.isTrivial = false; // Set by the code generation handler if the op is considered trivial.
+    this.fuseDelaySlot = false; // When set, generateTrivialOpBoilerplate emits only the raw ALU body.
     this.delayedPCUpdate = 0; // Trivial ops can try to delay setting the pc so that back-to-back trivial ops can emit them entirely.
     this.dump = false; // Display this op when finished.
     this.gprFacts = new GPRFacts();
@@ -253,6 +271,311 @@ export function emitTraceStep(fragment, step, ctx) {
   generateCodeForOp(ctx, { includeStepPreamble: true });
 }
 
+// Returns true if `instruction` uses `generateTrivialOpBoilerplate` (cannot
+// throw exceptions that inspect `c.delayPC`, cannot modify control flow, and
+// does not set `c.stuffToDo`).
+export function isTrivialInstruction(instruction, cop1statusKnown = false) {
+  if (!kUseOptimisedDynarecHandlers) {
+    return false;
+  }
+  switch (simpleOp(instruction)) {
+    case OP_SPECIAL:
+      switch (specialOp(instruction)) {
+        case SPECIAL_SLL:
+        case SPECIAL_SRL:
+        case SPECIAL_SRA:
+        case SPECIAL_SLLV:
+        case SPECIAL_SRLV:
+        case SPECIAL_SRAV:
+        case SPECIAL_MFHI:
+        case SPECIAL_MTHI:
+        case SPECIAL_MFLO:
+        case SPECIAL_MTLO:
+        case SPECIAL_DSLLV:
+        case SPECIAL_DSRLV:
+        case SPECIAL_DSRAV:
+        case SPECIAL_MULT:
+        case SPECIAL_MULTU:
+        case SPECIAL_DIV:
+        case SPECIAL_DIVU:
+        case SPECIAL_DMULT:
+        case SPECIAL_DMULTU:
+        case SPECIAL_DDIV:
+        case SPECIAL_DDIVU:
+        case SPECIAL_ADDU:
+        case SPECIAL_SUBU:
+        case SPECIAL_AND:
+        case SPECIAL_OR:
+        case SPECIAL_XOR:
+        case SPECIAL_NOR:
+        case SPECIAL_SLT:
+        case SPECIAL_SLTU:
+        case SPECIAL_DADDU:
+        case SPECIAL_DSUBU:
+        case SPECIAL_DSLL:
+        case SPECIAL_DSRL:
+        case SPECIAL_DSRA:
+        case SPECIAL_DSLL32:
+        case SPECIAL_DSRL32:
+        case SPECIAL_DSRA32:
+          return true;
+        default:
+          return false;
+      }
+    case OP_ADDIU:
+    case OP_SLTI:
+    case OP_SLTIU:
+    case OP_ANDI:
+    case OP_ORI:
+    case OP_XORI:
+    case OP_LUI:
+    case OP_DADDIU:
+      return true;
+    case OP_CACHE:
+      return n64js.cpu0.ignoreCacheOp(rt(instruction));
+    case OP_COP0: {
+      if (isWait(instruction)) {
+        return true;
+      }
+      if (instruction & 0x02000000) {
+        return false;
+      }
+      const cop = copOp(instruction);
+      return cop === 2 || cop === 6 || cop === 8;
+    }
+    case OP_COP1:
+      if (!cop1statusKnown) {
+        return false;
+      }
+      switch (copOp(instruction)) {
+        case COP_MF:
+        case COP_DMF:
+        case COP_CF:
+        case COP_MT:
+        case COP_DMT:
+          return true;
+        case COP1_FMT_S:
+        case COP1_FMT_D:
+          return copFmtFuncOp(instruction) === cop1MOV;
+        case COP1_FMT_W:
+          return copFmtFuncOp(instruction) === cop1CVT_D;
+        default:
+          return false;
+      }
+    default:
+      return false;
+  }
+}
+
+// Attempts to fuse a non-Likely branch at `branchStep` with a trivial delay-slot
+// instruction at `delayStep`, keeping the branch decision in a JS local across
+// the pair and only materializing `c.delayPC` inside `delayStep`'s cold
+// `if (c.stuffToDo)` interrupt exit.
+function tryEmitFusedBranchAndDelaySlot(fragment, branchStep, delayStep, stepIndex, ctx) {
+  if (kDebugDynarec || kValidateDynarecPCs || kAccurateCountUpdating || !kUseOptimisedDynarecHandlers) {
+    return false;
+  }
+  if (fragment.needsDelayCheck) {
+    return false;
+  }
+  const branchPC = branchStep.pc >>> 0;
+  const delaySlotPC = (branchPC + 4) >>> 0;
+  if ((branchStep.postPC >>> 0) !== delaySlotPC ||
+      (branchStep.nextPC >>> 0) !== delaySlotPC ||
+      (delayStep.pc >>> 0) !== delaySlotPC) {
+    return false;
+  }
+  const branchInstr = branchStep.instruction >>> 0;
+  if (instructionBailsOut(branchPC, branchInstr) ||
+      !isTrivialInstruction(delayStep.instruction >>> 0, fragment.cop1statusKnown)) {
+    return false;
+  }
+
+  const fallthroughPC = (branchPC + 8) >>> 0;
+  const postPC = delayStep.postPC >>> 0;
+  const op = simpleOp(branchInstr);
+
+  // Set ctx to branchStep before evaluating branch condition expressions so
+  // forwarded comparisons (compare_${stepIndex}) and GPRFacts at branchStep apply.
+  fragment.opsCompiled = stepIndex + 1;
+  ctx.set(fragment, branchPC, branchInstr, branchStep.postPC, branchStep.nextPC);
+
+  let kind;
+  let linkReg = 0;
+  let regSource = 0;
+  let condExpr = '';
+  const takenPC = branchAddress(branchPC, branchInstr);
+  const notTakenPC = fallthroughPC;
+
+  switch (op) {
+    case OP_J:
+      if (postPC !== jumpAddress(branchPC, branchInstr)) {
+        return false;
+      }
+      kind = 'unconditional';
+      break;
+    case OP_JAL:
+      if (postPC !== jumpAddress(branchPC, branchInstr)) {
+        return false;
+      }
+      kind = 'unconditional';
+      linkReg = cpu0reg.RA;
+      break;
+    case OP_BEQ: {
+      const s = rs(branchInstr);
+      const t = rt(branchInstr);
+      if (s === t) {
+        if (postPC !== takenPC) {
+          return false;
+        }
+        kind = 'unconditional';
+      } else {
+        if (postPC !== takenPC && postPC !== notTakenPC) {
+          return false;
+        }
+        kind = 'conditional';
+        condExpr = genEquality(ctx, s, t, true);
+      }
+      break;
+    }
+    case OP_BNE:
+      if (postPC !== takenPC && postPC !== notTakenPC) {
+        return false;
+      }
+      kind = 'conditional';
+      condExpr = genEquality(ctx, rs(branchInstr), rt(branchInstr), false);
+      break;
+    case OP_BLEZ:
+      if (postPC !== takenPC && postPC !== notTakenPC) {
+        return false;
+      }
+      kind = 'conditional';
+      condExpr = `!(${genIsPositive(ctx, rs(branchInstr))})`;
+      break;
+    case OP_BGTZ:
+      if (postPC !== takenPC && postPC !== notTakenPC) {
+        return false;
+      }
+      kind = 'conditional';
+      condExpr = genIsPositive(ctx, rs(branchInstr));
+      break;
+    case OP_REGIMM: {
+      const sub = regImmOp(branchInstr);
+      if (sub !== REGIMM_BLTZ && sub !== REGIMM_BGEZ) {
+        return false;
+      }
+      if (postPC !== takenPC && postPC !== notTakenPC) {
+        return false;
+      }
+      kind = 'conditional';
+      const cmp = sub === REGIMM_BLTZ ? '< 0' : '>= 0';
+      condExpr = `${genSrcRegS32Hi(rs(branchInstr))} ${cmp}`;
+      break;
+    }
+    case OP_COP1: {
+      if (!fragment.cop1statusKnown ||
+          copOp(branchInstr) !== COP_BC ||
+          ((branchInstr >>> 18) & 0x7) !== 0 ||
+          (branchInstr & 0x20000) !== 0) {
+        return false;
+      }
+      if (postPC !== takenPC && postPC !== notTakenPC) {
+        return false;
+      }
+      fragment.usesCop1 = true;
+      kind = 'conditional';
+      const test = (branchInstr & 0x10000) !== 0 ? '!==' : '===';
+      condExpr = `(cpu1.control[31] & FPCSR_C) ${test} 0`;
+      break;
+    }
+    case OP_SPECIAL: {
+      const spec = specialOp(branchInstr);
+      if (spec !== SPECIAL_JR && spec !== SPECIAL_JALR) {
+        return false;
+      }
+      const s = rs(branchInstr);
+      linkReg = spec === SPECIAL_JALR ? rd(branchInstr) : 0;
+      if (s === 0) {
+        if (postPC !== 0) {
+          return false;
+        }
+        kind = 'unconditional';
+      } else {
+        kind = 'register';
+        regSource = s;
+      }
+      break;
+    }
+    default:
+      return false;
+  }
+
+  finishCodeGeneration(ctx);
+
+  // Advance register facts and comparison forwarding past the branch (so JAL/JALR
+  // link writes are visible to the delay-slot instruction).
+  ctx.gprFacts.update(branchInstr);
+  ctx.forwardedComparison = null;
+
+  const delayInstr = delayStep.instruction >>> 0;
+  fragment.opsCompiled = stepIndex + 2;
+  ctx.set(fragment, delaySlotPC, delayInstr, postPC, delayStep.nextPC);
+  ctx.needsDelayCheck = false;
+  ctx.fuseDelaySlot = true;
+  const delayOpCode = generateOp(ctx);
+  ctx.fuseDelaySlot = false;
+  assert(ctx.isTrivial, 'Expected fused delay slot to be trivial');
+  ctx.gprFacts.update(delayInstr);
+  ctx.forwardedComparison = ctx.pendingComparison;
+  fragment.needsDelayCheck = false;
+
+  fragment.bodyCode += ctx.genStepPreamble(branchPC, stepIndex);
+
+  const linkCode = linkReg !== 0
+    ? `${genSetRegS64LoHi(linkReg, toString32(fallthroughPC), (fallthroughPC & 0x80000000) ? -1 : 0)}\n`
+    : '';
+  const returnDelayStep = ctx.genReturnOps(stepIndex + 1);
+  const returnAfterPair = ctx.genReturnOps(stepIndex + 2);
+
+  let fnCode = '';
+  if (kind === 'unconditional') {
+    fnCode += linkCode;
+    fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = ${toString32(postPC)}; ${returnDelayStep} } }\n`;
+    fnCode += delayOpCode;
+  } else if (kind === 'conditional') {
+    fnCode += `const branchTaken = ${condExpr};\n`;
+    fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = branchTaken ? ${toString32(takenPC)} : ${toString32(notTakenPC)}; ${returnDelayStep} } }\n`;
+    fnCode += delayOpCode;
+    if (takenPC !== notTakenPC) {
+      if (postPC === takenPC) {
+        fnCode += `if (!branchTaken) { c.pc = ${toString32(notTakenPC)}; ${returnAfterPair} }\n`;
+      } else {
+        fnCode += `if (branchTaken) { c.pc = ${toString32(takenPC)}; ${returnAfterPair} }\n`;
+      }
+    }
+  } else {
+    fnCode += `const jumpTarget = ${genSrcRegU32Lo(regSource)};\n`;
+    fnCode += linkCode;
+    fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = jumpTarget; ${returnDelayStep} } }\n`;
+    fnCode += delayOpCode;
+    fnCode += `if (jumpTarget !== ${toString32(postPC)}) { c.pc = jumpTarget; ${returnAfterPair} }\n`;
+  }
+
+  if (postPC === 0) {
+    fnCode += `c.pc = ${toString32(0)};\n`;
+    ctx.delayedPCUpdate = 0;
+  } else {
+    fnCode += '// Delaying pc update\n';
+    ctx.delayedPCUpdate = postPC;
+  }
+
+  const branchDasm = disassembleInstruction(branchPC, branchInstr, false);
+  const delayDasm = disassembleInstruction(delaySlotPC, delayInstr, false);
+  const lines = redentLines(fnCode, '  ');
+  fragment.bodyCode += `// ${branchDasm.disassembly}\n// ${delayDasm.disassembly}\n{\n${lines}\n}\n\n`;
+  return true;
+}
+
 // Compiles a fragment's recorded `traceSteps` in a single pass.
 // When `selfLoop` is true, emits intra-iteration exits relative to
 // `opsExecuted` and wraps the body in a do-while loop that runs until the next
@@ -263,9 +586,15 @@ export function compileTraceSteps(fragment, ctx = new FragmentContext(), { selfL
   fragment.needsDelayCheck = fragment.entryDelayPC !== null;
   fragment.cop1statusKnown = false;
   fragment.usesCop1 = false;
+  ctx.fragment = fragment;
   ctx.newFragment(selfLoop ? 'opsExecuted' : null);
 
   for (let i = 0; i < totalOps; i++) {
+    if (i + 1 < totalOps &&
+        tryEmitFusedBranchAndDelaySlot(fragment, fragment.traceSteps[i], fragment.traceSteps[i + 1], i, ctx)) {
+      i++;
+      continue;
+    }
     fragment.opsCompiled = i + 1;
     emitTraceStep(fragment, fragment.traceSteps[i], ctx);
   }
@@ -498,6 +827,12 @@ function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
 // Don't manipulate nextPC (e.g. ERET, cop1 unusable, likely instructions)
 
 function generateTrivialOpBoilerplate(fn, ctx) {
+  if (ctx.fuseDelaySlot) {
+    ctx.isTrivial = true;
+    ctx.needsDelayCheck = false;
+    return fn ? addNewlines(fn) : '';
+  }
+
   let code = '';
 
   // NB: trivial functions don't rely on pc being set up, so we perform the op before updating the pc.
