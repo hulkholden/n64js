@@ -2964,9 +2964,14 @@ function revalidateFragment(fragment, cpu0) {
   fragment.reuse();
 }
 
+function canEnterFragment(fragment, cpu0, eventQueue) {
+  return eventQueue.nextEventCountdown() >= fragment.opsCompiled &&
+    (cpu0.delayPC === null || fragment.entryDelayPC !== null);
+}
+
 function executeFragment(fragment, cpu0, eventQueue) {
-  if (eventQueue.nextEventCountdown() < fragment.opsCompiled) {
-    // We're close to another event: drop to the interpreter.
+  if (!canEnterFragment(fragment, cpu0, eventQueue)) {
+    // We're close to another event or in a delay slot for a non-delay fragment: drop to the interpreter.
     return null;
   }
   fragment.executionCount++;
@@ -2979,8 +2984,8 @@ function executeFragment(fragment, cpu0, eventQueue) {
 }
 
 function executeFragmentProfiled(fragment, cpu0, eventQueue) {
-  if (eventQueue.nextEventCountdown() < fragment.opsCompiled) {
-    // We're close to another event: drop to the interpreter.
+  if (!canEnterFragment(fragment, cpu0, eventQueue)) {
+    // We're close to another event or in a delay slot for a non-delay fragment: drop to the interpreter.
     return null;
   }
   fragment.executionCount++;

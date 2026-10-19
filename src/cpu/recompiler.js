@@ -260,7 +260,7 @@ export function emitTraceStep(fragment, step, ctx) {
 export function compileTraceSteps(fragment, ctx = new FragmentContext(), { selfLoop = false } = {}) {
   const totalOps = fragment.traceSteps.length;
   fragment.bodyCode = '';
-  fragment.needsDelayCheck = true;
+  fragment.needsDelayCheck = fragment.entryDelayPC !== null;
   fragment.cop1statusKnown = false;
   fragment.usesCop1 = false;
   ctx.newFragment(selfLoop ? 'opsExecuted' : null);
