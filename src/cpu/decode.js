@@ -99,15 +99,41 @@ export const SPECIAL_DSRA32 = 0x3f;
 // Coprocessor transfer sub-opcodes (bits 25..21).
 export const COP_MF = 0x00;
 export const COP_DMF = 0x01;
+export const COP_CF = 0x02;
+export const COP_DCF = 0x03;
 export const COP_MT = 0x04;
 export const COP_DMT = 0x05;
 export const COP_CT = 0x06;
+export const COP_DCT = 0x07;
+export const COP_BC = 0x08;
 
 // COP1 arithmetic format (bits 25..21) and function (bits 5..0).
 export const COP1_FMT_S = 0x10;
+export const COP1_FMT_D = 0x11;
+export const COP1_FMT_W = 0x14;
+export const COP1_FMT_L = 0x15;
 export const COP1_FUNC_ADD = 0x00;
+export const COP1_FUNC_SUB = 0x01;
+export const COP1_FUNC_MUL = 0x02;
 export const COP1_FUNC_DIV = 0x03;
+export const COP1_FUNC_SQRT = 0x04;
+export const COP1_FUNC_ABS = 0x05;
+export const COP1_FUNC_MOV = 0x06;
+export const COP1_FUNC_NEG = 0x07;
+export const COP1_FUNC_ROUND_L = 0x08;
+export const COP1_FUNC_TRUNC_L = 0x09;
+export const COP1_FUNC_CEIL_L = 0x0a;
+export const COP1_FUNC_FLOOR_L = 0x0b;
+export const COP1_FUNC_ROUND_W = 0x0c;
 export const COP1_FUNC_TRUNC_W = 0x0d;
+export const COP1_FUNC_CEIL_W = 0x0e;
+export const COP1_FUNC_FLOOR_W = 0x0f;
+export const COP1_FUNC_CVT_S = 0x20;
+export const COP1_FUNC_CVT_D = 0x21;
+export const COP1_FUNC_CVT_W = 0x24;
+export const COP1_FUNC_CVT_L = 0x25;
+export const COP1_FUNC_C_EQ = 0x32;
+export const COP1_FUNC_C_LT = 0x3c;
 
 export function simpleOp(i) { return (i >>> 26) & 0x3f; }
 export function regImmOp(i) { return (i >>> 16) & 0x1f; }
