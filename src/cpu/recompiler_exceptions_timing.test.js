@@ -986,5 +986,121 @@ for (const profiled of [false, true]) {
         expect(result.countCycles).toBe(100);
       });
     }
+
+    test('non-delay fragment entry elides step-0 delay checks and groups step-0 RAM accesses', async () => {
+      const setup = c => {
+        c.setRegS32Extend(2, 0x12345678);
+        c.setRegS32Extend(3, -0x76543210);
+      };
+      const result = await compare([
+        iop(decode.OP_SW, 4, 2, 0),
+        iop(decode.OP_SW, 4, 3, 4),
+        iop(decode.OP_LW, 4, 5, 0),
+        iop(decode.OP_LW, 4, 6, 4),
+      ], setup, setup);
+      expect(result.code).toContain('Guarded RAM SW group (2 stores)');
+      expect(result.code).toContain('Guarded RAM LW group (2 loads)');
+      expect(result.code).not.toContain('c.delayPC ??');
+      expect(result.code).not.toContain('if (c.delayPC !== null)');
+      expect(result.code).not.toContain('if (c.pc !== 0x80001004)');
+      expect(result.gpr[5]).toBe(0x12345678n);
+      expect(result.gpr[6]).toBe(BigInt.asUintN(64, -0x76543210n));
+    });
+
+    test('entering a delay slot at a cached non-delay fragment drops to the interpreter and honors delayPC', async () => {
+      const emulator = await createTestEmulator();
+      const { cpu0: c, hardware } = emulator;
+      // Words at 0x80001000..0x8000102c:
+      //   0x80001000: BEQ   r8, r9, -1   (speed-hack branch -> bails out after 1 op with pc=0x80001004, delayPC=0x80001000)
+      //   0x80001004: SW    r2, 0(r4)    (start of cached non-delay fragment F2)
+      //   0x80001008: SW    r3, 4(r4)    (second store of F2's step-0 SW group)
+      //   0x8000100c: ADDIU r5, r5, 1
+      //   0x80001010: ADDIU r6, r6, 99   (branch target for direct delay-slot entry test)
+      const words = [
+        iop(decode.OP_BEQ, 8, 9, -1),
+        iop(decode.OP_SW, 4, 2, 0),
+        iop(decode.OP_SW, 4, 3, 4),
+        iop(decode.OP_ADDIU, 5, 5, 1),
+        iop(decode.OP_ADDIU, 6, 6, 99),
+        ...Array(8).fill(0),
+      ];
+
+      // Compile F2 starting at pc + 4 with entryDelayPC === null (so [SW, SW] at pc + 4 forms a step-0 SW group).
+      resetExecutionState(c, words, { pc });
+      c.pc = pc + 4;
+      c.setRegS32Extend(4, 0x80003000);
+      const nonDelayFragment = compileFragmentAt(c, pc + 4, 4);
+      expect(nonDelayFragment.entryDelayPC).toBeNull();
+      expect(nonDelayFragment.func.toString()).toContain('Guarded RAM SW group (2 stores)');
+
+      // 1. Direct cpu.run() entry at pc + 4 with a pending delayPC = pc + 0x10:
+      //    F2 must not be entered; only the single delay-slot SW at pc + 4 runs before jumping to pc + 0x10.
+      const runDirectDelayEntry = (withCachedFragment, address = 0x80003000) => {
+        resetExecutionState(c, words, { pc });
+        c.pc = pc + 4;
+        c.delayPC = pc + 0x10;
+        c.setRegS32Extend(2, 0x11223344);
+        c.setRegS32Extend(3, 0x55667788);
+        c.setRegS32Extend(4, address);
+        if (withCachedFragment) {
+          nonDelayFragment.executionCount = 0;
+          hardware.fragmentCache.fragments.set(pc + 4, nonDelayFragment);
+        }
+        setPerformanceProfiling(profiled);
+        c.run(4);
+        setPerformanceProfiling(false);
+        return captureExecutionSnapshot(emulator, { ramOffset: 0x3000, ramLength: 0x10 });
+      };
+
+      const directInterpreted = runDirectDelayEntry(false);
+      const directCompiled = runDirectDelayEntry(true);
+      expect(nonDelayFragment.executionCount).toBe(0);
+      expect(directCompiled).toEqual(directInterpreted);
+      expect(directCompiled.memory.slice(0, 8)).toEqual([0x11, 0x22, 0x33, 0x44, 0, 0, 0, 0]);
+      expect(directCompiled.gpr[5]).toBe(0n);
+      expect(directCompiled.gpr[6]).toBe(99n);
+
+      // 2. Faulting delay-slot instruction at pc + 4 with F2 cached preserves Cause.BD and EPC = pc.
+      const faultInterpreted = runDirectDelayEntry(false, 0x80003001);
+      const faultCompiled = runDirectDelayEntry(true, 0x80003001);
+      expect(nonDelayFragment.executionCount).toBe(0);
+      expect(faultCompiled).toEqual(faultInterpreted);
+      expect(faultCompiled.cause).toBe(0x80000014);
+      expect(faultCompiled.epc).toBe(pc);
+
+      // 3. Chained getNextFragment transition from a 1-op branch fragment F1 at pc into pc + 4 with delayPC !== null:
+      resetExecutionState(c, words, { pc });
+      c.setRegS32Extend(8, 1);
+      c.setRegS32Extend(9, 1);
+      const branchFragment = compileFragmentAt(c, pc, 1);
+      expect(branchFragment.opsCompiled).toBe(1);
+
+      const runChainedTransition = withCachedFragments => {
+        resetExecutionState(c, words, { pc });
+        c.setRegS32Extend(2, 0x11223344);
+        c.setRegS32Extend(3, 0x55667788);
+        c.setRegS32Extend(4, 0x80003000);
+        c.setRegS32Extend(8, 1);
+        c.setRegS32Extend(9, 1);
+        // Keep RSP active so speedHack does not skip cycles.
+        hardware.rsp.halted = false;
+        if (withCachedFragments) {
+          branchFragment.executionCount = 0;
+          nonDelayFragment.executionCount = 0;
+          hardware.fragmentCache.fragments.set(pc, branchFragment);
+          hardware.fragmentCache.fragments.set(pc + 4, nonDelayFragment);
+        }
+        setPerformanceProfiling(profiled);
+        c.run(4);
+        setPerformanceProfiling(false);
+        return captureExecutionSnapshot(emulator, { ramOffset: 0x3000, ramLength: 0x10 });
+      };
+
+      const chainedInterpreted = runChainedTransition(false);
+      const chainedCompiled = runChainedTransition(true);
+      expect(branchFragment.executionCount).toBe(2);
+      expect(nonDelayFragment.executionCount).toBe(0);
+      expect(chainedCompiled).toEqual(chainedInterpreted);
+    });
   });
 }

@@ -675,11 +675,20 @@ describe('self-looping fragments and self-loop cutoff', () => {
 
     const linearCode = compileTraceSteps(fragment, undefined, { selfLoop: false });
     expect(linearCode).not.toContain('do {');
+    expect(linearCode).not.toContain('if (c.pc !== 0x80001004)');
     expect(linearCode).toContain('return 3;');
 
     const loopCode = compileTraceSteps(fragment, undefined, { selfLoop: true });
     expect(loopCode).toContain('let opsExecuted = 0;\ndo {\n');
+    expect(loopCode).not.toContain('if (c.pc !== 0x80001004)');
     expect(loopCode).toContain('while (c.canContinueSelfLoop(opsExecuted, 3));');
+
+    const delayEntryFragment = new Fragment(DEFAULT_PC + 8, hardware.fragmentCache);
+    delayEntryFragment.entryDelayPC = DEFAULT_PC;
+    delayEntryFragment.recordInstruction(DEFAULT_PC + 8, ADDIU_T0_1, DEFAULT_PC, DEFAULT_PC + 12);
+    delayEntryFragment.recordInstruction(DEFAULT_PC, ADDIU_T0_1, DEFAULT_PC + 4, DEFAULT_PC + 4);
+    const delayEntryCode = compileTraceSteps(delayEntryFragment, undefined, { selfLoop: false });
+    expect(delayEntryCode).toContain('if (c.pc !== 0x80001000) { return 1; }');
   });
 });
 

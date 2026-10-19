@@ -4,7 +4,7 @@ import * as regs from './cpu0reg.js';
 import { CPU1 } from './cpu1.js';
 import { Fragment } from './fragments.js';
 import { isSigned32 } from './gpr_facts.js';
-import { FragmentContext, emitTraceStep, finishCodeGeneration } from './recompiler.js';
+import { FragmentContext, compileTraceSteps, emitTraceStep, finishCodeGeneration } from './recompiler.js';
 import * as decode from './decode.js';
 
 const pc = 0x80001000;
@@ -288,7 +288,7 @@ for (const fullMode of [false, true]) {
 test('group formation respects base writes, loads, delay slots, alignment and base changes', async () => {
   for (const words of [
     [0, sw(0)],
-    [sw(0), sw(4)], // First instruction may have an incoming delay target.
+    [sw(0), sw(4)], // First instruction may have an incoming delay target when needsDelayCheck is true.
     [0, sw(0), sw(4, 5)],
     [0, sw(0), sw(2)], // No base can align both accesses.
     [0, sw(0), iop(decode.OP_ADDIU, 4, 4, 4), sw(4)],
@@ -298,6 +298,35 @@ test('group formation respects base writes, loads, delay slots, alignment and ba
   ]) {
     expect((await generate(words)).code).not.toContain('Guarded RAM SW group');
   }
+});
+
+test('compileTraceSteps groups step 0 when entryDelayPC is null and guards step 0 when entryDelayPC is set', async () => {
+  const { hardware } = await createHeadlessEmulator({ romBuffer: new ArrayBuffer(0x1000), rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' } });
+
+  const nonDelayStoreFrag = new Fragment(pc, hardware.fragmentCache);
+  nonDelayStoreFrag.recordInstruction(pc, sw(0), pc + 4, pc + 4);
+  nonDelayStoreFrag.recordInstruction(pc + 4, sw(4), pc + 8, pc + 8);
+  const nonDelaySwCode = compileTraceSteps(nonDelayStoreFrag);
+  expect(nonDelaySwCode).toContain('Guarded RAM SW group (2 stores)');
+  expect(nonDelaySwCode).not.toContain('c.delayPC ??');
+  expect(nonDelaySwCode).not.toContain('if (c.delayPC !== null)');
+
+  const nonDelayLoadFrag = new Fragment(pc, hardware.fragmentCache);
+  nonDelayLoadFrag.recordInstruction(pc, lw(0, 4, 2), pc + 4, pc + 4);
+  nonDelayLoadFrag.recordInstruction(pc + 4, lw(4, 4, 3), pc + 8, pc + 8);
+  const nonDelayLwCode = compileTraceSteps(nonDelayLoadFrag);
+  expect(nonDelayLwCode).toContain('Guarded RAM LW group (2 loads)');
+  expect(nonDelayLwCode).not.toContain('c.delayPC ??');
+  expect(nonDelayLwCode).not.toContain('if (c.delayPC !== null)');
+
+  const delayEntryFrag = new Fragment(pc, hardware.fragmentCache);
+  delayEntryFrag.entryDelayPC = pc + 0x20;
+  delayEntryFrag.recordInstruction(pc, sw(0), pc + 0x20, pc + 4);
+  delayEntryFrag.recordInstruction(pc + 0x20, sw(4), pc + 0x24, pc + 0x24);
+  const delayEntryCode = compileTraceSteps(delayEntryFrag);
+  expect(delayEntryCode).not.toContain('Guarded RAM SW group');
+  expect(delayEntryCode).toContain('c.nextPC = c.delayPC ?? 0x80001004;');
+  expect(delayEntryCode).toContain('if (c.pc !== 0x80001020) { return 1; }');
 });
 
 test('groups are bounded and discarded on fragment invalidation', async () => {
