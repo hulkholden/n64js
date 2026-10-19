@@ -425,6 +425,38 @@ function generateMemoryAccessBoilerplate(fn, ctx, effects = conservativeMemoryEf
   return code;
 }
 
+// Non-branch, non-trivial COP1 operations (arithmetic, compare, convert, CTC1,
+// and unimplemented/reserved COP1 ops). Normal returns leave nextPC unchanged;
+// COP1 usability and FPU exceptions redirect nextPC to E_VEC (0x80000180) and
+// return normally after reading pc and delayPC. Neither path sets delayPC or
+// stuffToDo.
+function generateCop1OpBoilerplate(fn, ctx) {
+  let code = '';
+  code += ctx.genAssert(`c.pc === ${toString32(ctx.pc)}`, 'pc mismatch');
+  if (ctx.needsDelayCheck) {
+    code += `c.nextPC = c.delayPC ?? ${toString32(ctx.pc + 4)};\n`;
+  } else {
+    code += ctx.genAssert('c.delayPC === null', 'delay pc should be null');
+    code += `c.nextPC = ${toString32(ctx.pc + 4)};\n`;
+  }
+  // Keep delayPC until after the op: exceptions use it to set EPC and Cause.BD.
+  code += addNewlines(fn);
+  code += 'c.pc = c.nextPC;\nc.delayPC = null;\n';
+
+  // Non-branch COP1 instructions never cause a branch delay.
+  code += ctx.genAssert('c.delayPC === null', 'delay pc should be null');
+  ctx.needsDelayCheck = false;
+
+  if (kAccurateCountUpdating) {
+    code += 'c.incrementCount(1);\n';
+  }
+
+  assert(!ctx.bailOut, "Not expecting bailOut to be set for COP1 op");
+  code += ctx.genAssert('c.stuffToDo === 0', 'stuffToDo should be zero');
+  code += `if (c.pc !== ${toString32(ctx.postPC)}) { ${ctx.genReturnOps()} }\n`;
+  return code;
+}
+
 // Branch ops explicitly manipulate nextPC rather than branchTarget. They also guarantee that stuffToDo is not set.
 // might_adjust_next_pc is typically used by branch likely instructions.
 function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
@@ -1751,57 +1783,76 @@ function generateCACHE(ctx) {
 
 
 
-function generateMFC1(ctx) {
+function wrapCop1Op(opImpl, ctx) {
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = true;
-  return `c.execMFC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  if (ctx.fragment.cop1statusKnown) {
+    return ctx.genAssert('(c.getControlU32(12) & SR_CU1) !== 0', 'cop1 should be enabled') +
+      addNewlines(opImpl);
+  }
+  ctx.fragment.cop1statusKnown = true;
+  return (
+    'if( (c.getControlU32(12) & SR_CU1) === 0 ) {\n' +
+    `  n64js.executeCop1_disabled(${toString32(ctx.instruction)});\n` +
+    '} else {\n' +
+    '  ' + addNewlines(opImpl) +
+    '}\n'
+  );
+}
+
+// Non-trapping COP1 moves and exact widenings (MFC1, DMFC1, MTC1, DMTC1, CFC1,
+// MOV.S, MOV.D, CVT.D.W). Once COP1 usability is known, these cannot raise FPE
+// or alter control flow and can use the trivial boilerplate.
+function generateCop1TrivialOp(opImpl, ctx) {
+  const known = ctx.fragment.cop1statusKnown;
+  const impl = wrapCop1Op(opImpl, ctx);
+  return known
+    ? generateTrivialOpBoilerplate(impl, ctx)
+    : generateCop1OpBoilerplate(impl, ctx);
+}
+
+// Non-branch COP1 operations that may raise FPE (arithmetic, compare, convert,
+// CTC1, DCFC1, DCTC1, and reserved/unimplemented COP1 encodings).
+function generateCop1FaultingOp(opImpl, ctx) {
+  return generateCop1OpBoilerplate(wrapCop1Op(opImpl, ctx), ctx);
+}
+
+function generateMFC1(ctx) {
+  return generateCop1TrivialOp(`c.execMFC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`, ctx);
 }
 
 function generateDMFC1(ctx) {
-  ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = true;
-  return `c.execDMFC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  return generateCop1TrivialOp(`c.execDMFC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`, ctx);
 }
 
 function generateMTC1(ctx) {
-  ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = true;
-  return `c.execMTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  return generateCop1TrivialOp(`c.execMTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`, ctx);
 }
 
 function generateDMTC1(ctx) {
-  ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = true;
-  return `c.execDMTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  return generateCop1TrivialOp(`c.execDMTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`, ctx);
 }
 
 function generateCFC1(ctx) {
-  ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = true;
-  return `c.execCFC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  return generateCop1TrivialOp(`c.execCFC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`, ctx);
 }
 
 function generateCTC1(ctx) {
-  ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = false; // Writing FCSR can raise FPE.
-  return `c.execCTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  // Writing FCSR can raise FPE.
+  return generateCop1FaultingOp(`c.execCTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`, ctx);
 }
 
 function generateDCFC1(ctx) {
-  ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = false; // Raises FPE Unimplemented exception.
-  return `c.execDCFC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  // Raises FPE Unimplemented exception.
+  return generateCop1FaultingOp(`c.execDCFC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`, ctx);
 }
 
 function generateDCTC1(ctx) {
-  ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = false; // Raises FPE Unimplemented exception.
-  return `c.execDCTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  // Raises FPE Unimplemented exception.
+  return generateCop1FaultingOp(`c.execDCTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`, ctx);
 }
 
 function generateCop1Reserved(ctx) {
-  ctx.isTrivial = false;
-  return `cpu1.raiseUnimplemented();`;
+  return generateCop1FaultingOp(`cpu1.raiseUnimplemented();`, ctx);
 }
 
 function generateBCInstrStub(ctx) {
@@ -1810,30 +1861,32 @@ function generateBCInstrStub(ctx) {
     return generateCop1Reserved(ctx);
   }
 
+  const known = ctx.fragment.cop1statusKnown;
   const condition = (i & 0x10000) !== 0;
   const likely = (i & 0x20000) !== 0;
   const target = branchAddress(ctx.pc, i);
-
-  ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = false; // NB: not trivial - branches!
-
+  const delayTarget = known ? 'c.delayPC' : 'c.branchTarget';
   const test = condition ? '!==' : '===';
 
-  let impl = `const cond = (cpu1.control[31] & FPCSR_C) ${test} 0;\n`;
+  let opImpl = `const cond = (cpu1.control[31] & FPCSR_C) ${test} 0;\n`;
   if (likely) {
-    impl += `if (cond) {\n`;
-    impl += `  c.branchTarget = ${toString32(target)};\n`;
-    impl += '} else {\n';
-    impl += '  c.nextPC += 4;\n';
-    impl += '}\n';
+    opImpl += `if (cond) {\n`;
+    opImpl += `  ${delayTarget} = ${toString32(target)};\n`;
+    opImpl += '} else {\n';
+    opImpl += '  c.nextPC += 4;\n';
+    opImpl += '}\n';
   } else {
-    impl += `if (cond) {\n`;
-    impl += `  c.branchTarget = ${toString32(target)};\n`;
-    impl += '} else {\n';
-    impl += `  c.branchTarget = ${toString32(ctx.pc + 8)};\n`;
-    impl += '}\n';
+    opImpl += `if (cond) {\n`;
+    opImpl += `  ${delayTarget} = ${toString32(target)};\n`;
+    opImpl += '} else {\n';
+    opImpl += `  ${delayTarget} = ${toString32(ctx.pc + 8)};\n`;
+    opImpl += '}\n';
   }
-  return impl;
+
+  const impl = wrapCop1Op(opImpl, ctx);
+  return known
+    ? generateBranchOpBoilerplate(impl, ctx, likely)
+    : generateGenericOpBoilerplate(impl, ctx);
 }
 
 function generateSInstrStub(ctx) {
@@ -1841,38 +1894,35 @@ function generateSInstrStub(ctx) {
   const t = ctx.instr_ft();
   const d = ctx.instr_fd();
 
-  ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = false;  // Can raise FPE.
-
   const op = copFmtFuncOp(ctx.instruction);
   if (op < 0x30) {
     switch (op) {
-      case cop1ADD: return `cpu1.ADD_S(${d}, ${s}, ${t});`;
-      case cop1SUB: return `cpu1.SUB_S(${d}, ${s}, ${t});`;
-      case cop1MUL: return `cpu1.MUL_S(${d}, ${s}, ${t});`;
-      case cop1DIV: return `cpu1.DIV_S(${d}, ${s}, ${t});`;
-      case cop1SQRT: return `cpu1.SQRT_S(${d}, ${s});`;
-      case cop1ABS: return `cpu1.ABS_S(${d}, ${s});`;
-      case cop1MOV: return `cpu1.MOV_S(${d}, ${s});`;
-      case cop1NEG: return `cpu1.NEG_S(${d}, ${s});`;
-      case cop1ROUND_L: return `cpu1.ConvertSToL(${d}, ${s}, ${convertModeRound});`;
-      case cop1TRUNC_L: return `cpu1.ConvertSToL(${d}, ${s}, ${convertModeTrunc});`;
-      case cop1CEIL_L: return `cpu1.ConvertSToL(${d}, ${s}, ${convertModeCeil});`;
-      case cop1FLOOR_L: return `cpu1.ConvertSToL(${d}, ${s}, ${convertModeFloor});`;
-      case cop1ROUND_W: return `cpu1.ConvertSToW(${d}, ${s}, ${convertModeRound});`;
-      case cop1TRUNC_W: return `cpu1.ConvertSToW(${d}, ${s}, ${convertModeTrunc});`;
-      case cop1CEIL_W: return `cpu1.ConvertSToW(${d}, ${s}, ${convertModeCeil});`;
-      case cop1FLOOR_W: return `cpu1.ConvertSToW(${d}, ${s}, ${convertModeFloor});`;
-      case cop1CVT_S: return `cpu1.raiseUnimplemented();`;
-      case cop1CVT_D: return `cpu1.CVT_D_S(${d}, ${s});`;
-      case cop1CVT_W: return `cpu1.ConvertSToW(${d}, ${s}, cpu1.roundingMode);`;
-      case cop1CVT_L: return `cpu1.ConvertSToL(${d}, ${s}, cpu1.roundingMode);`;
+      case cop1ADD: return generateCop1FaultingOp(`cpu1.ADD_S(${d}, ${s}, ${t});`, ctx);
+      case cop1SUB: return generateCop1FaultingOp(`cpu1.SUB_S(${d}, ${s}, ${t});`, ctx);
+      case cop1MUL: return generateCop1FaultingOp(`cpu1.MUL_S(${d}, ${s}, ${t});`, ctx);
+      case cop1DIV: return generateCop1FaultingOp(`cpu1.DIV_S(${d}, ${s}, ${t});`, ctx);
+      case cop1SQRT: return generateCop1FaultingOp(`cpu1.SQRT_S(${d}, ${s});`, ctx);
+      case cop1ABS: return generateCop1FaultingOp(`cpu1.ABS_S(${d}, ${s});`, ctx);
+      case cop1MOV: return generateCop1TrivialOp(`cpu1.MOV_S(${d}, ${s});`, ctx);
+      case cop1NEG: return generateCop1FaultingOp(`cpu1.NEG_S(${d}, ${s});`, ctx);
+      case cop1ROUND_L: return generateCop1FaultingOp(`cpu1.ConvertSToL(${d}, ${s}, ${convertModeRound});`, ctx);
+      case cop1TRUNC_L: return generateCop1FaultingOp(`cpu1.ConvertSToL(${d}, ${s}, ${convertModeTrunc});`, ctx);
+      case cop1CEIL_L: return generateCop1FaultingOp(`cpu1.ConvertSToL(${d}, ${s}, ${convertModeCeil});`, ctx);
+      case cop1FLOOR_L: return generateCop1FaultingOp(`cpu1.ConvertSToL(${d}, ${s}, ${convertModeFloor});`, ctx);
+      case cop1ROUND_W: return generateCop1FaultingOp(`cpu1.ConvertSToW(${d}, ${s}, ${convertModeRound});`, ctx);
+      case cop1TRUNC_W: return generateCop1FaultingOp(`cpu1.ConvertSToW(${d}, ${s}, ${convertModeTrunc});`, ctx);
+      case cop1CEIL_W: return generateCop1FaultingOp(`cpu1.ConvertSToW(${d}, ${s}, ${convertModeCeil});`, ctx);
+      case cop1FLOOR_W: return generateCop1FaultingOp(`cpu1.ConvertSToW(${d}, ${s}, ${convertModeFloor});`, ctx);
+      case cop1CVT_S: return generateCop1Reserved(ctx);
+      case cop1CVT_D: return generateCop1FaultingOp(`cpu1.CVT_D_S(${d}, ${s});`, ctx);
+      case cop1CVT_W: return generateCop1FaultingOp(`cpu1.ConvertSToW(${d}, ${s}, cpu1.roundingMode);`, ctx);
+      case cop1CVT_L: return generateCop1FaultingOp(`cpu1.ConvertSToL(${d}, ${s}, cpu1.roundingMode);`, ctx);
     }
 
-    return `cpu1.raiseUnimplemented();`;
+    return generateCop1Reserved(ctx);
   }
 
-  return `cpu1.handleFloatCompareSingle(${op}, ${s}, ${t});`;
+  return generateCop1FaultingOp(`cpu1.handleFloatCompareSingle(${op}, ${s}, ${t});`, ctx);
 }
 
 function generateDInstrStub(ctx) {
@@ -1880,117 +1930,82 @@ function generateDInstrStub(ctx) {
   const t = ctx.instr_ft();
   const d = ctx.instr_fd();
 
-  ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = false;  // Can raise FPE.
-
   const op = copFmtFuncOp(ctx.instruction);
   if (op < 0x30) {
     switch (op) {
-      case cop1ADD: return `cpu1.ADD_D(${d}, ${s}, ${t});`;
-      case cop1SUB: return `cpu1.SUB_D(${d}, ${s}, ${t});`;
-      case cop1MUL: return `cpu1.MUL_D(${d}, ${s}, ${t});`;
-      case cop1DIV: return `cpu1.DIV_D(${d}, ${s}, ${t});`;
-      case cop1SQRT: return `cpu1.SQRT_D(${d}, ${s});`;
-      case cop1ABS: return `cpu1.ABS_D(${d}, ${s});`;
-      case cop1MOV: return `cpu1.MOV_D(${d}, ${s});`;
-      case cop1NEG: return `cpu1.NEG_D(${d}, ${s});`;
-      case cop1ROUND_L: return `cpu1.ConvertDToL(${d}, ${s}, ${convertModeRound});`;
-      case cop1TRUNC_L: return `cpu1.ConvertDToL(${d}, ${s}, ${convertModeTrunc});`;
-      case cop1CEIL_L: return `cpu1.ConvertDToL(${d}, ${s}, ${convertModeCeil});`;
-      case cop1FLOOR_L: return `cpu1.ConvertDToL(${d}, ${s}, ${convertModeFloor});`;
-      case cop1ROUND_W: return `cpu1.ConvertDToW(${d}, ${s}, ${convertModeRound});`;
-      case cop1TRUNC_W: return `cpu1.ConvertDToW(${d}, ${s}, ${convertModeTrunc});`;
-      case cop1CEIL_W: return `cpu1.ConvertDToW(${d}, ${s}, ${convertModeCeil});`;
-      case cop1FLOOR_W: return `cpu1.ConvertDToW(${d}, ${s}, ${convertModeFloor});`;
-      case cop1CVT_S: return `cpu1.CVT_S_D(${d}, ${s});`;
-      case cop1CVT_D: return `cpu1.raiseUnimplemented();`;
-      case cop1CVT_W: return `cpu1.ConvertDToW(${d}, ${s}, cpu1.roundingMode);`;
-      case cop1CVT_L: return `cpu1.ConvertDToL(${d}, ${s}, cpu1.roundingMode);`;
+      case cop1ADD: return generateCop1FaultingOp(`cpu1.ADD_D(${d}, ${s}, ${t});`, ctx);
+      case cop1SUB: return generateCop1FaultingOp(`cpu1.SUB_D(${d}, ${s}, ${t});`, ctx);
+      case cop1MUL: return generateCop1FaultingOp(`cpu1.MUL_D(${d}, ${s}, ${t});`, ctx);
+      case cop1DIV: return generateCop1FaultingOp(`cpu1.DIV_D(${d}, ${s}, ${t});`, ctx);
+      case cop1SQRT: return generateCop1FaultingOp(`cpu1.SQRT_D(${d}, ${s});`, ctx);
+      case cop1ABS: return generateCop1FaultingOp(`cpu1.ABS_D(${d}, ${s});`, ctx);
+      case cop1MOV: return generateCop1TrivialOp(`cpu1.MOV_D(${d}, ${s});`, ctx);
+      case cop1NEG: return generateCop1FaultingOp(`cpu1.NEG_D(${d}, ${s});`, ctx);
+      case cop1ROUND_L: return generateCop1FaultingOp(`cpu1.ConvertDToL(${d}, ${s}, ${convertModeRound});`, ctx);
+      case cop1TRUNC_L: return generateCop1FaultingOp(`cpu1.ConvertDToL(${d}, ${s}, ${convertModeTrunc});`, ctx);
+      case cop1CEIL_L: return generateCop1FaultingOp(`cpu1.ConvertDToL(${d}, ${s}, ${convertModeCeil});`, ctx);
+      case cop1FLOOR_L: return generateCop1FaultingOp(`cpu1.ConvertDToL(${d}, ${s}, ${convertModeFloor});`, ctx);
+      case cop1ROUND_W: return generateCop1FaultingOp(`cpu1.ConvertDToW(${d}, ${s}, ${convertModeRound});`, ctx);
+      case cop1TRUNC_W: return generateCop1FaultingOp(`cpu1.ConvertDToW(${d}, ${s}, ${convertModeTrunc});`, ctx);
+      case cop1CEIL_W: return generateCop1FaultingOp(`cpu1.ConvertDToW(${d}, ${s}, ${convertModeCeil});`, ctx);
+      case cop1FLOOR_W: return generateCop1FaultingOp(`cpu1.ConvertDToW(${d}, ${s}, ${convertModeFloor});`, ctx);
+      case cop1CVT_S: return generateCop1FaultingOp(`cpu1.CVT_S_D(${d}, ${s});`, ctx);
+      case cop1CVT_D: return generateCop1Reserved(ctx);
+      case cop1CVT_W: return generateCop1FaultingOp(`cpu1.ConvertDToW(${d}, ${s}, cpu1.roundingMode);`, ctx);
+      case cop1CVT_L: return generateCop1FaultingOp(`cpu1.ConvertDToL(${d}, ${s}, cpu1.roundingMode);`, ctx);
     }
-    return `cpu1.raiseUnimplemented();`;
+    return generateCop1Reserved(ctx);
   }
 
-  return `cpu1.handleFloatCompareDouble(${op}, ${s}, ${t});`;
+  return generateCop1FaultingOp(`cpu1.handleFloatCompareDouble(${op}, ${s}, ${t});`, ctx);
 }
 
 function generateWInstrStub(ctx) {
   const s = ctx.instr_fs();
   const d = ctx.instr_fd();
 
-  ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = false;  // Can raise FPE.
   switch (copFmtFuncOp(ctx.instruction)) {
-    case cop1ROUND_L: return `cpu1.raiseUnimplemented();`;
-    case cop1TRUNC_L: return `cpu1.raiseUnimplemented();`;
-    case cop1CEIL_L: return `cpu1.raiseUnimplemented();`;
-    case cop1FLOOR_L: return `cpu1.raiseUnimplemented();`;
-    case cop1ROUND_W: return `cpu1.raiseUnimplemented();`;
-    case cop1TRUNC_W: return `cpu1.raiseUnimplemented();`;
-    case cop1CEIL_W: return `cpu1.raiseUnimplemented();`;
-    case cop1FLOOR_W: return `cpu1.raiseUnimplemented();`;
-    case cop1CVT_S: return `cpu1.CVT_S_W(${d}, ${s});`;
-    case cop1CVT_D: return `cpu1.CVT_D_W(${d}, ${s});`;
-    case cop1CVT_W: return `cpu1.raiseUnimplemented();`;
-    case cop1CVT_L: return `cpu1.raiseUnimplemented();`;
+    case cop1ROUND_L:
+    case cop1TRUNC_L:
+    case cop1CEIL_L:
+    case cop1FLOOR_L:
+    case cop1ROUND_W:
+    case cop1TRUNC_W:
+    case cop1CEIL_W:
+    case cop1FLOOR_W:
+    case cop1CVT_W:
+    case cop1CVT_L:
+      return generateCop1Reserved(ctx);
+    case cop1CVT_S: return generateCop1FaultingOp(`cpu1.CVT_S_W(${d}, ${s});`, ctx);
+    case cop1CVT_D: return generateCop1TrivialOp(`cpu1.CVT_D_W(${d}, ${s});`, ctx);
   }
-  return `cpu1.raiseUnimplemented();`;
+  return generateCop1Reserved(ctx);
 }
 
 function generateLInstrStub(ctx) {
   const s = ctx.instr_fs();
   const d = ctx.instr_fd();
 
-  ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = false;  // Can raise FPE.
   switch (copFmtFuncOp(ctx.instruction)) {
-    case cop1ROUND_L: return `cpu1.raiseUnimplemented();`;
-    case cop1TRUNC_L: return `cpu1.raiseUnimplemented();`;
-    case cop1CEIL_L: return `cpu1.raiseUnimplemented();`;
-    case cop1FLOOR_L: return `cpu1.raiseUnimplemented();`;
-    case cop1ROUND_W: return `cpu1.raiseUnimplemented();`;
-    case cop1TRUNC_W: return `cpu1.raiseUnimplemented();`;
-    case cop1CEIL_W: return `cpu1.raiseUnimplemented();`;
-    case cop1FLOOR_W: return `cpu1.raiseUnimplemented();`;
-    case cop1CVT_S: return `cpu1.CVT_S_L(${d}, ${s});`;
-    case cop1CVT_D: return `cpu1.CVT_D_L(${d}, ${s});`;
-    case cop1CVT_W: return `cpu1.raiseUnimplemented();`;
-    case cop1CVT_L: return `cpu1.raiseUnimplemented();`;
+    case cop1ROUND_L:
+    case cop1TRUNC_L:
+    case cop1CEIL_L:
+    case cop1FLOOR_L:
+    case cop1ROUND_W:
+    case cop1TRUNC_W:
+    case cop1CEIL_W:
+    case cop1FLOOR_W:
+    case cop1CVT_W:
+    case cop1CVT_L:
+      return generateCop1Reserved(ctx);
+    case cop1CVT_S: return generateCop1FaultingOp(`cpu1.CVT_S_L(${d}, ${s});`, ctx);
+    case cop1CVT_D: return generateCop1FaultingOp(`cpu1.CVT_D_L(${d}, ${s});`, ctx);
   }
-  return `cpu1.raiseUnimplemented();`;
+  return generateCop1Reserved(ctx);
 }
 
 function generateCop1(ctx) {
-  const cop1Op = copOp(ctx.instruction);
-  const isBranch = cop1Op === 8 && ((ctx.instruction >>> 18) & 0x7) === 0;
-  const fn = cop1TableGen[cop1Op];
-
-  const opImpl = fn(ctx);
-
-  let impl = '';
-
-  ctx.fragment.usesCop1 = true;
-
-  if (ctx.fragment.cop1statusKnown) {
-    // Assert that cop1 is enabled
-    impl += ctx.genAssert('(c.getControlU32(12) & SR_CU1) !== 0', 'cop1 should be enabled');
-    impl += addNewlines(opImpl);
-    if (ctx.isTrivial) {
-      return generateTrivialOpBoilerplate(impl, ctx);
-    }
-  } else {
-    impl += 'if( (c.getControlU32(12) & SR_CU1) === 0 ) {\n';
-    impl += `  n64js.executeCop1_disabled(${toString32(ctx.instruction)});\n`;
-    impl += '} else {\n';
-    impl += '  ' + addNewlines(opImpl);
-    impl += '}\n';
-
-    ctx.isTrivial = false;    // Not trivial!
-    ctx.fragment.cop1statusKnown = true;
-  }
-
-  const code = generateGenericOpBoilerplate(impl, ctx);
-  ctx.needsDelayCheck = isBranch;
-  return code;
+  return cop1TableGen[copOp(ctx.instruction)](ctx);
 }
 
 function generateBreakpoint(ctx) {
