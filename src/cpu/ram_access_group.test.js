@@ -323,6 +323,7 @@ test('scratch buffers survive flushes and new fragments without retaining old st
   expect(code).toContain('ramStoreDV.setUint32(ramStoreBase + 4, c.gprS32[6], false)');
   expect(code).toContain('ramStoreDV.setUint32(ramStoreBase + 0, 0, false)');
   expect(code).toContain('ramStoreBase + 8 <=');
+  expect(code.match(/\/\/ SW\s+r0 -> \[a1\+0x0008\]/g)).toHaveLength(1);
   expect(code).not.toContain('c.execSW(2, 4,');
   expect(ctx.ramAccessGroup).toBe(group);
   for (const [i, buffer] of [group.pcs, group.opsBefore, group.instructions, group.offsets, group.registers].entries()) {
