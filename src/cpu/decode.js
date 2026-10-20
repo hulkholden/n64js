@@ -2,12 +2,17 @@
 
 // Primary opcodes (bits 31..26).
 export const OP_SPECIAL = 0x00;
+export const OP_REGIMM = 0x01;
 export const OP_J = 0x02;
 export const OP_JAL = 0x03;
 export const OP_BEQ = 0x04;
 export const OP_BNE = 0x05;
 export const OP_BLEZ = 0x06;
 export const OP_BGTZ = 0x07;
+
+// REGIMM sub-opcodes (bits 20..16).
+export const REGIMM_BLTZ = 0x00;
+export const REGIMM_BGEZ = 0x01;
 export const OP_ADDIU = 0x09;
 export const OP_SLTI = 0x0a;
 export const OP_SLTIU = 0x0b;
