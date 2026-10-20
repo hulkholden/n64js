@@ -12,7 +12,8 @@ import * as logger from '../logger.js';
 import * as memaccess from '../memory/memaccess.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
 import { performanceProfile } from '../debug/performance_profile.js';
-import { FragmentContext, compileTraceSteps, instructionBailsOut } from './recompiler.js';
+import { ignoreCacheOp, instructionBailsOut } from './instruction_classifier.js';
+import { FragmentContext, compileTraceSteps } from './recompiler.js';
 import { rsp } from '../rsp/rsp.js';
 
 window.n64js = window.n64js || {};
@@ -2276,9 +2277,7 @@ export class CPU0 {
   }
 
   ignoreCacheOp(cacheOp) {
-    const cache = cacheOp & 0x3;
-    const action = (cacheOp >>> 2) & 0x7;
-    return cache !== 0 || (action !== 0 && action !== 4);
+    return ignoreCacheOp(cacheOp);
   }
 
   execTGE(rt, rs) { this.maybeRaiseTRAPException(this.getRegS64(rs) >= this.getRegS64(rt)); }

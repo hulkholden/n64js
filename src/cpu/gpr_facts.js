@@ -1,4 +1,19 @@
 import * as decode from './decode.js';
+import {
+  FACT_NONE,
+  FACT_SIGN32,
+  FACT_ZERO32,
+  FACT_BOOL32,
+  FACT_UNKNOWN64,
+  FACT_AND,
+  FACT_OR_XOR,
+  FACT_ADDIU,
+  FACT_ANDI,
+  FACT_ORI_XORI,
+  FACT_LUI,
+  getOpTraits,
+  resolveDestGpr,
+} from './instruction_classifier.js';
 
 const unknown64 = Object.freeze({ kind: 'unknown64' });
 const signExtended32 = Object.freeze({ kind: 'signExtended32' });
@@ -46,78 +61,61 @@ export class GPRFacts {
   }
 
   update(instruction) {
-    const s = this.get(decode.rs(instruction));
-    const t = this.get(decode.rt(instruction));
-    const writeRT = fact => this.set(decode.rt(instruction), fact);
-    const writeRD = fact => this.set(decode.rd(instruction), fact);
-    switch (decode.simpleOp(instruction)) {
-      case decode.OP_SPECIAL:
-        switch (decode.specialOp(instruction)) {
-          // Word shifts (including the existing full-source SRA/SRAV helpers)
-          // and nontrapping word arithmetic always sign extend their result.
-          case decode.SPECIAL_SLL: case decode.SPECIAL_SRL: case decode.SPECIAL_SRA:
-          case decode.SPECIAL_SLLV: case decode.SPECIAL_SRLV: case decode.SPECIAL_SRAV:
-          case decode.SPECIAL_ADDU: case decode.SPECIAL_SUBU:
-            return writeRD(signExtended32);
-          case decode.SPECIAL_SLT: case decode.SPECIAL_SLTU:
-            return writeRD(boolean32);
-          case decode.SPECIAL_AND: // One zero-extended input clears the upper word.
-            return writeRD(isUnsigned32(s) || isUnsigned32(t) ? zeroExtended32 :
-              isSigned32(s) && isSigned32(t) ? signExtended32 : unknown64);
-          case decode.SPECIAL_OR: case decode.SPECIAL_XOR:
-            return writeRD(isSigned32(s) && isSigned32(t) ? signExtended32 :
-              isUnsigned32(s) && isUnsigned32(t) ? zeroExtended32 : unknown64);
-          case decode.SPECIAL_JALR:
-            return writeRD(signExtended32);
-          // Full-width writes, including partial and shift results, kill rd.
-          case decode.SPECIAL_MFHI: case decode.SPECIAL_MFLO:
-          case decode.SPECIAL_DSLLV: case decode.SPECIAL_DSRLV: case decode.SPECIAL_DSRAV:
-          case decode.SPECIAL_NOR:
-          case decode.SPECIAL_DADDU: case decode.SPECIAL_DSUBU:
-          case decode.SPECIAL_DSLL: case decode.SPECIAL_DSRL: case decode.SPECIAL_DSRA:
-          case decode.SPECIAL_DSLL32: case decode.SPECIAL_DSRL32: case decode.SPECIAL_DSRA32:
-            return writeRD(unknown64);
-          // JR, HI/LO writes, multiply/divide do not write GPRs.
-          case decode.SPECIAL_JR: case decode.SPECIAL_MTHI: case decode.SPECIAL_MTLO:
-          case decode.SPECIAL_MULT: case decode.SPECIAL_MULTU: case decode.SPECIAL_DIV: case decode.SPECIAL_DIVU:
-          case decode.SPECIAL_DMULT: case decode.SPECIAL_DMULTU: case decode.SPECIAL_DDIV: case decode.SPECIAL_DDIVU:
-            return;
-          default: return this.reset();
-        }
-      case decode.OP_JAL:
-        return this.set(31, signExtended32);
-      case decode.OP_ADDIU: // Wraps at 32 bits even for a full-width input.
-        return writeRT(s.kind === 'constant64' ?
+    const traits = getOpTraits(instruction);
+    const dest = resolveDestGpr(instruction, traits.destField);
+    switch (traits.gprFactRule) {
+      // Nonlink branches, jumps, integer stores, HI/LO writes and multiply/divide
+      // preserve all GPRs.
+      case FACT_NONE:
+        return;
+      // Word shifts (including the existing full-source SRA/SRAV helpers),
+      // nontrapping word arithmetic, JAL/JALR link writes and signed word/subword
+      // loads always sign extend their result.
+      case FACT_SIGN32:
+        return this.set(dest, signExtended32);
+      case FACT_ZERO32:
+        return this.set(dest, zeroExtended32);
+      case FACT_BOOL32:
+        return this.set(dest, boolean32);
+      // Full-width writes, including partial and shift results, kill dest.
+      case FACT_UNKNOWN64:
+        return this.set(dest, unknown64);
+      case FACT_AND: { // One zero-extended input clears the upper word.
+        const s = this.get(decode.rs(instruction));
+        const t = this.get(decode.rt(instruction));
+        return this.set(dest, isUnsigned32(s) || isUnsigned32(t) ? zeroExtended32 :
+          isSigned32(s) && isSigned32(t) ? signExtended32 : unknown64);
+      }
+      case FACT_OR_XOR: {
+        const s = this.get(decode.rs(instruction));
+        const t = this.get(decode.rt(instruction));
+        return this.set(dest, isSigned32(s) && isSigned32(t) ? signExtended32 :
+          isUnsigned32(s) && isUnsigned32(t) ? zeroExtended32 : unknown64);
+      }
+      case FACT_ADDIU: { // Wraps at 32 bits even for a full-width input.
+        const s = this.get(decode.rs(instruction));
+        return this.set(dest, s.kind === 'constant64' ?
           constant64(BigInt.asIntN(32, s.value + BigInt(decode.imms(instruction)))) : signExtended32);
-      case decode.OP_SLTI: case decode.OP_SLTIU:
-        return writeRT(boolean32);
-      case decode.OP_ANDI: // Always clears bits 16..63.
-        return writeRT(s.kind === 'constant64' ? constant64(s.value & BigInt(decode.imm(instruction))) : zeroExtended32);
-      case decode.OP_ORI: case decode.OP_XORI: { // Leave bits 16..63 unchanged.
+      }
+      case FACT_ANDI: { // Always clears bits 16..63.
+        const s = this.get(decode.rs(instruction));
+        return this.set(dest, s.kind === 'constant64' ?
+          constant64(s.value & BigInt(decode.imm(instruction))) : zeroExtended32);
+      }
+      case FACT_ORI_XORI: { // Leave bits 16..63 unchanged.
+        const s = this.get(decode.rs(instruction));
         const imm = BigInt(decode.imm(instruction));
         if (s.kind === 'constant64') {
-          return writeRT(constant64(decode.simpleOp(instruction) === decode.OP_ORI ? (s.value | imm) : (s.value ^ imm)));
+          return this.set(dest, constant64(decode.simpleOp(instruction) === decode.OP_ORI ? (s.value | imm) : (s.value ^ imm)));
         }
-        return writeRT(isSigned32(s) ? signExtended32 : isUnsigned32(s) ? zeroExtended32 : unknown64);
+        return this.set(dest, isSigned32(s) ? signExtended32 : isUnsigned32(s) ? zeroExtended32 : unknown64);
       }
-      case decode.OP_LUI:
-        return writeRT(constant64(BigInt(decode.imm(instruction) << 16)));
-      case decode.OP_LB: case decode.OP_LH: case decode.OP_LWL: case decode.OP_LW: case decode.OP_LWR: case decode.OP_LL:
-        return writeRT(signExtended32);
-      case decode.OP_LBU: case decode.OP_LHU: case decode.OP_LWU:
-        return writeRT(zeroExtended32);
-      case decode.OP_SC: case decode.OP_SCD:
-        return writeRT(boolean32);
-      case decode.OP_DADDIU: case decode.OP_LDL: case decode.OP_LDR: case decode.OP_LLD: case decode.OP_LD:
-        return writeRT(unknown64);
-      // Nonlink branches, jumps and integer stores preserve all GPRs.
-      case decode.OP_J: case decode.OP_BEQ: case decode.OP_BNE: case decode.OP_BLEZ: case decode.OP_BGTZ:
-      case decode.OP_BEQL: case decode.OP_BNEL: case decode.OP_BLEZL: case decode.OP_BGTZL:
-      case decode.OP_SB: case decode.OP_SH: case decode.OP_SWL: case decode.OP_SW: case decode.OP_SDL: case decode.OP_SDR: case decode.OP_SWR: case decode.OP_SD:
-        return;
+      case FACT_LUI:
+        return this.set(dest, constant64(BigInt(decode.imm(instruction) << 16)));
       // Includes trapping arithmetic, coprocessors, CACHE, reserved instructions
       // and other generic effects. No proof crosses these barriers yet.
-      default: return this.reset();
+      default:
+        return this.reset();
     }
   }
 }
