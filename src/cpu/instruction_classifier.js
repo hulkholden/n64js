@@ -994,7 +994,7 @@ export function classifyBranch(pc, instruction, cop1statusKnown = false) {
       return {
         kind: 'conditional',
         likely: true,
-        fusable: false,
+        fusable: true,
         condition: condMap[op],
         takenPC,
         notTakenPC,
@@ -1024,7 +1024,7 @@ export function classifyBranch(pc, instruction, cop1statusKnown = false) {
           return {
             kind: 'conditional',
             likely: true,
-            fusable: false,
+            fusable: true,
             condition: sub === REGIMM_BLTZL ? 'bltz' : 'bgez',
             takenPC,
             notTakenPC,
@@ -1060,7 +1060,7 @@ export function classifyBranch(pc, instruction, cop1statusKnown = false) {
       return {
         kind: 'conditional',
         likely,
-        fusable: Boolean(cop1statusKnown) && !likely,
+        fusable: Boolean(cop1statusKnown),
         condition,
         takenPC,
         notTakenPC,

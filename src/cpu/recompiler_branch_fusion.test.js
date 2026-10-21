@@ -255,6 +255,58 @@ describe('branch + trivial delay-slot fusion codegen', () => {
     }
   });
 
+  test('fuses taken Branch-Likely instructions (BEQL, BNEL, BLEZL, BGTZL, BLTZL, BGEZL, BC1FL, BC1TL) with trivial delay slots', () => {
+    const target = 0x80001100;
+    const off = (target - (pc + 4)) >> 2;
+    const cases = [
+      [iop(decode.OP_BEQL, 8, 9, off), false],
+      [iop(decode.OP_BNEL, 8, 9, off), false],
+      [iop(decode.OP_BLEZL, 8, 0, off), false],
+      [iop(decode.OP_BGTZL, 8, 0, off), false],
+      [regimm(decode.REGIMM_BLTZL, 8, off), false],
+      [regimm(decode.REGIMM_BGEZL, 8, off), false],
+      [bc1(false, true, off), true],
+      [bc1(true, true, off), true],
+    ];
+
+    for (const [branchWord, needsCop1Prefix] of cases) {
+      const steps = [];
+      if (needsCop1Prefix) {
+        steps.push({
+          pc: pc - 4,
+          instruction: copMove(decode.OP_COP1, decode.COP_MF, 2, 0),
+          postPC: pc,
+        });
+      }
+      const branchIdx = steps.length;
+      steps.push(
+        { pc, instruction: branchWord, postPC: pc + 4 },
+        { pc: pc + 4, instruction: iop(decode.OP_ADDIU, 8, 8, -1), postPC: target },
+      );
+
+      const { fragment, code } = buildFragmentFromSteps(steps);
+      expect(fragment.needsDelayCheck).toBe(false);
+      if (needsCop1Prefix) {
+        expect(fragment.usesCop1).toBe(true);
+      }
+      // Taken Branch-Likely exits before the delay-slot RSP step when untaken, without a branchTaken local.
+      expect(code).not.toContain('const branchTaken');
+      expect(code).not.toContain(`c.fragmentOps = ${branchIdx};`);
+      expect(code).not.toContain('if (c.delayPC !== null)');
+      expect(code.match(/c\.delayPC/g)).toHaveLength(needsCop1Prefix ? 2 : 1);
+      const untakenExit = `{ c.pc = 0x80001008; return ${branchIdx + 1}; }`;
+      const delayRspStep = `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${pc + 4}; c.delayPC = 0x80001100; return ${branchIdx + 1}; } }`;
+      const delayAlu = 'const v = (c.gprS32[16] + -1) | 0;';
+      const untakenPos = code.indexOf(untakenExit);
+      const rspPos = code.indexOf(delayRspStep);
+      const aluPos = code.indexOf(delayAlu);
+      expect(untakenPos).toBeGreaterThan(-1);
+      expect(rspPos).toBeGreaterThan(untakenPos);
+      expect(aluPos).toBeGreaterThan(rspPos);
+      expect(code).toContain(`c.pc = 0x80001100;\nreturn ${branchIdx + 2};`);
+    }
+  });
+
   test('fuses JR and JALR with trivial delay slots and reads jumpTarget before link write and delay slot', () => {
     const target = 0x80001200;
     const { code: jrCode } = buildFragmentFromSteps([
@@ -320,41 +372,55 @@ describe('branch + trivial delay-slot fusion codegen', () => {
     expect(code).not.toContain('if (c.delayPC !== null)');
   });
 
-  test('does not fuse Branch-Likely, conditional link branches, non-trivial delay slots, entry delay slots, or unchecked BC1', () => {
+  test('does not fuse untaken Branch-Likely, conditional link branches, non-trivial delay slots, entry delay slots, or unchecked BC1', () => {
     const target = 0x80001100;
     const off = (target - (pc + 4)) >> 2;
 
-    // Branch-Likely (BEQL) is not fused.
-    const { code: beqlCode } = buildFragmentFromSteps([
+    // Untaken Branch-Likely (BEQL annulled to pc + 8) is not fused with the instruction at pc + 8.
+    const { code: untakenBeqlCode } = buildFragmentFromSteps([
+      { pc, instruction: iop(decode.OP_BEQL, 8, 9, off), postPC: pc + 8, nextPC: pc + 8 },
+      { pc: pc + 8, instruction: ADDIU_T0_1, postPC: pc + 12 },
+    ]);
+    expect(untakenBeqlCode).toContain('c.nextPC += 4;');
+    expect(untakenBeqlCode).toContain('if (c.delayPC !== null)');
+
+    // Synthetic Branch-Likely with delayStep.postPC !== takenPC is not fused.
+    const { code: badTargetBeqlCode } = buildFragmentFromSteps([
       { pc, instruction: iop(decode.OP_BEQL, 8, 9, off), postPC: pc + 4 },
-      { pc: pc + 4, instruction: ADDIU_T0_1, postPC: target },
+      { pc: pc + 4, instruction: ADDIU_T0_1, postPC: pc + 8 },
     ]);
-    expect(beqlCode).not.toContain('const branchTaken');
-    expect(beqlCode).toContain('if (c.delayPC !== null)');
+    expect(badTargetBeqlCode).toContain('c.nextPC += 4;');
+    expect(badTargetBeqlCode).toContain('if (c.delayPC !== null)');
 
-    // BLTZAL is not fused.
-    const { code: bltzalCode } = buildFragmentFromSteps([
-      { pc, instruction: regimm(0x10, 8, off), postPC: pc + 4 },
-      { pc: pc + 4, instruction: ADDIU_T0_1, postPC: target },
-    ]);
-    expect(bltzalCode).not.toContain('const branchTaken');
-    expect(bltzalCode).toContain('c.execBLTZAL');
+    // BLTZAL and BLTZALL are not fused.
+    for (const sub of [decode.REGIMM_BLTZAL, decode.REGIMM_BLTZALL]) {
+      const { code: linkBranchCode } = buildFragmentFromSteps([
+        { pc, instruction: regimm(sub, 8, off), postPC: pc + 4 },
+        { pc: pc + 4, instruction: ADDIU_T0_1, postPC: target },
+      ]);
+      expect(linkBranchCode).not.toContain('const branchTaken');
+      expect(linkBranchCode).toContain('c.execBLTZAL');
+    }
 
-    // Non-trivial delay slot (LW) is not fused.
-    const { code: lwDelayCode } = buildFragmentFromSteps([
-      { pc, instruction: iop(decode.OP_BNE, 8, 9, off), postPC: pc + 4 },
-      { pc: pc + 4, instruction: iop(decode.OP_LW, 4, 10, 0), postPC: target },
-    ]);
-    expect(lwDelayCode).not.toContain('const branchTaken');
-    expect(lwDelayCode).toContain('c.nextPC = c.delayPC ?? 0x80001008;');
+    // Non-trivial delay slot (LW) is not fused (even for taken Branch-Likely).
+    for (const op of [decode.OP_BNE, decode.OP_BNEL]) {
+      const { code: lwDelayCode } = buildFragmentFromSteps([
+        { pc, instruction: iop(op, 8, 9, off), postPC: pc + 4 },
+        { pc: pc + 4, instruction: iop(decode.OP_LW, 4, 10, 0), postPC: target },
+      ]);
+      expect(lwDelayCode).not.toContain('const branchTaken');
+      expect(lwDelayCode).toContain('c.nextPC = c.delayPC ?? 0x80001008;');
+    }
 
-    // BC1T when cop1statusKnown === false is not fused.
-    const { code: uncheckedBc1Code } = buildFragmentFromSteps([
-      { pc, instruction: bc1(true, false, off), postPC: pc + 4 },
-      { pc: pc + 4, instruction: ADDIU_T0_1, postPC: target },
-    ]);
-    expect(uncheckedBc1Code).not.toContain('const branchTaken');
-    expect(uncheckedBc1Code).toContain('executeCop1_disabled');
+    // BC1T and BC1TL when cop1statusKnown === false are not fused.
+    for (const likely of [false, true]) {
+      const { code: uncheckedBc1Code } = buildFragmentFromSteps([
+        { pc, instruction: bc1(true, likely, off), postPC: pc + 4 },
+        { pc: pc + 4, instruction: ADDIU_T0_1, postPC: target },
+      ]);
+      expect(uncheckedBc1Code).not.toContain('const branchTaken');
+      expect(uncheckedBc1Code).toContain('executeCop1_disabled');
+    }
 
     // Entry with entryDelayPC !== null at step 0 is not fused.
     const { code: entryDelayCode } = buildFragmentFromSteps(
@@ -489,6 +555,97 @@ for (const profiled of [false, true]) {
       }
     }
 
+    for (const [name, branchWord, needsCop1Prefix, takenSetup, untakenSetup] of [
+      [
+        'BEQL (64-bit high-word mismatch)',
+        iop(decode.OP_BEQL, 8, 9, 2),
+        false,
+        c => { c.gprU64[8] = 0x11111111_22222222n; c.gprU64[9] = 0x11111111_22222222n; },
+        c => { c.gprU64[8] = 0x11111111_22222222n; c.gprU64[9] = 0x99999999_22222222n; },
+      ],
+      [
+        'BNEL (delay slot modifies rs from 1 to 0)',
+        iop(decode.OP_BNEL, 8, 0, 2),
+        false,
+        c => c.setRegS32Extend(8, 1),
+        c => c.setRegS32Extend(8, 0),
+      ],
+      [
+        'BNEL (offset === 1 where takenPC === notTakenPC)',
+        iop(decode.OP_BNEL, 8, 0, 1),
+        false,
+        c => c.setRegS32Extend(8, 1),
+        c => c.setRegS32Extend(8, 0),
+      ],
+      [
+        'BLEZL',
+        iop(decode.OP_BLEZL, 8, 0, 2),
+        false,
+        c => c.setRegS32Extend(8, 0),
+        c => c.setRegS32Extend(8, 1),
+      ],
+      [
+        'BGTZL (delay slot decrements rs from 1 to 0)',
+        iop(decode.OP_BGTZL, 8, 0, 2),
+        false,
+        c => c.setRegS32Extend(8, 1),
+        c => c.setRegS32Extend(8, 0),
+      ],
+      [
+        'BLTZL',
+        regimm(decode.REGIMM_BLTZL, 8, 2),
+        false,
+        c => c.setRegS32Extend(8, -1),
+        c => c.setRegS32Extend(8, 0),
+      ],
+      [
+        'BGEZL (delay slot decrements rs from 0 to -1)',
+        regimm(decode.REGIMM_BGEZL, 8, 2),
+        false,
+        c => c.setRegS32Extend(8, 0),
+        c => c.setRegS32Extend(8, -1),
+      ],
+      [
+        'BC1FL',
+        bc1(false, true, 2),
+        true,
+        (c, h) => { h.cpu1.control[31] = 0; },
+        (c, h) => { h.cpu1.control[31] = 0x00800000; },
+      ],
+      [
+        'BC1TL',
+        bc1(true, true, 2),
+        true,
+        (c, h) => { h.cpu1.control[31] = 0x00800000; },
+        (c, h) => { h.cpu1.control[31] = 0; },
+      ],
+    ]) {
+      for (const trainTaken of [true, false]) {
+        for (const runTaken of [true, false]) {
+          test(`${name} trainedTaken=${trainTaken} runTaken=${runTaken} matches interpreter`, async () => {
+            const prefix = needsCop1Prefix ? [copMove(decode.OP_COP1, decode.COP_MF, 2, 0)] : [];
+            const result = await compare([
+              ...prefix,
+              branchWord,
+              iop(decode.OP_ADDIU, 11, 11, 5),   // Delay slot: executed only when taken
+              iop(decode.OP_ADDIU, 10, 10, 10),  // Fallthrough at pc + 8
+              iop(decode.OP_ADDIU, 10, 10, 100), // Target when offset === 2
+            ], {
+              train: trainTaken ? takenSetup : untakenSetup,
+              prepare: runTaken ? takenSetup : untakenSetup,
+              trainCycles: 5,
+            });
+            expect(result.gpr[11]).toBe(runTaken ? 5n : 0n);
+            if (trainTaken) {
+              expect(result.code).not.toContain('const branchTaken');
+              expect(result.code).not.toContain('if (c.delayPC !== null)');
+              expect(result.code).not.toContain('c.nextPC += 4;');
+            }
+          });
+        }
+      }
+    }
+
     for (const trainMatch of [true, false]) {
       test(`JR and JALR with delay slot modifying rs match interpreter (runtime matches training=${trainMatch})`, async () => {
         const targetA = pc + 0x18;
@@ -583,7 +740,7 @@ for (const profiled of [false, true]) {
       }
     });
 
-    for (const [name, words, prepareTaken, prepareUntaken] of [
+    for (const [name, words, prepareTaken, prepareUntaken, isLikely] of [
       [
         'JAL + ADDIU',
         [
@@ -595,6 +752,7 @@ for (const profiled of [false, true]) {
         ],
         () => {},
         null,
+        false,
       ],
       [
         'BNE + ADDIU',
@@ -607,6 +765,20 @@ for (const profiled of [false, true]) {
         ],
         c => c.setRegS32Extend(8, 1),
         c => c.setRegS32Extend(8, 0),
+        false,
+      ],
+      [
+        'BNEL + ADDIU',
+        [
+          iop(decode.OP_BNEL, 8, 0, 3),
+          iop(decode.OP_ADDIU, 8, 8, -1),
+          iop(decode.OP_ADDIU, 9, 9, 10),
+          0,
+          iop(decode.OP_ADDIU, 9, 9, 20),
+        ],
+        c => c.setRegS32Extend(8, 1),
+        c => c.setRegS32Extend(8, 0),
+        true,
       ],
       [
         'JALR + OR',
@@ -622,6 +794,7 @@ for (const profiled of [false, true]) {
           c.setRegS32Extend(17, 0x80002000);
         },
         null,
+        false,
       ],
     ]) {
       const variants = prepareUntaken ? [prepareTaken, prepareUntaken] : [prepareTaken];
@@ -630,7 +803,8 @@ for (const profiled of [false, true]) {
           test(`${name} active RSP break interrupt at RSP step ${breakStep} preserves exact EPC, BD, delayPC, and link state`, async () => {
             const result = await compare(words, {
               train: c => {
-                prep(c);
+                // Train Branch-Likely as taken so the fused path is exercised at runtime.
+                (isLikely ? prepareTaken : prep)(c);
               },
               prepare: (c, h) => {
                 prep(c);
@@ -648,11 +822,17 @@ for (const profiled of [false, true]) {
               trainCycles: 3,
               runCycles: 3,
             });
-            // When breakStep === 2, the interrupt occurs right before the delay-slot instruction,
-            // so serviceInterrupts enters the exception handler with Cause.BD set and EPC === branchPC!
-            if (breakStep === 2) {
+            // When breakStep === 2 and the delay slot is NOT annulled, the interrupt occurs right before
+            // the delay-slot instruction, so serviceInterrupts enters the exception handler with Cause.BD set
+            // and EPC === branchPC. When a fused Branch-Likely is untaken, the delay slot is annulled before
+            // step 2's RSP step, so step 2 runs at pc + 8 with Cause.BD === 0 and EPC === pc + 8.
+            const annulled = isLikely && prep === prepareUntaken;
+            if (breakStep === 2 && !annulled) {
               expect((result.cause >>> 31) & 1).toBe(1);
               expect(result.epc).toBe(pc);
+            } else if (breakStep === 2 && annulled) {
+              expect((result.cause >>> 31) & 1).toBe(0);
+              expect(result.epc).toBe(pc + 8);
             } else {
               expect((result.cause >>> 31) & 1).toBe(0);
               expect(result.epc).toBe(pc);
@@ -661,6 +841,55 @@ for (const profiled of [false, true]) {
         }
       }
     }
+
+    test('self-looping fragment with fused Branch-Likely back-edge matches interpreter across exits and RSP interrupts', async () => {
+      // 3-op self-loop at 0x80001000:
+      //   0x80001000: ADDIU t3, t3, 10
+      //   0x80001004: BNEL  t0, t1, loop (-2 -> 0x80001000)
+      //   0x80001008: ADDIU t0, t0, 1    (delay slot of BNEL, annulled on final untaken exit!)
+      //   0x8000100c: ADDIU t4, t4, 50   (normal loop exit)
+      const words = [
+        iop(decode.OP_ADDIU, 11, 11, 10),
+        iop(decode.OP_BNEL, 8, 9, -2),
+        iop(decode.OP_ADDIU, 8, 8, 1),
+        iop(decode.OP_ADDIU, 12, 12, 50),
+      ];
+
+      for (const scenario of ['normal', 'rsp-break-step-6']) {
+        const result = await compare(words, {
+          train: c => {
+            c.setRegS32Extend(8, 0);
+            c.setRegS32Extend(9, 4);
+          },
+          prepare: (c, h) => {
+            c.setRegS32Extend(8, 0);
+            c.setRegS32Extend(9, 4);
+            if (scenario === 'rsp-break-step-6') {
+              // Step 6 is the delay slot of BNEL on iteration 2.
+              c.setControlU32(regs.controlStatus, 0x20000401);
+              c.statusRegisterChanged();
+              h.mi_reg.set32(0xc, 1);
+              h.sp_reg.set32(0x10, 0x40);
+              for (let i = 0; i < 8; i++) {
+                h.sp_mem.set32(0x1000 + i * 4, i === 5 ? 0x0000000d : 0);
+              }
+              h.rsp.unhalt();
+            }
+          },
+          trainCycles: 3,
+          runCycles: 20,
+        });
+        expect(result.code).toContain('do {');
+        expect(result.code).not.toContain('const branchTaken');
+        expect(result.code).not.toContain('if (c.delayPC !== null)');
+        if (scenario === 'normal') {
+          // On iteration 5 (t0 === 4), BNEL is untaken and annuls ADDIU t0, t0, 1, so t0 stays 4!
+          expect(result.gpr[8]).toBe(4n);
+          expect(result.gpr[11]).toBe(50n);
+          expect(result.gpr[12]).toBe(50n);
+        }
+      }
+    });
 
     test('self-looping fragment with fused internal branch and fused back-edge branch matches interpreter across exits and RSP interrupts', async () => {
       // 4-op self-loop at 0x80001000:

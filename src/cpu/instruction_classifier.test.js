@@ -310,15 +310,21 @@ describe('instruction_classifier equivalence with recompiler', () => {
       usesCop1: false,
     });
 
-    // BEQL is likely and not fusable
+    // BEQL, BNEL, BLEZL, BGTZL, BLTZL, BGEZL are likely and fusable
     expect(classifyBranch(pc, iop(decode.OP_BEQL, 4, 5, 3))).toMatchObject({
       kind: 'conditional',
       likely: true,
-      fusable: false,
+      fusable: true,
       condition: 'beq',
     });
+    expect(classifyBranch(pc, regimm(decode.REGIMM_BLTZL, 4, 3))).toMatchObject({
+      kind: 'conditional',
+      likely: true,
+      fusable: true,
+      condition: 'bltz',
+    });
 
-    // BLTZAL is conditional with linkReg 31 and not fusable
+    // BLTZAL and BLTZALL are conditional with linkReg 31 and not fusable
     expect(classifyBranch(pc, regimm(decode.REGIMM_BLTZAL, 4, 3))).toMatchObject({
       kind: 'conditional',
       likely: false,
@@ -326,8 +332,15 @@ describe('instruction_classifier equivalence with recompiler', () => {
       condition: 'bltz',
       linkReg: 31,
     });
+    expect(classifyBranch(pc, regimm(decode.REGIMM_BLTZALL, 4, 3))).toMatchObject({
+      kind: 'conditional',
+      likely: true,
+      fusable: false,
+      condition: 'bltz',
+      linkReg: 31,
+    });
 
-    // BC1T depends on cop1statusKnown for fusability
+    // BC1T and BC1TL depend on cop1statusKnown for fusability
     expect(classifyBranch(pc, bc1(true, false, 3), false)).toMatchObject({
       kind: 'conditional',
       likely: false,
@@ -338,6 +351,20 @@ describe('instruction_classifier equivalence with recompiler', () => {
     expect(classifyBranch(pc, bc1(true, false, 3), true)).toMatchObject({
       kind: 'conditional',
       likely: false,
+      fusable: true,
+      condition: 'bc1t',
+      usesCop1: true,
+    });
+    expect(classifyBranch(pc, bc1(true, true, 3), false)).toMatchObject({
+      kind: 'conditional',
+      likely: true,
+      fusable: false,
+      condition: 'bc1t',
+      usesCop1: true,
+    });
+    expect(classifyBranch(pc, bc1(true, true, 3), true)).toMatchObject({
+      kind: 'conditional',
+      likely: true,
       fusable: true,
       condition: 'bc1t',
       usesCop1: true,
