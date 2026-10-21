@@ -265,10 +265,11 @@ function genBranchCondition(ctx, condition, branchInstr) {
   }
 }
 
-// Attempts to fuse a non-Likely branch at `branchStep` with a trivial delay-slot
-// instruction at `delayStep`, keeping the branch decision in a JS local across
-// the pair and only materializing `c.delayPC` inside `delayStep`'s cold
-// `if (c.stuffToDo)` interrupt exit.
+// Attempts to fuse a branch at `branchStep` with a trivial delay-slot
+// instruction at `delayStep`, avoiding `c.delayPC` on the fast path and only
+// materializing it inside `delayStep`'s cold `if (c.stuffToDo)` interrupt exit.
+// Taken Branch-Likely instructions annul the delay slot by exiting before
+// `delayStep`'s RSP step when the condition is false at runtime.
 function tryEmitFusedBranchAndDelaySlot(fragment, branchStep, delayStep, stepIndex, ctx) {
   if (kDebugDynarec || kValidateDynarecPCs || kAccurateCountUpdating || !kUseOptimisedDynarecHandlers) {
     return false;
@@ -296,8 +297,8 @@ function tryEmitFusedBranchAndDelaySlot(fragment, branchStep, delayStep, stepInd
 
   const fallthroughPC = branchInfo.notTakenPC;
   const postPC = delayStep.postPC >>> 0;
-  const { kind, linkReg, regSource, takenPC, notTakenPC } = branchInfo;
-  if (kind === 'unconditional' && postPC !== takenPC) {
+  const { kind, likely, linkReg, regSource, takenPC, notTakenPC } = branchInfo;
+  if ((kind === 'unconditional' || likely) && postPC !== takenPC) {
     return false;
   }
   if (kind === 'conditional' && postPC !== takenPC && postPC !== notTakenPC) {
@@ -346,6 +347,10 @@ function tryEmitFusedBranchAndDelaySlot(fragment, branchStep, delayStep, stepInd
   if (kind === 'unconditional') {
     fnCode += linkCode;
     fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = ${toString32(postPC)}; ${returnDelayStep} } }\n`;
+    fnCode += delayOpCode;
+  } else if (likely) {
+    fnCode += `if (!(${condExpr})) { c.pc = ${toString32(notTakenPC)}; ${returnDelayStep} }\n`;
+    fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = ${toString32(takenPC)}; ${returnDelayStep} } }\n`;
     fnCode += delayOpCode;
   } else if (kind === 'conditional') {
     fnCode += `const branchTaken = ${condExpr};\n`;
