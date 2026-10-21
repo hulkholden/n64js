@@ -9,20 +9,30 @@ import { toString32 } from '../format.js';
 import { assert } from '../assert.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
 import {
+  OP_SPECIAL, OP_ADDIU, OP_ANDI, OP_ORI, OP_XORI,
+  SPECIAL_SLL, SPECIAL_SRL, SPECIAL_SRA, SPECIAL_ADDU, SPECIAL_SUBU, SPECIAL_XOR,
   copOp, isWait, copFmtFuncOp, simpleOp, regImmOp, specialOp,
   fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress,
 } from './decode.js';
 import {
+  FACT_NONE,
+  FACT_RESET,
+  FACT_UNKNOWN64,
+  READ_NONE,
   classifyBranch,
   conservativeMemoryEffects,
+  destGpr,
   getOpTraits,
   instructionBailsOut,
   integerMemoryEffects,
   isTrivialInstruction,
+  readGprMask,
+  resolveDestGpr,
+  resolveReadGprMask,
   uncheckedCop1MemoryEffects,
 } from './instruction_classifier.js';
 
-export { instructionBailsOut, isTrivialInstruction };
+export { destGpr, instructionBailsOut, isTrivialInstruction, readGprMask };
 
 const kDebugDynarec = false;
 const kValidateDynarecPCs = false;
@@ -71,6 +81,9 @@ export class FragmentContext {
     this.pendingComparison = null;
     this.opsCounterVar = null;
     this.ramAccessGroup = new RAMAccessGroup();
+    this.deadGprWrites = new Array(32).fill('');
+    this.deadGprWriteMask = 0;
+    this.lastTrivialImpl = '';
   }
 
   genAssert(test, msg) {
@@ -114,10 +127,14 @@ export class FragmentContext {
   // enters fragments with c.stuffToDo === 0, so c.stuffToDo can only become
   // non-zero here if rsp.step() ran and raised an interrupt or break.
   genStepPreamble(stepPC = this.pc, opsBefore = this.fragment.opsCompiled - 1) {
-    if (kAccurateCountUpdating) {
-      return `if (!rsp.halted) { rsp.step(); }\nif (c.stuffToDo) { c.pc = ${stepPC}; ${this.genReturnOps(opsBefore)} }\n\n`;
+    let deadWrites = '';
+    for (let m = this.deadGprWriteMask; m !== 0; m &= m - 1) {
+      deadWrites += this.deadGprWrites[31 - Math.clz32(m & -m)];
     }
-    return `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${stepPC}; ${this.genReturnOps(opsBefore)} } }\n\n`;
+    if (kAccurateCountUpdating) {
+      return `if (!rsp.halted) { rsp.step(); }\nif (c.stuffToDo) { ${deadWrites}c.pc = ${stepPC}; ${this.genReturnOps(opsBefore)} }\n\n`;
+    }
+    return `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { ${deadWrites}c.pc = ${stepPC}; ${this.genReturnOps(opsBefore)} } }\n\n`;
   }
 
   flushDelayedPCUpdate() {
@@ -135,6 +152,7 @@ export class FragmentContext {
     this.forwardedComparison = null;
     this.opsCounterVar = opsCounterVar;
     this.ramAccessGroup.reset();
+    this.deadGprWriteMask = 0;
   }
 
   set(fragment, pc, instruction, postPC, nextPC) {
@@ -153,6 +171,7 @@ export class FragmentContext {
     this.needsDelayCheck = true;
     this.isTrivial = this.opTraits.isTrivial;
     this.pendingComparison = null;
+    this.lastTrivialImpl = '';
 
     this.dump = false;
 
@@ -177,7 +196,99 @@ export class FragmentContext {
   instr_tlbop() { return tlbop(this.instruction); }
 }
 
-export function generateCodeForOp(ctx, { includeStepPreamble = false } = {}) {
+// Returns true if `instruction` (with precomputed `traits`) reads `reg` at
+// runtime, accounting for constant-folded emission when `regIsConst` is true.
+function readsGprAtRuntime(instruction, traits, reg, regIsConst) {
+  const mask = resolveReadGprMask(instruction, traits.readFields);
+  if ((mask & (1 << reg)) === 0) {
+    return false;
+  }
+  const op = simpleOp(instruction);
+  if (op === OP_SPECIAL) {
+    const fn = specialOp(instruction);
+    // SUBU and XOR with rs === rt emit a constant zero without reading rs/rt.
+    if ((fn === SPECIAL_SUBU || fn === SPECIAL_XOR) && rs(instruction) === rt(instruction)) {
+      return false;
+    }
+    if (regIsConst) {
+      if (fn === SPECIAL_SLL || fn === SPECIAL_SRL || fn === SPECIAL_SRA) {
+        return false;
+      }
+      if (fn === SPECIAL_ADDU && rs(instruction) === reg && rt(instruction) === reg) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (regIsConst && (op === OP_ADDIU || op === OP_ANDI || op === OP_ORI || op === OP_XORI)) {
+    return false;
+  }
+  return true;
+}
+
+// Returns true if the trivial GPR write to `d` (`d !== 0`) at `stepIndex` is
+// overwritten by a subsequent trivial instruction before any instruction reads
+// `d` at runtime and before any non-trivial instruction or control-flow split.
+// Also ensures that no intervening instruction before the overwriting step
+// clobbers any state read by `stepIndex`'s generated write expression so that
+// `stepIndex`'s write can be safely materialized in the cold `if (c.stuffToDo)`
+// exit of intervening RSP preambles.
+function isDeadTrivialGprWrite(fragment, stepIndex, d, stepTraits, stepReadMask, dIsConst) {
+  const steps = fragment.traceSteps;
+  const totalOps = steps.length;
+  const cop1Known = fragment.cop1statusKnown;
+  // Trivial instructions that read HI/LO (MFHI, MFLO) have readFields === READ_NONE
+  // and gprFactRule === FACT_UNKNOWN64.
+  const readsHiLo = stepTraits.readFields === READ_NONE && stepTraits.gprFactRule === FACT_UNKNOWN64;
+  const readsCop1 = stepTraits.usesCop1;
+  let constValid = dIsConst;
+  let prevStep = steps[stepIndex];
+
+  for (let j = stepIndex + 1; j < totalOps; j++) {
+    const nextStep = steps[j];
+    const expectedPC = (prevStep.pc + 4) >>> 0;
+    if ((prevStep.postPC >>> 0) !== expectedPC || (nextStep.pc >>> 0) !== expectedPC) {
+      return false;
+    }
+    const nextInstr = nextStep.instruction >>> 0;
+    const nextTraits = getOpTraits(nextInstr, cop1Known, kUseOptimisedDynarecHandlers);
+    if (!nextTraits.isTrivial) {
+      return false;
+    }
+    if (readsGprAtRuntime(nextInstr, nextTraits, d, constValid)) {
+      return false;
+    }
+    const nextDest = resolveDestGpr(nextInstr, nextTraits.destField);
+    if (nextDest === d) {
+      return true;
+    }
+    if (nextDest !== 0 && (stepReadMask & (1 << nextDest)) !== 0) {
+      return false;
+    }
+    if (readsHiLo && nextTraits.gprFactRule === FACT_NONE) {
+      return false;
+    }
+    if (readsCop1 && nextTraits.usesCop1) {
+      return false;
+    }
+    if (nextTraits.gprFactRule === FACT_RESET) {
+      constValid = false;
+    }
+    prevStep = nextStep;
+  }
+  return false;
+}
+
+function formatColdTrivialWrite(impl) {
+  const oneLine = dedent(impl)
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l !== '' && !l.startsWith('//'))
+    .join(' ');
+  return oneLine.includes('const ') ? `{ ${oneLine} } ` : `${oneLine} `;
+}
+
+export function generateCodeForOp(ctx, { includeStepPreamble = false, stepIndex = -1 } = {}) {
   ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
 
   if (!kDebugDynarec && !kValidateDynarecPCs && !kAccurateCountUpdating &&
@@ -187,6 +298,12 @@ export function generateCodeForOp(ctx, { includeStepPreamble = false } = {}) {
 
   if (includeStepPreamble) {
     ctx.fragment.bodyCode += ctx.genStepPreamble();
+  }
+
+  const currentDest = resolveDestGpr(ctx.instruction, ctx.opTraits.destField);
+  if (currentDest !== 0 && (ctx.deadGprWriteMask & (1 << currentDest)) !== 0) {
+    ctx.deadGprWriteMask &= ~(1 << currentDest);
+    ctx.deadGprWrites[currentDest] = '';
   }
 
   // If the last op tried to delay updating the pc, see if it needs updating now.
@@ -213,9 +330,28 @@ export function generateCodeForOp(ctx, { includeStepPreamble = false } = {}) {
     `);
   }
 
-  const fn_code = preflight + generateOp(ctx);
+  let fn_code = preflight + generateOp(ctx);
   ctx.gprFacts.update(ctx.instruction);
   ctx.forwardedComparison = ctx.pendingComparison;
+
+  if (stepIndex >= 0 &&
+      !kDebugDynarec &&
+      !kValidateDynarecPCs &&
+      !kAccurateCountUpdating &&
+      kUseOptimisedDynarecHandlers &&
+      ctx.isTrivial &&
+      !ctx.needsDelayCheck &&
+      currentDest !== 0 &&
+      ctx.lastTrivialImpl !== '' &&
+      (ctx.postPC >>> 0) === ((ctx.pc + 4) >>> 0)) {
+    const dIsConst = ctx.gprFacts.get(currentDest).kind === 'constant64';
+    const stepReadMask = dIsConst ? 0 : resolveReadGprMask(ctx.instruction, ctx.opTraits.readFields);
+    if (isDeadTrivialGprWrite(ctx.fragment, stepIndex, currentDest, ctx.opTraits, stepReadMask, dIsConst)) {
+      ctx.deadGprWrites[currentDest] = formatColdTrivialWrite(ctx.lastTrivialImpl);
+      ctx.deadGprWriteMask |= (1 << currentDest);
+      fn_code = '// Elided dead GPR write\n// Delaying pc update\n';
+    }
+  }
 
   if (ctx.dump) {
     console.log(fn_code);
@@ -237,9 +373,9 @@ export function finishCodeGeneration(ctx) {
   ctx.ramAccessGroup.finish(ctx);
 }
 
-export function emitTraceStep(fragment, step, ctx) {
+export function emitTraceStep(fragment, step, ctx, stepIndex = -1) {
   ctx.set(fragment, step.pc, step.instruction, step.postPC, step.nextPC);
-  generateCodeForOp(ctx, { includeStepPreamble: true });
+  generateCodeForOp(ctx, { includeStepPreamble: true, stepIndex });
 }
 
 function genBranchCondition(ctx, condition, branchInstr) {
@@ -342,6 +478,8 @@ function tryEmitFusedBranchAndDelaySlot(fragment, branchStep, delayStep, stepInd
     : '';
   const returnDelayStep = ctx.genReturnOps(stepIndex + 1);
   const returnAfterPair = ctx.genReturnOps(stepIndex + 2);
+  const delayDest = destGpr(delayInstr);
+  const hasDelaySlotHazard = delayDest !== 0 && (readGprMask(branchInstr) & (1 << delayDest)) !== 0;
 
   let fnCode = '';
   if (kind === 'unconditional') {
@@ -353,22 +491,47 @@ function tryEmitFusedBranchAndDelaySlot(fragment, branchStep, delayStep, stepInd
     fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = ${toString32(takenPC)}; ${returnDelayStep} } }\n`;
     fnCode += delayOpCode;
   } else if (kind === 'conditional') {
-    fnCode += `const branchTaken = ${condExpr};\n`;
-    fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = branchTaken ? ${toString32(takenPC)} : ${toString32(notTakenPC)}; ${returnDelayStep} } }\n`;
-    fnCode += delayOpCode;
-    if (takenPC !== notTakenPC) {
-      if (postPC === takenPC) {
-        fnCode += `if (!branchTaken) { c.pc = ${toString32(notTakenPC)}; ${returnAfterPair} }\n`;
-      } else {
-        fnCode += `if (branchTaken) { c.pc = ${toString32(takenPC)}; ${returnAfterPair} }\n`;
+    if (hasDelaySlotHazard) {
+      fnCode += `const branchTaken = ${condExpr};\n`;
+      fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = branchTaken ? ${toString32(takenPC)} : ${toString32(notTakenPC)}; ${returnDelayStep} } }\n`;
+      fnCode += delayOpCode;
+      if (takenPC !== notTakenPC) {
+        if (postPC === takenPC) {
+          fnCode += `if (!branchTaken) { c.pc = ${toString32(notTakenPC)}; ${returnAfterPair} }\n`;
+        } else {
+          fnCode += `if (branchTaken) { c.pc = ${toString32(takenPC)}; ${returnAfterPair} }\n`;
+        }
+      }
+    } else {
+      const coldDelayPC = takenPC === notTakenPC
+        ? toString32(takenPC)
+        : `(${condExpr}) ? ${toString32(takenPC)} : ${toString32(notTakenPC)}`;
+      fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = ${coldDelayPC}; ${returnDelayStep} } }\n`;
+      fnCode += delayOpCode;
+      if (takenPC !== notTakenPC) {
+        if (postPC === takenPC) {
+          fnCode += `if (!(${condExpr})) { c.pc = ${toString32(notTakenPC)}; ${returnAfterPair} }\n`;
+        } else {
+          fnCode += `if (${condExpr}) { c.pc = ${toString32(takenPC)}; ${returnAfterPair} }\n`;
+        }
       }
     }
   } else {
-    fnCode += `const jumpTarget = ${genSrcRegU32Lo(regSource)};\n`;
-    fnCode += linkCode;
-    fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = jumpTarget; ${returnDelayStep} } }\n`;
-    fnCode += delayOpCode;
-    fnCode += `if (jumpTarget !== ${toString32(postPC)}) { c.pc = jumpTarget; ${returnAfterPair} }\n`;
+    const targetExpr = genSrcRegU32Lo(regSource);
+    const hasJumpTargetHazard = linkReg === regSource || hasDelaySlotHazard;
+    if (hasJumpTargetHazard) {
+      fnCode += `const jumpTarget = ${targetExpr};\n`;
+      fnCode += linkCode;
+      fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = jumpTarget; ${returnDelayStep} } }\n`;
+      fnCode += delayOpCode;
+      fnCode += `if (jumpTarget !== ${toString32(postPC)}) { c.pc = jumpTarget; ${returnAfterPair} }\n`;
+    } else {
+      fnCode += linkCode;
+      fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = ${targetExpr}; ${returnDelayStep} } }\n`;
+      fnCode += delayOpCode;
+      fnCode += `const jumpTarget = ${targetExpr};\n`;
+      fnCode += `if (jumpTarget !== ${toString32(postPC)}) { c.pc = jumpTarget; ${returnAfterPair} }\n`;
+    }
   }
 
   if (postPC === 0) {
@@ -406,7 +569,7 @@ export function compileTraceSteps(fragment, ctx = new FragmentContext(), { selfL
       continue;
     }
     fragment.opsCompiled = i + 1;
-    emitTraceStep(fragment, fragment.traceSteps[i], ctx);
+    emitTraceStep(fragment, fragment.traceSteps[i], ctx, i);
   }
   ctx.flushDelayedPCUpdate();
 
@@ -623,6 +786,7 @@ function generateTrivialOpBoilerplate(fn, ctx) {
   code += addNewlines(fn);
 
   ctx.isTrivial = true;
+  ctx.lastTrivialImpl = fn;
 
   if (kAccurateCountUpdating) {
     code += 'c.incrementCount(1);\n';

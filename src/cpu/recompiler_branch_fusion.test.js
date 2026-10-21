@@ -203,21 +203,21 @@ describe('branch + trivial delay-slot fusion codegen', () => {
     expect(code).not.toContain('c.gprU32[63]');
   });
 
-  test('fuses conditional branches (BEQ, BNE, BLEZ, BGTZ, BLTZ, BGEZ, BC1F, BC1T) into a single branchTaken check', () => {
+  test('fuses conditional branches (BEQ, BNE, BLEZ, BGTZ, BLTZ, BGEZ, BC1F, BC1T) and only emits branchTaken on a delay-slot register hazard', () => {
     const target = 0x80001100;
     const off = (target - (pc + 4)) >> 2;
     const cases = [
-      [iop(decode.OP_BEQ, 8, 9, off), false],
-      [iop(decode.OP_BNE, 8, 9, off), false],
-      [iop(decode.OP_BLEZ, 8, 0, off), false],
-      [iop(decode.OP_BGTZ, 8, 0, off), false],
-      [regimm(decode.REGIMM_BLTZ, 8, off), false],
-      [regimm(decode.REGIMM_BGEZ, 8, off), false],
-      [bc1(false, false, off), true],
-      [bc1(true, false, off), true],
+      [iop(decode.OP_BEQ, 8, 9, off), false, true],
+      [iop(decode.OP_BNE, 8, 9, off), false, true],
+      [iop(decode.OP_BLEZ, 8, 0, off), false, true],
+      [iop(decode.OP_BGTZ, 8, 0, off), false, true],
+      [regimm(decode.REGIMM_BLTZ, 8, off), false, true],
+      [regimm(decode.REGIMM_BGEZ, 8, off), false, true],
+      [bc1(false, false, off), true, false],
+      [bc1(true, false, off), true, false],
     ];
 
-    for (const [branchWord, needsCop1Prefix] of cases) {
+    for (const [branchWord, needsCop1Prefix, hasHazard] of cases) {
       for (const trainedTaken of [true, false]) {
         const postPC = trainedTaken ? target : pc + 8;
         const offTracePC = trainedTaken ? pc + 8 : target;
@@ -240,19 +240,68 @@ describe('branch + trivial delay-slot fusion codegen', () => {
         if (needsCop1Prefix) {
           expect(fragment.usesCop1).toBe(true);
         }
-        expect(code).toContain('const branchTaken = ');
-        expect(code).toContain(
-          `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${pc + 4}; c.delayPC = branchTaken ? 0x80001100 : 0x80001008; return ${branchIdx + 1}; } }`,
-        );
         expect(code).not.toContain('if (c.delayPC !== null)');
-        expect(code).toContain(
-          trainedTaken
-            ? `if (!branchTaken) { c.pc = 0x80001008; return ${branchIdx + 2}; }`
-            : `if (branchTaken) { c.pc = 0x80001100; return ${branchIdx + 2}; }`,
-        );
         expect(code).not.toContain(`if (c.pc !== 0x${offTracePC.toString(16)})`);
+        if (hasHazard) {
+          expect(code).toContain('const branchTaken = ');
+          expect(code).toContain(
+            `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${pc + 4}; c.delayPC = branchTaken ? 0x80001100 : 0x80001008; return ${branchIdx + 1}; } }`,
+          );
+          expect(code).toContain(
+            trainedTaken
+              ? `if (!branchTaken) { c.pc = 0x80001008; return ${branchIdx + 2}; }`
+              : `if (branchTaken) { c.pc = 0x80001100; return ${branchIdx + 2}; }`,
+          );
+        } else {
+          expect(code).not.toContain('const branchTaken');
+          expect(code).toContain(
+            trainedTaken
+              ? `{ c.pc = 0x80001008; return ${branchIdx + 2}; }`
+              : `{ c.pc = 0x80001100; return ${branchIdx + 2}; }`,
+          );
+        }
       }
     }
+  });
+
+  test('elides branchTaken and pre-delay jumpTarget when the delay slot does not overwrite registers read by the branch', () => {
+    const target = 0x80001100;
+    const off = (target - (pc + 4)) >> 2;
+
+    // BNE r8, r9 with ADDIU r10, r10, 1 (disjoint destination) evaluates condition after delay slot.
+    const { code: bneDisjoint } = buildFragmentFromSteps([
+      { pc, instruction: iop(decode.OP_BNE, 8, 9, off), postPC: pc + 4 },
+      { pc: pc + 4, instruction: iop(decode.OP_ADDIU, 10, 10, 1), postPC: target },
+    ]);
+    expect(bneDisjoint).not.toContain('const branchTaken');
+    const delayAluPos = bneDisjoint.indexOf('const v = (c.gprS32[20] + 1) | 0;');
+    const condGuardPos = bneDisjoint.indexOf('if (!((c.gprU32[16] !== c.gprU32[18] || c.gprU32[17] !== c.gprU32[19]))) { c.pc = 0x80001008; return 2; }');
+    expect(delayAluPos).toBeGreaterThan(-1);
+    expect(condGuardPos).toBeGreaterThan(delayAluPos);
+
+    // JR ra with ADDIU t0, t0, 1 (no hazard on ra) reads jumpTarget after the delay slot.
+    const { code: jrNoHazard } = buildFragmentFromSteps([
+      { pc, instruction: JR_RA, postPC: pc + 4 },
+      { pc: pc + 4, instruction: ADDIU_T0_1, postPC: target },
+    ]);
+    const jrRspPos = jrNoHazard.indexOf(`if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${pc + 4}; c.delayPC = c.getRegU32Lo(31); return 1; } }`);
+    const jrDelayPos = jrNoHazard.indexOf('const v = (c.gprS32[16] + 1) | 0;');
+    const jrTargetPos = jrNoHazard.indexOf('const jumpTarget = c.getRegU32Lo(31);');
+    expect(jrRspPos).toBeGreaterThan(-1);
+    expect(jrDelayPos).toBeGreaterThan(jrRspPos);
+    expect(jrTargetPos).toBeGreaterThan(jrDelayPos);
+
+    // JALR ra, t9 with ADDIU t0, t0, 1 (linkReg=31 !== regSource=25, delayDest=8 !== 25) also reads jumpTarget after delay slot.
+    const { code: jalrNoHazard } = buildFragmentFromSteps([
+      { pc, instruction: special(decode.SPECIAL_JALR, 25, 0, 31), postPC: pc + 4 },
+      { pc: pc + 4, instruction: ADDIU_T0_1, postPC: target },
+    ]);
+    const jalrLinkPos = jalrNoHazard.indexOf('c.gprS32[62] = 0x80001008;');
+    const jalrDelayPos = jalrNoHazard.indexOf('const v = (c.gprS32[16] + 1) | 0;');
+    const jalrTargetPos = jalrNoHazard.indexOf('const jumpTarget = c.getRegU32Lo(25);');
+    expect(jalrLinkPos).toBeGreaterThan(-1);
+    expect(jalrDelayPos).toBeGreaterThan(jalrLinkPos);
+    expect(jalrTargetPos).toBeGreaterThan(jalrDelayPos);
   });
 
   test('fuses taken Branch-Likely instructions (BEQL, BNEL, BLEZL, BGTZL, BLTZL, BGEZL, BC1FL, BC1TL) with trivial delay slots', () => {
@@ -341,20 +390,80 @@ describe('branch + trivial delay-slot fusion codegen', () => {
   test('forwards comparisons both into a fused conditional branch and out of a fused delay-slot comparison', () => {
     const target1 = 0x80001100;
     const target2 = 0x80001200;
-    const { code } = buildFragmentFromSteps([
+    const { code: noHazardCode } = buildFragmentFromSteps([
       // Step 0 (opsCompiled=1): SLT t0, a0, a1 -> sets compare_1
       { pc, instruction: special(decode.SPECIAL_SLT, 4, 5, 8), postPC: pc + 4 },
-      // Step 1+2 (opsCompiled=2,3): BNE t0, r0, target1 + SLTIU t1, a2, 10 (sets compare_3)
+      // Step 1+2 (opsCompiled=2,3): BNE t0, r0, target1 + SLTIU t1, a2, 10 (sets compare_3, writes t1 !== t0)
       { pc: pc + 4, instruction: iop(decode.OP_BNE, 8, 0, (target1 - (pc + 8)) >> 2), postPC: pc + 8 },
       { pc: pc + 8, instruction: iop(decode.OP_SLTIU, 6, 9, 10), postPC: target1 },
-      // Step 3+4 (opsCompiled=4,5): BEQ t1, r0, target2 + ADDIU a0, a0, 1
+      // Step 3+4 (opsCompiled=4,5): BEQ t1, r0, target2 + ADDIU a0, a0, 1 (writes a0 !== t1)
       { pc: target1, instruction: iop(decode.OP_BEQ, 9, 0, (target2 - (target1 + 4)) >> 2), postPC: target1 + 4 },
       { pc: target1 + 4, instruction: iop(decode.OP_ADDIU, 4, 4, 1), postPC: target2 },
     ]);
-    expect(code).toContain('var compare_1 = ');
-    expect(code).toContain('const branchTaken = compare_1;');
-    expect(code).toContain('var compare_3 = ');
-    expect(code).toContain('const branchTaken = !compare_3;');
+    expect(noHazardCode).toContain('var compare_1 = ');
+    expect(noHazardCode).toContain('var compare_3 = ');
+    expect(noHazardCode).not.toContain('const branchTaken');
+    expect(noHazardCode).toContain('if (!(compare_1)) { c.pc = 0x8000100c; return 3; }');
+    expect(noHazardCode).toContain('if (!(!compare_3)) { c.pc = 0x80001108; return 5; }');
+
+    // When the delay slot overwrites the comparison register (t0), branchTaken captures compare_1 before the delay slot.
+    const { code: hazardCode } = buildFragmentFromSteps([
+      { pc, instruction: special(decode.SPECIAL_SLT, 4, 5, 8), postPC: pc + 4 },
+      { pc: pc + 4, instruction: iop(decode.OP_BNE, 8, 0, (target1 - (pc + 8)) >> 2), postPC: pc + 8 },
+      { pc: pc + 8, instruction: iop(decode.OP_SLTIU, 6, 8, 10), postPC: target1 },
+    ]);
+    expect(hazardCode).toContain('const branchTaken = compare_1;');
+  });
+
+  test('elides dead GPR writes across trivial instructions on the fast path and materializes them in cold RSP exits', () => {
+    // 1. LUI t0, 0x1234 -> ORI t0, t0, 0x5678 -> ADDIU t1, t1, 1:
+    //    LUI's write to t0 is constant-folded into ORI and overwritten without a runtime read of t0.
+    const { code: luiOriCode } = buildFragmentFromSteps([
+      { pc, instruction: iop(decode.OP_LUI, 0, 8, 0x1234), postPC: pc + 4 },
+      { pc: pc + 4, instruction: iop(decode.OP_ORI, 8, 8, 0x5678), postPC: pc + 8 },
+      { pc: pc + 8, instruction: iop(decode.OP_ADDIU, 9, 9, 1), postPC: pc + 12 },
+    ]);
+    expect(luiOriCode).toContain('// Elided dead GPR write');
+    // Fast path writes 0x12345678 once (in ORI) and never writes 0x12340000 outside the cold exit.
+    expect(luiOriCode).toContain(
+      `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.gprS32[16] = ${0x12340000}; c.gprS32[17] = 0; c.pc = ${pc + 4}; return 1; } }`,
+    );
+    // Cleared before step 2 (pc + 8) preamble:
+    expect(luiOriCode).toContain(
+      `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${pc + 8}; return 2; } }`,
+    );
+
+    // 2. Non-constant dead GPR write across an intervening trivial instruction:
+    //    ADDU t0, a0, a1 -> ADDIU t1, t1, 1 -> OR t0, a2, a3
+    const { code: multiStepDeadCode } = buildFragmentFromSteps([
+      { pc, instruction: special(decode.SPECIAL_ADDU, 4, 5, 8), postPC: pc + 4 },
+      { pc: pc + 4, instruction: iop(decode.OP_ADDIU, 9, 9, 1), postPC: pc + 8 },
+      { pc: pc + 8, instruction: special(decode.SPECIAL_OR, 6, 7, 8), postPC: pc + 12 },
+    ]);
+    expect(multiStepDeadCode).toContain('// Elided dead GPR write');
+    const expectedColdWrite = '{ const v = (c.gprS32[8] + c.gprS32[10]) | 0; c.gprS32[16] = v; c.gprS32[17] = v >> 31; }';
+    expect(multiStepDeadCode).toContain(
+      `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { ${expectedColdWrite} c.pc = ${pc + 4}; return 1; } }`,
+    );
+    expect(multiStepDeadCode).toContain(
+      `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { ${expectedColdWrite} c.pc = ${pc + 8}; return 2; } }`,
+    );
+
+    // 3. Not elided when an intervening instruction reads the register at runtime:
+    const { code: readBetweenCode } = buildFragmentFromSteps([
+      { pc, instruction: iop(decode.OP_ADDIU, 4, 8, 1), postPC: pc + 4 },
+      { pc: pc + 4, instruction: special(decode.SPECIAL_ADDU, 8, 5, 9), postPC: pc + 8 },
+      { pc: pc + 8, instruction: iop(decode.OP_ADDIU, 6, 8, 2), postPC: pc + 12 },
+    ]);
+    expect(readBetweenCode).not.toContain('// Elided dead GPR write');
+
+    // 4. Not elided when an intervening instruction clobbers a source register of the first write:
+    const { code: clobberSrcCode } = buildFragmentFromSteps([
+      { pc, instruction: special(decode.SPECIAL_ADDU, 4, 5, 8), postPC: pc + 4 },
+      { pc: pc + 4, instruction: iop(decode.OP_ADDIU, 4, 4, 1), postPC: pc + 8 },
+      { pc: pc + 8, instruction: special(decode.SPECIAL_OR, 6, 7, 8), postPC: pc + 12 },
+    ]);
+    expect(clobberSrcCode).not.toContain('// Elided dead GPR write');
   });
 
   test('flushes an open RAMAccessGroup before a fused branch and allows a new RAMAccessGroup after the fused pair', () => {
@@ -935,8 +1044,74 @@ for (const profiled of [false, true]) {
           runCycles: 24,
         });
         expect(result.code).toContain('do {');
-        expect(result.code.match(/const branchTaken/g)).toHaveLength(2);
+        // BEQ t0, t2 + ADDIU t0, t0, 1 has a hazard on t0, whereas BNE t0, t1 + ADDIU t3, t3, 10 does not.
+        expect(result.code.match(/const branchTaken/g)).toHaveLength(1);
         expect(result.code).not.toContain('if (c.delayPC !== null)');
+      }
+    });
+
+    test('dead GPR write elimination across trivial instructions matches interpreter on normal completion and mid-trace RSP break interrupts', async () => {
+      // 0x80001000 (step 1): LUI   t0, 0x1234        (dead on fast path: constant-folded and overwritten at step 3)
+      // 0x80001004 (step 2): ADDU  t1, a0, a1        (dead on fast path: overwritten at step 4)
+      // 0x80001008 (step 3): ORI   t0, t0, 0x5678    (overwrites t0 with 0x12345678)
+      // 0x8000100c (step 4): SUBU  t1, a2, a3        (overwrites t1 with a2 - a3)
+      // 0x80001010 (step 5): ADDU  t2, t0, t1        (reads final t0 and t1)
+      const words = [
+        iop(decode.OP_LUI, 0, 8, 0x1234),
+        special(decode.SPECIAL_ADDU, 4, 5, 9),
+        iop(decode.OP_ORI, 8, 8, 0x5678),
+        special(decode.SPECIAL_SUBU, 6, 7, 9),
+        special(decode.SPECIAL_ADDU, 8, 9, 10),
+      ];
+
+      for (const breakStep of [0, 2, 3, 4, 5]) {
+        const result = await compare(words, {
+          train: c => {
+            c.setRegS32Extend(4, 100);
+            c.setRegS32Extend(5, 200);
+            c.setRegS32Extend(6, 50);
+            c.setRegS32Extend(7, 20);
+          },
+          prepare: (c, h) => {
+            c.setRegS32Extend(4, 100);
+            c.setRegS32Extend(5, 200);
+            c.setRegS32Extend(6, 50);
+            c.setRegS32Extend(7, 20);
+            if (breakStep > 0) {
+              c.setControlU32(regs.controlStatus, 0x20000401);
+              c.statusRegisterChanged();
+              h.mi_reg.set32(0xc, 1);
+              h.sp_reg.set32(0x10, 0x40);
+              for (let i = 0; i < 8; i++) {
+                h.sp_mem.set32(0x1000 + i * 4, i + 1 === breakStep ? 0x0000000d : 0);
+              }
+              h.rsp.unhalt();
+            }
+          },
+          trainCycles: 5,
+          runCycles: 5,
+        });
+        expect(result.code.match(/\/\/ Elided dead GPR write/g)).toHaveLength(2);
+        if (breakStep === 0) {
+          expect(result.gpr[8]).toBe(0x12345678n);
+          expect(result.gpr[9]).toBe(30n);
+          expect(result.gpr[10]).toBe(0x12345696n);
+        } else if (breakStep === 2) {
+          // Interrupted right before step 2 (ADDU t1, a0, a1): LUI t0 has executed!
+          expect(result.epc).toBe(pc + 4);
+          expect(result.gpr[8]).toBe(0x12340000n);
+          expect(result.gpr[9]).toBe(0n);
+        } else if (breakStep === 3) {
+          // Interrupted right before step 3 (ORI t0, t0, 0x5678): both LUI t0 and ADDU t1 have executed!
+          expect(result.epc).toBe(pc + 8);
+          expect(result.gpr[8]).toBe(0x12340000n);
+          expect(result.gpr[9]).toBe(300n);
+        } else if (breakStep === 4) {
+          // Interrupted right before step 4 (SUBU t1, a2, a3): ORI t0 has overwritten t0, ADDU t1 is materialized!
+          expect(result.epc).toBe(pc + 12);
+          expect(result.gpr[8]).toBe(0x12345678n);
+          expect(result.gpr[9]).toBe(300n);
+        }
       }
     });
   });
