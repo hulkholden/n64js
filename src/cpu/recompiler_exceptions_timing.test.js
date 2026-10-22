@@ -972,11 +972,50 @@ for (const profiled of [false, true]) {
         iop(decode.OP_ADDIU, 2, 2, 2), // Step 2 of RSP (BREAK -> SP interrupt) runs before this op and exits
         iop(decode.OP_ADDIU, 2, 2, 4),
       ], (c, h) => setup(c, h, true), (c, h) => setup(c, h, false));
-      expect(result.code).toContain('if (!rsp.halted) { rsp.step(); if (c.stuffToDo)');
+      expect(result.code).toContain('let rspHalted = rsp.halted;');
+      expect(result.code).toContain('if (!rspHalted) { rsp.step(); rspHalted = rsp.halted; if (c.stuffToDo)');
       expect(result.rspHalted).toBe(true);
       expect(result.gpr[2]).toBe(1n);
       expect(result.epc).toBe(pc + 12);
       expect(result.interruptRSPPCs).toEqual([8]);
+    });
+
+    test('checked SWC1 starts the RSP before the following instruction', async () => {
+      const setup = (c, h) => {
+        c.setRegS32Extend(4, 0xa4040010); // SP_STATUS_REG
+        h.cpu1.store32(h.cpu1.copRegIdx32(2), 1); // Clear HALT.
+        h.sp_mem.set32(0x1000, iop(decode.OP_ADDIU, 1, 1, 1));
+      };
+      const result = await compare([
+        iop(decode.OP_SWC1, 4, 2),
+        iop(decode.OP_ADDIU, 3, 3, 1),
+      ], setup, setup);
+      expect(result.code).toContain('c.execSWC1(2, 4, 0);');
+      expect(result.rspHalted).toBe(false);
+      expect(result.rspGPR[1]).toBe(1);
+    });
+
+    test('non-store helpers and fast-path RAM store groups do not reload rsp.halted', async () => {
+      const setup = (c, h) => {
+        c.setRegS32Extend(4, 0x80003000);
+        c.setRegS32Extend(2, 0x12345678);
+        h.ram.set32(0x3000, 0x11223344);
+        h.cpu1.store32(h.cpu1.fsRegIdx32(2), 0x40000000);
+        h.cpu1.store32(h.cpu1.ftRegIdx32(4), 0x40400000);
+      };
+      const result = await compare([
+        0,
+        cop1(decode.COP1_FMT_S, 0x02 /* MUL.S */, 6, 2, 4),
+        iop(decode.OP_LW, 4, 3, 0),
+        iop(decode.OP_SW, 4, 2, 4),
+        iop(decode.OP_SW, 4, 3, 8),
+        iop(decode.OP_LWC1, 4, 8, 4),
+        iop(decode.OP_ADDIU, 3, 3, 1),
+      ], setup, setup);
+      expect(result.code).toContain('Guarded RAM SW group (2 stores)');
+      // Only the entry declaration, the 12 step preambles (+1 in the slow fallback),
+      // and the 3 slow-fallback refreshes (2 slow stores + 1 post-fallback) mention rsp.halted.
+      expect(result.code.match(/rspHalted = rsp\.halted;/g)).toHaveLength(1 + 12 + 1 + 3);
     });
 
     for (const [name, branch] of [['BEQ', iop(decode.OP_BEQ, 0, 0, -1)], ['J', jump(0x100c)]]) {

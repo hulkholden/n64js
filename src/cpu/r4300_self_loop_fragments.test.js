@@ -674,12 +674,13 @@ describe('self-looping fragments and self-loop cutoff', () => {
     fragment.recordInstruction(DEFAULT_PC + 8, ADDIU_T0_1, DEFAULT_PC, DEFAULT_PC + 4);
 
     const linearCode = compileTraceSteps(fragment, undefined, { selfLoop: false });
+    expect(linearCode).toStartWith('let rspHalted = rsp.halted;\n');
     expect(linearCode).not.toContain('do {');
     expect(linearCode).not.toContain('if (c.pc !== 0x80001004)');
     expect(linearCode).toContain('return 3;');
 
     const loopCode = compileTraceSteps(fragment, undefined, { selfLoop: true });
-    expect(loopCode).toContain('let opsExecuted = 0;\ndo {\n');
+    expect(loopCode).toStartWith('let rspHalted = rsp.halted;\nlet opsExecuted = 0;\ndo {\n');
     expect(loopCode).not.toContain('if (c.pc !== 0x80001004)');
     expect(loopCode).toContain('while (c.canContinueSelfLoop(opsExecuted, 3));');
 

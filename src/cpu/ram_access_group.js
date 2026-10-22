@@ -30,6 +30,7 @@ const GROUP_SPECS = Object.freeze({
     helper: 'execSW',
     writesGpr: false,
     usesCop1: false,
+    mayStartRSP: true,
     emitFast(i, reg, relOffset) {
       return `  ramStoreDV.setUint32(ramStoreBase + ${relOffset}, ${gprS32Lo(reg)}, false);\n`;
     },
@@ -45,6 +46,7 @@ const GROUP_SPECS = Object.freeze({
     helper: 'execLW',
     writesGpr: true,
     usesCop1: false,
+    mayStartRSP: false,
     emitFast(i, reg, relOffset) {
       if (reg === 0) {
         return '';
@@ -69,6 +71,7 @@ const GROUP_SPECS = Object.freeze({
     helper: 'execLWC1Unchecked',
     writesGpr: false,
     usesCop1: true,
+    mayStartRSP: false,
     emitFast(i, reg, relOffset) {
       return `  cpu1.regS32[${cop1WordIndex(reg)}] = ramLoadDV.getInt32(ramLoadBase + ${relOffset}, false);\n`;
     },
@@ -84,6 +87,7 @@ const GROUP_SPECS = Object.freeze({
     helper: 'execSWC1Unchecked',
     writesGpr: false,
     usesCop1: true,
+    mayStartRSP: true,
     emitFast(i, reg, relOffset) {
       return `  ramStoreDV.setInt32(ramStoreBase + ${relOffset}, cpu1.regS32[${cop1WordIndex(reg)}], false);\n`;
     },
@@ -99,6 +103,7 @@ const GROUP_SPECS = Object.freeze({
     helper: 'execLDC1Unchecked',
     writesGpr: false,
     usesCop1: true,
+    mayStartRSP: false,
     emitFast(i, reg, relOffset) {
       if ((reg & 1) === 0) {
         return `  cpu1.regS32[${reg * 2 + 1}] = ramLoadDV.getInt32(ramLoadBase + ${relOffset}, false);\n` +
@@ -120,6 +125,7 @@ const GROUP_SPECS = Object.freeze({
     helper: 'execSDC1Unchecked',
     writesGpr: false,
     usesCop1: true,
+    mayStartRSP: true,
     emitFast(i, reg, relOffset) {
       if ((reg & 1) === 0) {
         return `  ramStoreDV.setInt32(ramStoreBase + ${relOffset}, cpu1.regS32[${reg * 2 + 1}], false);\n` +
@@ -248,6 +254,9 @@ export class RAMAccessGroup {
     const comment = includeComment
       ? `// ${disassembleInstruction(pc, this.instructions[i], false).disassembly}\n`
       : '';
+    const refreshRSP = this.includeStepPreamble && this.spec.mayStartRSP
+      ? '  rspHalted = rsp.halted;\n'
+      : '';
     return `${comment}{\n` +
       `  ${ctx.genSetFragmentOps(opsBefore)}\n` +
       `  c.nextPC = ${toString32(pc + 4)};\n` +
@@ -255,6 +264,7 @@ export class RAMAccessGroup {
       `  c.pc = c.nextPC;\n` +
       `  c.delayPC = null;\n` +
       `  if (c.stuffToDo) { ${ctx.genReturnOps(opsBefore + 1)} }\n` +
+      refreshRSP +
       `}\n\n`;
   }
 
@@ -285,7 +295,11 @@ export class RAMAccessGroup {
       slow += `${stepPreamble}${this.emitAccessBlock(ctx, i)}`;
     }
     fast += `  c.pc = ${toString32(this.lastPC + 4)};\n`;
-    const slowParams = ctx.opsCounterVar ? `c, rsp, ${ctx.opsCounterVar}` : 'c, rsp';
+    const rspParam = this.includeStepPreamble ? ', rspHalted' : '';
+    const slowParams = ctx.opsCounterVar
+      ? `c, rsp${rspParam}, ${ctx.opsCounterVar}`
+      : `c, rsp${rspParam}`;
+    const refreshRSP = this.includeStepPreamble ? '\n    rspHalted = rsp.halted;' : '';
     // Flipping bit 31 via `^ -0x80000000` wraps the 32-bit virtual address sum
     // via ToInt32 and translates kseg0 (0x80000000..0x807fffff) to a signed
     // Int32 physical RAM offset (0x00000000..0x007fffff) without using a
@@ -300,7 +314,7 @@ export class RAMAccessGroup {
 ${fast}  } else {
     const slowExit = ((${slowParams}) => {
 ${slow}    })(${slowParams});
-    if (slowExit !== undefined) { return slowExit; }
+    if (slowExit !== undefined) { return slowExit; }${refreshRSP}
   }
 }
 `;

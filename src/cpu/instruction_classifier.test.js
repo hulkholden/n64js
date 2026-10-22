@@ -24,14 +24,17 @@ import {
   classifyBranch,
   classifyInstruction,
   conservativeMemoryEffects,
+  cop2LoadEffects,
   destGpr,
   getOpTraits,
   ignoreCacheOp,
   instructionBailsOut,
-  integerMemoryEffects,
+  integerLoadEffects,
+  integerStoreEffects,
   isTrivialInstruction,
   readGprMask,
-  uncheckedCop1MemoryEffects,
+  uncheckedCop1LoadEffects,
+  uncheckedCop1StoreEffects,
 } from './instruction_classifier.js';
 import {
   DEFAULT_PC,
@@ -181,12 +184,15 @@ describe('instruction_classifier equivalence with recompiler', () => {
     expect(isTrivialInstruction(iop(decode.OP_ADDIU, 4, 5, 1), false, false)).toBe(false);
   });
 
-  test('memoryEffects distinguish integer, checked COP1, unchecked COP1, and COP2 memory ops', () => {
-    expect(getOpTraits(iop(decode.OP_LW, 4, 5, 0)).memoryEffects).toBe(integerMemoryEffects);
-    expect(getOpTraits(iop(decode.OP_SW, 4, 5, 0)).memoryEffects).toBe(integerMemoryEffects);
-    expect(getOpTraits(iop(decode.OP_LWC1, 4, 5, 0), false).memoryEffects).toBe(conservativeMemoryEffects);
-    expect(getOpTraits(iop(decode.OP_LWC1, 4, 5, 0), true).memoryEffects).toBe(uncheckedCop1MemoryEffects);
-    expect(getOpTraits(iop(decode.OP_LWC2, 4, 5, 0), true).memoryEffects).toBe(conservativeMemoryEffects);
+  test('memoryEffects distinguish integer, checked COP1, unchecked COP1, and COP2 memory loads and stores', () => {
+    expect(getOpTraits(iop(decode.OP_LW, 4, 5, 0)).memoryEffects).toBe(integerLoadEffects);
+    expect(getOpTraits(iop(decode.OP_SW, 4, 5, 0)).memoryEffects).toBe(integerStoreEffects);
+    expect(getOpTraits(iop(decode.OP_LWC1, 4, 5, 0), false).memoryEffects).toBe(cop2LoadEffects);
+    expect(getOpTraits(iop(decode.OP_LWC1, 4, 5, 0), true).memoryEffects).toBe(uncheckedCop1LoadEffects);
+    expect(getOpTraits(iop(decode.OP_SWC1, 4, 5, 0), false).memoryEffects).toBe(conservativeMemoryEffects);
+    expect(getOpTraits(iop(decode.OP_SWC1, 4, 5, 0), true).memoryEffects).toBe(uncheckedCop1StoreEffects);
+    expect(getOpTraits(iop(decode.OP_LWC2, 4, 5, 0), true).memoryEffects).toBe(cop2LoadEffects);
+    expect(getOpTraits(iop(decode.OP_SWC2, 4, 5, 0), true).memoryEffects).toBe(conservativeMemoryEffects);
     expect(getOpTraits(iop(decode.OP_ADDIU, 4, 5, 1)).memoryEffects).toBeNull();
   });
 
