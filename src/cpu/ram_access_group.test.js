@@ -19,6 +19,9 @@ const sdc1 = (offset, base = 4, ft = 2) => iop(decode.OP_SDC1, base, ft, offset)
 
 async function generate(words, { finish = true, fragment = new Fragment(pc), ctx = new FragmentContext() } = {}) {
   await createHeadlessEmulator({ romBuffer: new ArrayBuffer(0x1000), rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' } });
+  if (fragment.opsCompiled === 0 && fragment.bodyCode === '') {
+    fragment.bodyCode = 'let rspHalted = rsp.halted;\n';
+  }
   for (let i = 0; i < words.length; i++) {
     fragment.opsCompiled++;
     const stepPC = pc + i * 4;
@@ -366,4 +369,33 @@ test('scratch buffers survive flushes and new fragments without retaining old st
   expect(group.count).toBe(1);
   expect((await generate([0, sw(0)], { ctx })).code).not.toContain('Guarded RAM SW group');
   expect(group.count).toBe(0);
+});
+
+test('guarded RAM store slow fallback refreshes rspHalted when an MMIO store wakes the RSP', async () => {
+  const { code: swCode } = await generate([0, sw(0), sw(4)]);
+  const { code: lwCode } = await generate([0, lw(0, 4, 2), lw(4, 4, 3)]);
+  // Load groups never start the RSP even on the slow path; only slow-path stores refresh rspHalted per access.
+  expect(lwCode).toContain('if (slowExit !== undefined) { return slowExit; }\n    rspHalted = rsp.halted;');
+  expect(lwCode).not.toContain('c.execLW(2, 4, 0);\n  c.pc = c.nextPC;\n  c.delayPC = null;\n  if (c.stuffToDo) { return 2; }\n  rspHalted = rsp.halted;');
+  expect(swCode).toContain('c.execSW(2, 4, 0);\n  c.pc = c.nextPC;\n  c.delayPC = null;\n  if (c.stuffToDo) { return 2; }\n  rspHalted = rsp.halted;');
+
+  const ramDV = new DataView(new ArrayBuffer(0x1000));
+  const gprS32 = new Int32Array(64);
+  gprS32[4 * 2] = 0xa4040010 | 0; // SP_STATUS_REG (MMIO triggers slow fallback)
+  let steps = 0;
+  const rsp = {
+    halted: true,
+    step() { steps++; },
+  };
+  const c = {
+    pc, delayPC: null, stuffToDo: 0, ramDV, gprS32,
+    execSW: (_rt, _base, offset) => {
+      if (offset === 0) {
+        rsp.halted = false;
+      }
+    },
+  };
+  new Function('c', 'rsp', swCode)(c, rsp);
+  // The first store wakes the RSP; the second store's preamble must step it.
+  expect(steps).toBe(1);
 });

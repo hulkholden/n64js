@@ -15,11 +15,14 @@ import {
 import {
   classifyBranch,
   conservativeMemoryEffects,
+  cop2LoadEffects,
   getOpTraits,
   instructionBailsOut,
-  integerMemoryEffects,
+  integerLoadEffects,
+  integerStoreEffects,
   isTrivialInstruction,
-  uncheckedCop1MemoryEffects,
+  uncheckedCop1LoadEffects,
+  uncheckedCop1StoreEffects,
 } from './instruction_classifier.js';
 
 export { instructionBailsOut, isTrivialInstruction };
@@ -70,6 +73,7 @@ export class FragmentContext {
     this.forwardedComparison = null;
     this.pendingComparison = null;
     this.opsCounterVar = null;
+    this.includeStepPreamble = false;
     this.ramAccessGroup = new RAMAccessGroup();
   }
 
@@ -106,18 +110,18 @@ export class FragmentContext {
 
   // Emits the per-instruction RSP step and interrupt check that precedes each
   // compiled CPU instruction.
-  // Hoist the !rsp.halted check into the generated trace so the JS JIT can fold
-  // redundant loads across consecutive instructions when the RSP is halted, and
-  // avoid calling rsp.step() on the common halted path.
+  // Cache rsp.halted in the fragment-local rspHalted variable so the JS JIT can
+  // keep it in a register across helper calls that cannot start the RSP, and
+  // refresh it only after rsp.step() or an instruction with mayStartRSP: true.
   // When !kAccurateCountUpdating, every instruction that can set c.stuffToDo
   // checks it before falling through to the next instruction, and runImpl()
   // enters fragments with c.stuffToDo === 0, so c.stuffToDo can only become
   // non-zero here if rsp.step() ran and raised an interrupt or break.
   genStepPreamble(stepPC = this.pc, opsBefore = this.fragment.opsCompiled - 1) {
     if (kAccurateCountUpdating) {
-      return `if (!rsp.halted) { rsp.step(); }\nif (c.stuffToDo) { c.pc = ${stepPC}; ${this.genReturnOps(opsBefore)} }\n\n`;
+      return `if (!rspHalted) { rsp.step(); rspHalted = rsp.halted; }\nif (c.stuffToDo) { c.pc = ${stepPC}; ${this.genReturnOps(opsBefore)} }\n\n`;
     }
-    return `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${stepPC}; ${this.genReturnOps(opsBefore)} } }\n\n`;
+    return `if (!rspHalted) { rsp.step(); rspHalted = rsp.halted; if (c.stuffToDo) { c.pc = ${stepPC}; ${this.genReturnOps(opsBefore)} } }\n\n`;
   }
 
   flushDelayedPCUpdate() {
@@ -178,6 +182,7 @@ export class FragmentContext {
 }
 
 export function generateCodeForOp(ctx, { includeStepPreamble = false } = {}) {
+  ctx.includeStepPreamble = includeStepPreamble;
   ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
 
   if (!kDebugDynarec && !kValidateDynarecPCs && !kAccurateCountUpdating &&
@@ -346,15 +351,15 @@ function tryEmitFusedBranchAndDelaySlot(fragment, branchStep, delayStep, stepInd
   let fnCode = '';
   if (kind === 'unconditional') {
     fnCode += linkCode;
-    fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = ${toString32(postPC)}; ${returnDelayStep} } }\n`;
+    fnCode += `if (!rspHalted) { rsp.step(); rspHalted = rsp.halted; if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = ${toString32(postPC)}; ${returnDelayStep} } }\n`;
     fnCode += delayOpCode;
   } else if (likely) {
     fnCode += `if (!(${condExpr})) { c.pc = ${toString32(notTakenPC)}; ${returnDelayStep} }\n`;
-    fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = ${toString32(takenPC)}; ${returnDelayStep} } }\n`;
+    fnCode += `if (!rspHalted) { rsp.step(); rspHalted = rsp.halted; if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = ${toString32(takenPC)}; ${returnDelayStep} } }\n`;
     fnCode += delayOpCode;
   } else if (kind === 'conditional') {
     fnCode += `const branchTaken = ${condExpr};\n`;
-    fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = branchTaken ? ${toString32(takenPC)} : ${toString32(notTakenPC)}; ${returnDelayStep} } }\n`;
+    fnCode += `if (!rspHalted) { rsp.step(); rspHalted = rsp.halted; if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = branchTaken ? ${toString32(takenPC)} : ${toString32(notTakenPC)}; ${returnDelayStep} } }\n`;
     fnCode += delayOpCode;
     if (takenPC !== notTakenPC) {
       if (postPC === takenPC) {
@@ -366,7 +371,7 @@ function tryEmitFusedBranchAndDelaySlot(fragment, branchStep, delayStep, stepInd
   } else {
     fnCode += `const jumpTarget = ${genSrcRegU32Lo(regSource)};\n`;
     fnCode += linkCode;
-    fnCode += `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = jumpTarget; ${returnDelayStep} } }\n`;
+    fnCode += `if (!rspHalted) { rsp.step(); rspHalted = rsp.halted; if (c.stuffToDo) { c.pc = ${delaySlotPC}; c.delayPC = jumpTarget; ${returnDelayStep} } }\n`;
     fnCode += delayOpCode;
     fnCode += `if (jumpTarget !== ${toString32(postPC)}) { c.pc = jumpTarget; ${returnAfterPair} }\n`;
   }
@@ -411,8 +416,8 @@ export function compileTraceSteps(fragment, ctx = new FragmentContext(), { selfL
   ctx.flushDelayedPCUpdate();
 
   const bodyCode = selfLoop
-    ? `let opsExecuted = 0;\ndo {\n${fragment.bodyCode}opsExecuted += ${totalOps};\n} while (c.canContinueSelfLoop(opsExecuted, ${totalOps}));\nreturn opsExecuted;\n`
-    : `${fragment.bodyCode}${ctx.genReturnOps(totalOps)}\n`;
+    ? `let rspHalted = rsp.halted;\nlet opsExecuted = 0;\ndo {\n${fragment.bodyCode}opsExecuted += ${totalOps};\n} while (c.canContinueSelfLoop(opsExecuted, ${totalOps}));\nreturn opsExecuted;\n`
+    : `let rspHalted = rsp.halted;\n${fragment.bodyCode}${ctx.genReturnOps(totalOps)}\n`;
   ctx.opsCounterVar = null;
   return bodyCode;
 }
@@ -472,7 +477,7 @@ function generateStandardPCUpdate(fn, ctx, might_adjust_next_pc) {
   return code;
 }
 
-function generateGenericOpBoilerplate(fn, ctx) {
+function generateGenericOpBoilerplate(fn, ctx, effects) {
   let code = '';
   code += ctx.genAssert(`c.pc === ${toString32(ctx.pc)}`, 'pc mismatch');
 
@@ -500,6 +505,9 @@ function generateGenericOpBoilerplate(fn, ctx) {
   } else {
     code += `if (c.stuffToDo) { ${ctx.genReturnOps()} }\n`;
     code += `if (c.pc !== ${toString32(ctx.postPC)}) { ${ctx.genReturnOps()} }\n`;
+    if (ctx.includeStepPreamble && effects?.mayStartRSP) {
+      code += 'rspHalted = rsp.halted;\n';
+    }
   }
 
   return code;
@@ -534,6 +542,9 @@ function generateMemoryAccessBoilerplate(fn, ctx, effects = ctx.opTraits?.memory
   code += `if (c.stuffToDo) { ${ctx.genReturnOps()} }\n`;
   if (needsPCGuard) {
     code += `if (c.pc !== ${toString32(ctx.postPC)}) { ${ctx.genReturnOps()} }\n`;
+  }
+  if (ctx.includeStepPreamble && effects.mayStartRSP) {
+    code += 'rspHalted = rsp.halted;\n';
   }
   return code;
 }
@@ -1722,62 +1733,62 @@ function generateLUI(ctx) {
 
 function generateLB(ctx) {
   const impl = `c.execLB(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 function generateLBU(ctx) {
   const impl = `c.execLBU(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 function generateLH(ctx) {
   const impl = `c.execLH(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 function generateLHU(ctx) {
   const impl = `c.execLHU(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 function generateLW(ctx) {
   const impl = `c.execLW(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 function generateLWU(ctx) {
   const impl = `c.execLWU(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 function generateLD(ctx) {
   const impl = `c.execLD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 function generateLWL(ctx) {
   const impl = `c.execLWL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 function generateLWR(ctx) {
   const impl = `c.execLWR(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 function generateLDL(ctx) {
   const impl = `c.execLDL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 function generateLDR(ctx) {
   const impl = `c.execLDR(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 // Status writes invalidate cop1statusKnown. Keep the shared instruction helpers
 // and only skip their usability check once COP1 is known to be enabled.
-function generateCop1MemoryAccess(op, ctx) {
+function generateCop1MemoryAccess(op, ctx, uncheckedEffects, checkedEffects) {
   ctx.fragment.usesCop1 = true;
   const unchecked = ctx.fragment.cop1statusKnown;
   const suffix = unchecked ? 'Unchecked' : '';
@@ -1788,74 +1799,74 @@ function generateCop1MemoryAccess(op, ctx) {
   return generateMemoryAccessBoilerplate(
     impl,
     ctx,
-    unchecked ? uncheckedCop1MemoryEffects : conservativeMemoryEffects,
+    unchecked ? uncheckedEffects : checkedEffects,
   );
 }
 
 function generateLWC1(ctx) {
-  return generateCop1MemoryAccess('LWC1', ctx);
+  return generateCop1MemoryAccess('LWC1', ctx, uncheckedCop1LoadEffects, cop2LoadEffects);
 }
 
 function generateLDC1(ctx) {
-  return generateCop1MemoryAccess('LDC1', ctx);
+  return generateCop1MemoryAccess('LDC1', ctx, uncheckedCop1LoadEffects, cop2LoadEffects);
 }
 
 function generateLWC2(ctx) {
   const impl = `c.execLWC2(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, cop2LoadEffects);
 }
 
 function generateLDC2(ctx) {
   const impl = `c.execLDC2(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, cop2LoadEffects);
 }
 
 function generateSB(ctx) {
   const impl = `c.execSB(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerStoreEffects);
 }
 
 function generateSH(ctx) {
   const impl = `c.execSH(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerStoreEffects);
 }
 
 function generateSW(ctx) {
   const impl = `c.execSW(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerStoreEffects);
 }
 
 function generateSD(ctx) {
   const impl = `c.execSD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerStoreEffects);
 }
 
 function generateSWL(ctx) {
   const impl = `c.execSWL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerStoreEffects);
 }
 
 function generateSWR(ctx) {
   const impl = `c.execSWR(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerStoreEffects);
 }
 
 function generateSDL(ctx) {
   const impl = `c.execSDL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerStoreEffects);
 }
 
 function generateSDR(ctx) {
   const impl = `c.execSDR(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerStoreEffects);
 }
 
 function generateSWC1(ctx) {
-  return generateCop1MemoryAccess('SWC1', ctx);
+  return generateCop1MemoryAccess('SWC1', ctx, uncheckedCop1StoreEffects, conservativeMemoryEffects);
 }
 
 function generateSDC1(ctx) {
-  return generateCop1MemoryAccess('SDC1', ctx);
+  return generateCop1MemoryAccess('SDC1', ctx, uncheckedCop1StoreEffects, conservativeMemoryEffects);
 }
 
 function generateSWC2(ctx) {
@@ -1870,22 +1881,22 @@ function generateSDC2(ctx) {
 
 function generateLL(ctx) {
   const impl = `c.execLL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 function generateLLD(ctx) {
   const impl = `c.execLLD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerLoadEffects);
 }
 
 function generateSC(ctx) {
   const impl = `c.execSC(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerStoreEffects);
 }
 
 function generateSCD(ctx) {
   const impl = `c.execSCD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerStoreEffects);
 }
 
 function generateCACHE(ctx) {
@@ -2239,7 +2250,7 @@ function generateOp(ctx) {
     return simpleTableGen[simpleOp(ctx.instruction)](ctx);
   }
   const impl = `n64js.executeOp(${ctx.instruction});`
-  return generateGenericOpBoilerplate(impl, ctx);
+  return generateGenericOpBoilerplate(impl, ctx, conservativeMemoryEffects);
 }
 
 function generateSpecial(ctx) {

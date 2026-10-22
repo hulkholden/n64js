@@ -179,7 +179,7 @@ describe('branch + trivial delay-slot fusion codegen', () => {
       expect(code).not.toContain('if (c.pc !==');
       // Only the cold interrupt exit inside the delay-slot RSP preamble sets c.delayPC.
       expect(code.match(/c\.delayPC/g)).toHaveLength(1);
-      expect(code).toContain(`if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${pc + 4}; c.delayPC = 0x80001100; return 1; } }`);
+      expect(code).toContain(`if (!rspHalted) { rsp.step(); rspHalted = rsp.halted; if (c.stuffToDo) { c.pc = ${pc + 4}; c.delayPC = 0x80001100; return 1; } }`);
       // Both the fused jump+delay and the following ADDIU at target delay their PC updates,
       // so c.pc is written only once at the end of the fragment (plus the 3 cold stuffToDo exits).
       expect(code).toContain('c.pc = 0x80001104;\nreturn 3;');
@@ -242,7 +242,7 @@ describe('branch + trivial delay-slot fusion codegen', () => {
         }
         expect(code).toContain('const branchTaken = ');
         expect(code).toContain(
-          `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${pc + 4}; c.delayPC = branchTaken ? 0x80001100 : 0x80001008; return ${branchIdx + 1}; } }`,
+          `if (!rspHalted) { rsp.step(); rspHalted = rsp.halted; if (c.stuffToDo) { c.pc = ${pc + 4}; c.delayPC = branchTaken ? 0x80001100 : 0x80001008; return ${branchIdx + 1}; } }`,
         );
         expect(code).not.toContain('if (c.delayPC !== null)');
         expect(code).toContain(
@@ -295,7 +295,7 @@ describe('branch + trivial delay-slot fusion codegen', () => {
       expect(code).not.toContain('if (c.delayPC !== null)');
       expect(code.match(/c\.delayPC/g)).toHaveLength(needsCop1Prefix ? 2 : 1);
       const untakenExit = `{ c.pc = 0x80001008; return ${branchIdx + 1}; }`;
-      const delayRspStep = `if (!rsp.halted) { rsp.step(); if (c.stuffToDo) { c.pc = ${pc + 4}; c.delayPC = 0x80001100; return ${branchIdx + 1}; } }`;
+      const delayRspStep = `if (!rspHalted) { rsp.step(); rspHalted = rsp.halted; if (c.stuffToDo) { c.pc = ${pc + 4}; c.delayPC = 0x80001100; return ${branchIdx + 1}; } }`;
       const delayAlu = 'const v = (c.gprS32[16] + -1) | 0;';
       const untakenPos = code.indexOf(untakenExit);
       const rspPos = code.indexOf(delayRspStep);

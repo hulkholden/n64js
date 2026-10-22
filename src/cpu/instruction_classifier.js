@@ -52,26 +52,41 @@ export const FACT_RESET = 'reset';
 // Helper effects audited through r4300.js, memaccess.js and the device
 // handlers. mayChangeNextPC describes normal return only. Integer alignment/TLB
 // exceptions change nextPC but throw;
-// MMIO may request interrupt service or start the RSP, without changing nextPC.
+// MMIO may request interrupt service, and MMIO stores to SP_STATUS_REG may
+// start or stop the RSP, without changing nextPC.
 // Keep exception PC/fragmentOps materialization and the post-access stuffToDo
 // check: servicing an interrupt must precede the following rsp.step().
-export const integerMemoryEffects = Object.freeze({
+export const integerLoadEffects = Object.freeze({
   mayThrow: true,
   mayChangeNextPC: false,
   maySetStuffToDo: true,
+  mayStartRSP: false,
+});
+
+export const integerStoreEffects = Object.freeze({
+  ...integerLoadEffects,
   mayStartRSP: true,
 });
+
+export const integerMemoryEffects = integerStoreEffects;
 
 // execLWC1/LDC1/SWC1/SDC1Unchecked only move raw bits using the current FR
 // mapping and the same memory paths as integer loads/stores. Alignment/TLB
 // exceptions throw; normal returns cannot change nextPC or introduce a delay.
-// MMIO can still request an interrupt or start the RSP. This audit does not
-// cover COP1 arithmetic/compare helpers, whose FPU exceptions return normally.
-export const uncheckedCop1MemoryEffects = integerMemoryEffects;
+// MMIO stores can still request an interrupt or start the RSP. This audit does
+// not cover COP1 arithmetic/compare helpers, whose FPU exceptions return normally.
+export const uncheckedCop1LoadEffects = integerLoadEffects;
+export const uncheckedCop1StoreEffects = integerStoreEffects;
+export const uncheckedCop1MemoryEffects = uncheckedCop1StoreEffects;
+
+export const cop2LoadEffects = Object.freeze({
+  ...integerLoadEffects,
+  mayChangeNextPC: true,
+});
 
 // Unknown helpers (including COP2 usability exceptions) may redirect and return.
 export const conservativeMemoryEffects = Object.freeze({
-  ...integerMemoryEffects,
+  ...integerStoreEffects,
   mayChangeNextPC: true,
 });
 
@@ -364,7 +379,7 @@ const TRAIT_MEM_LOAD_SIGN32 = makeTraits({
   destField: DEST_RT,
   readFields: READ_RS,
   gprFactRule: FACT_SIGN32,
-  memoryEffects: integerMemoryEffects,
+  memoryEffects: integerLoadEffects,
 });
 
 const TRAIT_MEM_LOAD_MERGE_SIGN32 = makeTraits({
@@ -372,7 +387,7 @@ const TRAIT_MEM_LOAD_MERGE_SIGN32 = makeTraits({
   destField: DEST_RT,
   readFields: READ_RS_RT,
   gprFactRule: FACT_SIGN32,
-  memoryEffects: integerMemoryEffects,
+  memoryEffects: integerLoadEffects,
 });
 
 const TRAIT_MEM_LOAD_ZERO32 = makeTraits({
@@ -380,7 +395,7 @@ const TRAIT_MEM_LOAD_ZERO32 = makeTraits({
   destField: DEST_RT,
   readFields: READ_RS,
   gprFactRule: FACT_ZERO32,
-  memoryEffects: integerMemoryEffects,
+  memoryEffects: integerLoadEffects,
 });
 
 const TRAIT_MEM_LOAD_UNKNOWN64 = makeTraits({
@@ -388,7 +403,7 @@ const TRAIT_MEM_LOAD_UNKNOWN64 = makeTraits({
   destField: DEST_RT,
   readFields: READ_RS,
   gprFactRule: FACT_UNKNOWN64,
-  memoryEffects: integerMemoryEffects,
+  memoryEffects: integerLoadEffects,
 });
 
 const TRAIT_MEM_LOAD_MERGE_UNKNOWN64 = makeTraits({
@@ -396,7 +411,7 @@ const TRAIT_MEM_LOAD_MERGE_UNKNOWN64 = makeTraits({
   destField: DEST_RT,
   readFields: READ_RS_RT,
   gprFactRule: FACT_UNKNOWN64,
-  memoryEffects: integerMemoryEffects,
+  memoryEffects: integerLoadEffects,
 });
 
 const TRAIT_MEM_STORE_INT = makeTraits({
@@ -404,7 +419,7 @@ const TRAIT_MEM_STORE_INT = makeTraits({
   destField: DEST_NONE,
   readFields: READ_RS_RT,
   gprFactRule: FACT_NONE,
-  memoryEffects: integerMemoryEffects,
+  memoryEffects: integerStoreEffects,
 });
 
 const TRAIT_MEM_STORE_COND = makeTraits({
@@ -412,10 +427,28 @@ const TRAIT_MEM_STORE_COND = makeTraits({
   destField: DEST_RT,
   readFields: READ_RS_RT,
   gprFactRule: FACT_BOOL32,
-  memoryEffects: integerMemoryEffects,
+  memoryEffects: integerStoreEffects,
 });
 
-const TRAIT_MEM_COP1_CHECKED = makeTraits({
+const TRAIT_MEM_COP1_LOAD_CHECKED = makeTraits({
+  boilerplate: BOILERPLATE_MEMORY,
+  destField: DEST_NONE,
+  readFields: READ_RS,
+  gprFactRule: FACT_RESET,
+  usesCop1: true,
+  memoryEffects: cop2LoadEffects,
+});
+
+const TRAIT_MEM_COP1_LOAD_UNCHECKED = makeTraits({
+  boilerplate: BOILERPLATE_MEMORY,
+  destField: DEST_NONE,
+  readFields: READ_RS,
+  gprFactRule: FACT_RESET,
+  usesCop1: true,
+  memoryEffects: uncheckedCop1LoadEffects,
+});
+
+const TRAIT_MEM_COP1_STORE_CHECKED = makeTraits({
   boilerplate: BOILERPLATE_MEMORY,
   destField: DEST_NONE,
   readFields: READ_RS,
@@ -424,16 +457,24 @@ const TRAIT_MEM_COP1_CHECKED = makeTraits({
   memoryEffects: conservativeMemoryEffects,
 });
 
-const TRAIT_MEM_COP1_UNCHECKED = makeTraits({
+const TRAIT_MEM_COP1_STORE_UNCHECKED = makeTraits({
   boilerplate: BOILERPLATE_MEMORY,
   destField: DEST_NONE,
   readFields: READ_RS,
   gprFactRule: FACT_RESET,
   usesCop1: true,
-  memoryEffects: uncheckedCop1MemoryEffects,
+  memoryEffects: uncheckedCop1StoreEffects,
 });
 
-const TRAIT_MEM_COP2 = makeTraits({
+const TRAIT_MEM_COP2_LOAD = makeTraits({
+  boilerplate: BOILERPLATE_MEMORY,
+  destField: DEST_NONE,
+  readFields: READ_RS,
+  gprFactRule: FACT_RESET,
+  memoryEffects: cop2LoadEffects,
+});
+
+const TRAIT_MEM_COP2_STORE = makeTraits({
   boilerplate: BOILERPLATE_MEMORY,
   destField: DEST_NONE,
   readFields: READ_RS,
@@ -688,19 +729,19 @@ const SIMPLE_OP_TRAITS = validateTableSize([
   /* 0x2f CACHE   */ null,
   /* 0x30 LL      */ TRAIT_MEM_LOAD_SIGN32,
   /* 0x31 LWC1    */ null,
-  /* 0x32 LWC2    */ TRAIT_MEM_COP2,
+  /* 0x32 LWC2    */ TRAIT_MEM_COP2_LOAD,
   /* 0x33 ---     */ TRAIT_GENERIC_RESERVED,
   /* 0x34 LLD     */ TRAIT_MEM_LOAD_UNKNOWN64,
   /* 0x35 LDC1    */ null,
-  /* 0x36 LDC2    */ TRAIT_MEM_COP2,
+  /* 0x36 LDC2    */ TRAIT_MEM_COP2_LOAD,
   /* 0x37 LD      */ TRAIT_MEM_LOAD_UNKNOWN64,
   /* 0x38 SC      */ TRAIT_MEM_STORE_COND,
   /* 0x39 SWC1    */ null,
-  /* 0x3a SWC2    */ TRAIT_MEM_COP2,
+  /* 0x3a SWC2    */ TRAIT_MEM_COP2_STORE,
   /* 0x3b ---     */ TRAIT_GENERIC_RESERVED,
   /* 0x3c SCD     */ TRAIT_MEM_STORE_COND,
   /* 0x3d SDC1    */ null,
-  /* 0x3e SDC2    */ TRAIT_MEM_COP2,
+  /* 0x3e SDC2    */ TRAIT_MEM_COP2_STORE,
   /* 0x3f SD      */ TRAIT_MEM_STORE_INT,
 ], 64, 'Simple');
 
@@ -815,9 +856,10 @@ export function getOpTraits(instruction, cop1statusKnown = false, useOptimisedHa
         : TRAIT_GENERIC_CACHE_ACTIVE;
     case OP_LWC1:
     case OP_LDC1:
+      return cop1statusKnown ? TRAIT_MEM_COP1_LOAD_UNCHECKED : TRAIT_MEM_COP1_LOAD_CHECKED;
     case OP_SWC1:
     case OP_SDC1:
-      return cop1statusKnown ? TRAIT_MEM_COP1_UNCHECKED : TRAIT_MEM_COP1_CHECKED;
+      return cop1statusKnown ? TRAIT_MEM_COP1_STORE_UNCHECKED : TRAIT_MEM_COP1_STORE_CHECKED;
     default:
       return TRAIT_GENERIC_RESERVED;
   }
