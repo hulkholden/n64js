@@ -23,6 +23,12 @@ const cop1CVT_D = 0x21;
 const cop1CVT_W = 0x24;
 const cop1CVT_L = 0x25;
 
+// C.cond.fmt condition field bits (bits 3..0 of function codes 0x30..0x3f).
+const cop1CmpUnordered = 0x1;
+const cop1CmpEqual = 0x2;
+const cop1CmpLess = 0x4;
+const cop1CmpSignal = 0x8;
+
 const FPCSR_RM_RN = 0x00000000;
 const FPCSR_RM_RZ = 0x00000001;
 const FPCSR_RM_RP = 0x00000002;
@@ -629,19 +635,20 @@ export class CPU1 {
     const ti = this.ftRegIdx32(t);
     const fs = this.loadF32(si);
     const ft = this.loadF32(ti);
+    // Fast path for non-NaN operands (NaN is the only float value not equal to itself).
     if (fs === fs && ft === ft) {
-      this.setCondition(((op & 0x4) !== 0 && fs < ft) || ((op & 0x2) !== 0 && fs === ft));
+      this.setCondition(((op & cop1CmpLess) !== 0 && fs < ft) || ((op & cop1CmpEqual) !== 0 && fs === ft));
       return;
     }
 
     const fsType = f32Classify(this.loadU32(si));
     const ftType = f32Classify(this.loadU32(ti));
-    if ((op & 0x8) || fsType == floatTypeQNaN || ftType == floatTypeQNaN) {
+    if ((op & cop1CmpSignal) || fsType == floatTypeQNaN || ftType == floatTypeQNaN) {
       if (this.raiseException(exceptionInvalidBit)) {
         return;
       }
     }
-    this.setCondition((op & 0x1) !== 0);
+    this.setCondition((op & cop1CmpUnordered) !== 0);
   }
 
   handleFloatCompareDouble(op, s, t) {
@@ -650,22 +657,22 @@ export class CPU1 {
 
     let c = false;
     if (floatTypeNaN(fsType) || floatTypeNaN(ftType)) {
-      if ((op & 0x8) || fsType == floatTypeQNaN || ftType == floatTypeQNaN) {
+      if ((op & cop1CmpSignal) || fsType == floatTypeQNaN || ftType == floatTypeQNaN) {
         if (this.raiseException(exceptionInvalidBit)) {
           return;
         }
       }
-      if (op & 0x1) {
+      if (op & cop1CmpUnordered) {
         c = true;
       }
     } else {
       const fs = this.loadF64(this.fsRegIdx64(s));
       const ft = this.loadF64(this.ftRegIdx64(t));
 
-      if (op & 0x4) {
+      if (op & cop1CmpLess) {
         c |= fs < ft;
       }
-      if (op & 0x2) {
+      if (op & cop1CmpEqual) {
         c |= fs == ft;
       }
     }
