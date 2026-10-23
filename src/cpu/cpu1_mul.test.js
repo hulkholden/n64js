@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { CPU1 } from './cpu1.js';
-import { genericMultiply } from './cpu1_test_support.js';
+import { genericCompareSingle, genericMultiply } from './cpu1_test_support.js';
 import { cartesianPairs } from './test_helpers.js';
 
 function createFPU(generic = false) {
@@ -8,6 +8,7 @@ function createFPU(generic = false) {
   state.fpu = new CPU1({ cpu0: { raiseFPE() { state.traps++; } } });
   if (generic) {
     state.fpu.MUL_S = genericMultiply;
+    state.fpu.handleFloatCompareSingle = genericCompareSingle;
   }
   return state;
 }
@@ -146,4 +147,52 @@ describe('normal single multiply versus generic arithmetic', () => {
       expect(fpu.control[31]).toBe(4); // Cause cleared; inexact stays sticky.
     }
   });
+});
+
+describe('single-precision float compare fast path versus generic compare', () => {
+  for (const fullMode of [false, true]) {
+    test(`all 16 compare opcodes across boundary and random pairs, FR=${Number(fullMode)}`, () => {
+      const fast = createFPU();
+      const slow = createFPU(true);
+      fast.fpu.fullMode = slow.fpu.fullMode = fullMode;
+      let u32LoadsOnNonNaN = 0;
+      const origLoadU32 = fast.fpu.loadU32;
+      let checkingNonNaN = false;
+      fast.fpu.loadU32 = function (idx) {
+        if (checkingNonNaN) {
+          u32LoadsOnNonNaN++;
+        }
+        return origLoadU32.call(this, idx);
+      };
+
+      for (const [fs, ft] of [[3, 5], [3, 3]]) {
+        for (let op = 0x30; op <= 0x3f; op++) {
+          for (const ev of [0, 0x00000800]) {
+            for (const cond of [0, 0x00800000]) {
+              const control = 0x0003f07c | ev | cond;
+              for (let i = 0; i < pairs.length; i++) {
+                const [s, t] = pairs[i];
+                const isNaN = ((s & 0x7f800000) === 0x7f800000 && (s & 0x007fffff) !== 0) ||
+                  ((t & 0x7f800000) === 0x7f800000 && (t & 0x007fffff) !== 0);
+                checkingNonNaN = !isNaN;
+                for (const state of [fast, slow]) {
+                  const fpu = state.fpu;
+                  fpu.regU32[fpu.fsRegIdx32(fs)] = s;
+                  fpu.regU32[fpu.ftRegIdx32(ft)] = t;
+                  fpu.control[31] = control;
+                  state.traps = 0;
+                  fpu.handleFloatCompareSingle(op, fs, ft);
+                }
+                checkingNonNaN = false;
+                if (fast.traps !== slow.traps || fast.fpu.control[31] !== slow.fpu.control[31]) {
+                  throw new Error(`Compare mismatch: ${JSON.stringify({ op, s, t, control, fs, ft, fullMode })}`);
+                }
+              }
+            }
+          }
+        }
+      }
+      expect(u32LoadsOnNonNaN).toBe(0);
+    });
+  }
 });
