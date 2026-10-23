@@ -625,31 +625,23 @@ export class CPU1 {
   }
 
   handleFloatCompareSingle(op, s, t) {
-    const fsType = f32Classify(this.loadU32(this.fsRegIdx32(s)));
-    const ftType = f32Classify(this.loadU32(this.ftRegIdx32(t)));
+    const si = this.fsRegIdx32(s);
+    const ti = this.ftRegIdx32(t);
+    const fs = this.loadF32(si);
+    const ft = this.loadF32(ti);
+    if (fs === fs && ft === ft) {
+      this.setCondition(((op & 0x4) !== 0 && fs < ft) || ((op & 0x2) !== 0 && fs === ft));
+      return;
+    }
 
-    let c = false;
-    if (floatTypeNaN(fsType) || floatTypeNaN(ftType)) {
-      if ((op & 0x8) || fsType == floatTypeQNaN || ftType == floatTypeQNaN) {
-        if (this.raiseException(exceptionInvalidBit)) {
-          return;
-        }
-      }
-      if (op & 0x1) {
-        c = true;
-      }
-    } else {
-      const fs = this.loadF32(this.fsRegIdx32(s));
-      const ft = this.loadF32(this.ftRegIdx32(t));
-
-      if (op & 0x4) {
-        c |= fs < ft;
-      }
-      if (op & 0x2) {
-        c |= fs == ft;
+    const fsType = f32Classify(this.loadU32(si));
+    const ftType = f32Classify(this.loadU32(ti));
+    if ((op & 0x8) || fsType == floatTypeQNaN || ftType == floatTypeQNaN) {
+      if (this.raiseException(exceptionInvalidBit)) {
+        return;
       }
     }
-    this.setCondition(c);
+    this.setCondition((op & 0x1) !== 0);
   }
 
   handleFloatCompareDouble(op, s, t) {

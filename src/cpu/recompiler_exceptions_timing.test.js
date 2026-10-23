@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
 import * as regs from './cpu0reg.js';
-import { genericMultiply as genericMultiplyOp } from './cpu1_test_support.js';
+import {
+  genericCompareSingle as genericCompareSingleOp,
+  genericMultiply as genericMultiplyOp,
+} from './cpu1_test_support.js';
 import * as decode from './decode.js';
 import {
   DEFAULT_PC,
@@ -64,13 +67,16 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     setPerformanceProfiling(false);
     setup(prepare);
     const normalMultiply = hardware.cpu1.MUL_S;
+    const normalCompareSingle = hardware.cpu1.handleFloatCompareSingle;
     if (genericMultiply) {
       hardware.cpu1.MUL_S = genericMultiplyOp;
+      hardware.cpu1.handleFloatCompareSingle = genericCompareSingleOp;
     }
     cpu.run(runCycles);
     const interpreted = snapshot();
     const interpretedCop1Checks = cop1Checks;
     hardware.cpu1.MUL_S = normalMultiply;
+    hardware.cpu1.handleFloatCompareSingle = normalCompareSingle;
 
     // Use the production tracer/compiler, with safe inputs so a memory exception
     // does not prevent the training trace from completing.
@@ -141,6 +147,34 @@ for (const profiled of [false, true]) {
               expect(result.rawFpr[11]).toBe(0);
               expect(result.gpr[3]).toBe(0x77n);
             }
+          });
+        }
+
+        for (const [name, opFunc, s, t, fcsr, cause] of [
+          ['C.LT.S ordered true', 0x3c, 0x3f800000, 0x40000000, 0, 0],
+          ['C.LT.S ordered false', 0x3c, 0x40000000, 0x3f800000, 0, 0],
+          ['C.EQ.S signed zero', 0x32, 0x80000000, 0x00000000, 0, 0],
+          ['C.ULT.S qNaN untaken trap', 0x35, 0x7fc00001, 0x3f800000, 0, 0],
+          ['C.LT.S qNaN invalid trap', 0x3c, 0x7fc00001, 0x3f800000, 0x800, 0x3c],
+          ['C.SEQ.S sNaN invalid trap', 0x3a, 0x7f800001, 0x3f800000, 0x800, 0x3c],
+        ]) {
+          test(`${name}, FR=${Number(fullMode)}, delay=${delay} matches generic interpreter`, async () => {
+            const setup = (c, h, safe = false) => {
+              c.setControlU32(regs.controlStatus, 0x20000000 | (fullMode ? 0x04000000 : 0));
+              c.cop1ControlChanged();
+              const f = h.cpu1;
+              f.control[31] = fcsr | 0x00800020;
+              f.regU32[f.fsRegIdx32(3)] = safe ? 0x3f800000 : s;
+              f.regU32[f.ftRegIdx32(5)] = safe ? 0x40000000 : t;
+            };
+            const result = await compare([
+              copMove(decode.OP_COP1, decode.COP_MF, 2, 0),
+              delay ? iop(decode.OP_BEQ, 0, 0, 1) : 0,
+              cop1(decode.COP1_FMT_S, opFunc, 0, 3, 5),
+              iop(decode.OP_ORI, 0, 3, 0x77),
+            ], setup, (c, h) => setup(c, h, true), true);
+            expect(result.cause).toBe((cause | (cause && delay ? 0x80000000 : 0)) >>> 0);
+            expect(result.countCycles).toBe(runCycles);
           });
         }
       }
