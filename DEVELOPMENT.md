@@ -30,9 +30,6 @@ Navigate to http://localhost:8000/.
 
 For performance benchmarking and profiling instructions, see [BENCHMARKS.md](BENCHMARKS.md).
 
-For cartridge RTC sources, supported commands, persistence and deterministic
-clock injection, see [RTC.md](RTC.md).
-
 ## Headless controller input
 
 Bun scripts can set controller input through the live `inputs` array returned by

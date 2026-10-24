@@ -1,5 +1,5 @@
 // Cartridge Joybus RTC, using the interface documented by libdragon's rtc.h
-// and rtc.c. See RTC.md for sources, supported behavior and approximations.
+// and rtc.c: https://github.com/DragonMinded/libdragon/blob/trunk/src/rtc.c
 const kStop = 0x0004;
 const kProtectData = 0x0100;
 const kProtectTime = 0x0200;
