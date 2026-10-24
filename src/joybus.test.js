@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from 'bun:test';
 import { ControllerInputs } from './controllers.js';
 import { Joybus } from './joybus.js';
 import { MemoryRegion } from './memory/memory_region.js';
+import { CartridgeRTC } from './rtc.js';
 
 let hardware;
 let inputs;
@@ -262,4 +263,80 @@ describe('cartridge RTC detection', () => {
         eepromID === null ? [0xcc, 0xcc, 0xcc] : [0x00, eepromID, 0x00]);
     });
   }
+});
+
+describe('cartridge RTC commands', () => {
+  function command(bytes, rx) {
+    writeFrame(bytes, rx, { channel: 4 });
+    const frame = readFrame();
+    return { length: frame[5], data: [...frame.slice(6 + bytes.length, 6 + bytes.length + rx)] };
+  }
+
+  test('all RTC commands report absence without touching receive bytes or EEPROM', () => {
+    for (const [bytes, rx] of [[[6], 3], [[7, 2], 9], [[8, 0, 0, 4, 0, 0, 0, 0, 0, 0], 1]]) {
+      expect(command(bytes, rx)).toEqual({ length: rx | 0x80, data: Array(rx).fill(0xcc) });
+    }
+    expect(hardware.saveDirty).toBe(false);
+  });
+
+  for (const saveType of ['Eeprom4k', 'Eeprom16k', 'SRAM', 'FlashRam', '']) {
+    test(`RTC identification is independent of ${saveType || 'absent save memory'}`, () => {
+      hardware.saveType = saveType;
+      hardware.rtc = new CartridgeRTC(() => new Date(2024, 0, 1).getTime());
+      expect(command([6], 3)).toEqual({ length: 3, data: [0, 0x10, 0] });
+      const eeprom = saveType === 'Eeprom4k' ? 0x80 : saveType === 'Eeprom16k' ? 0xc0 : null;
+      expect(command([0], 3)).toEqual(eeprom === null ?
+        { length: 0x83, data: [0xcc, 0xcc, 0xcc] } : { length: 3, data: [0, eeprom, 0] });
+    });
+  }
+
+  test('returns fixed response sizes, BCD time, and stopped status through DMA', () => {
+    let now = new Date(2024, 1, 29, 12, 34, 56).getTime();
+    hardware.rtc = new CartridgeRTC(() => now);
+    expect(command([7, 0], 9)).toEqual({ length: 9, data: [3, 0, 0, 0, 0, 0, 0, 0, 0] });
+    expect(command([7, 2], 9)).toEqual({ length: 9, data: [0x56, 0x34, 0x92, 0x29, 4, 2, 0x24, 1, 0] });
+    expect(command([8, 0, 0, 4, 0, 0, 0, 0, 0, 0], 1)).toEqual({ length: 1, data: [0x80] });
+    expect(command([6], 3)).toEqual({ length: 3, data: [0, 0x10, 0x80] });
+    const time = [3, 2, 0x81, 3, 1, 0x11, 3, 1];
+    expect(command([8, 2, ...time], 1)).toEqual({ length: 1, data: [0x80] });
+    now += 10_000;
+    expect(command([7, 2], 9)).toEqual({ length: 9, data: [...time, 0x80] });
+    expect(command([8, 0, 3, 0, 0, 0, 0, 0, 0, 0], 1)).toEqual({ length: 1, data: [0] });
+    now += 1_000;
+    expect(command([7, 2], 9).data).toEqual([4, ...time.slice(1), 0]);
+    expect(hardware.saveDirty).toBe(false);
+  });
+
+  test('keeps EEPROM reads and writes working alongside RTC', () => {
+    hardware.rtc = new CartridgeRTC();
+    const data = [1, 2, 3, 4, 5, 6, 7, 8];
+    expect(command([5, 3, ...data], 1)).toEqual({ length: 1, data: [0] });
+    expect(command([6], 3).data).toEqual([0, 0x10, 0]);
+    expect(command([4, 3], 8)).toEqual({ length: 8, data });
+    expect(hardware.saveDirty).toBe(true);
+  });
+
+  test('rejects malformed TX lengths and unsupported blocks without modifying state', () => {
+    hardware.rtc = new CartridgeRTC();
+    const before = hardware.rtc.serialize();
+    for (const [bytes, rx] of [
+      [[6, 0], 3], [[7], 9], [[7, 0, 0], 9], [[7, 3], 9],
+      [[8, 0], 1], [[8, 0, 0, 4, 0, 0, 0, 0, 0], 1],
+      [[8, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0], 1], [[8, 3, ...Array(8).fill(0)], 1],
+    ]) {
+      expect(command(bytes, rx)).toEqual({ length: rx | 0x80, data: Array(rx).fill(0xcc) });
+      expect(hardware.rtc.serialize()).toEqual(before);
+    }
+  });
+
+  test('short RX sets overrun and long RX sets underrun without overwriting adjacent bytes', () => {
+    hardware.rtc = new CartridgeRTC();
+    expect(command([6], 2)).toEqual({ length: 0x42, data: [0, 0x10] });
+    expect(readFrame()[9]).toBe(0xfe);
+    expect(command([6], 4)).toEqual({ length: 0x84, data: [0, 0x10, 0, 0xcc] });
+    expect(command([7, 0], 8)).toEqual({ length: 0x48, data: [3, 0, 0, 0, 0, 0, 0, 0] });
+    expect(readFrame()[16]).toBe(0xfe);
+    expect(command([7, 0], 10)).toEqual({ length: 0x8a, data: [3, 0, 0, 0, 0, 0, 0, 0, 0, 0xcc] });
+    expect(command([8, 0, 0, 4, 0, 0, 0, 0, 0, 0], 2)).toEqual({ length: 0x82, data: [0x80, 0xcc] });
+  });
 });

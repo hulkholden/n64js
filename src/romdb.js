@@ -12,6 +12,18 @@ export function generateRomId(crclo, crchi) {
   return toHex(byteswap(crclo), 32) + toHex(byteswap(crchi), 32);
 }
 
+export function romHasRTC(bytes) {
+  if (bytes.length < 0x40) {
+    return false;
+  }
+  // Doubutsu no Mori's cartridge code (also retained by translations).
+  const animalForest = bytes[0x3b] === 0x4e && bytes[0x3c] === 0x41 && bytes[0x3d] === 0x46;
+  // libdragon ed64romconfig: ED signature, bit 0 of the config byte.
+  // https://github.com/DragonMinded/libdragon/blob/trunk/tools/ed64romconfig.c
+  const homebrew = bytes[0x3c] === 0x45 && bytes[0x3d] === 0x44 && (bytes[0x3f] & 1) !== 0;
+  return animalForest || homebrew;
+}
+
 export function generateCICType(u8array) {
   let cic = 0;
   for (let i = 0; i < 0xFC0; i++) {

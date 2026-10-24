@@ -21,6 +21,7 @@ import { MemoryRegion } from './memory/memory_region.js';
 import { CPU0, CPU2 } from './cpu/r4300.js';
 import { RSP } from './rsp/rsp.js';
 import { Timeline } from './debug/timeline.js';
+import { CartridgeRTC } from './rtc.js';
 
 const kBootstrapOffset = 0x40;
 const kGameOffset = 0x1000;
@@ -38,6 +39,7 @@ export class Hardware {
     onMicrocodeLoad = null,
     onTextureUse = null,
     onGraphicsMode = null,
+    rtcNow = Date.now,
   } = {}) {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
@@ -109,6 +111,8 @@ export class Hardware {
     // TODO: add a dirty flag and persist to local storage.
     this.saveMem = null;
     this.saveDirty = false;
+    this.rtc = null;
+    this.rtcNow = rtcNow;
 
     this.mempacks = [
       new Mempack(),
@@ -210,6 +214,9 @@ export class Hardware {
     this.si_reg.clear();
 
     this.initSaveGame();
+    if (this.rominfo.rtc && !this.rtc) {
+      this.rtc = new CartridgeRTC(this.rtcNow, n64js.getLocalStorageItem('rtc'));
+    }
 
     for (let d of this.devices) {
       d.reset();
@@ -221,6 +228,10 @@ export class Hardware {
   }
 
   createROM(arrayBuffer) {
+    // A console reset keeps the battery-backed clock; replacing the cartridge
+    // saves the old clock under the old ROM id before loading the new one.
+    this.flushRTC();
+    this.rtc = null;
     // Ensure the rom array buffer is at least 8MB.
     // This helps ensure MemoryRegion.copy won't assert when DMAing from short roms.
     const minLength = 8 * 1024 * 1024;
@@ -288,6 +299,7 @@ export class Hardware {
   get saveType() { return this.rominfo.save; }
 
   flushSaveData() {
+    this.flushRTC();
     if (this.saveMem && this.saveDirty) {
       this.saveU8Array('save', this.saveMem.u8);
       this.saveDirty = false;
@@ -309,6 +321,17 @@ export class Hardware {
       data: u8arr.toBase64(),
     };
     n64js.setLocalStorageItem(name, d);
+  }
+
+  flushRTC() {
+    if (this.rtc?.dirty) {
+      n64js.setLocalStorageItem('rtc', {
+        name: this.rominfo.name,
+        id: this.rominfo.id,
+        ...this.rtc.serialize(),
+      });
+      this.rtc.dirty = false;
+    }
   }
 
   checkSIStatusConsistent() {
