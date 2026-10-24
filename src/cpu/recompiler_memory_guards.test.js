@@ -5,6 +5,7 @@ import { FragmentContext, emitTraceStep, finishCodeGeneration } from './recompil
 import {
   DEFAULT_PC,
   compileOp,
+  compileOps,
   iop,
 } from './test_helpers.js';
 
@@ -99,7 +100,22 @@ describe('recompiler memory guards', () => {
 
   for (const [name, opcode] of copMemoryOps) {
     test(`${name} retains its guard`, () => {
-      expect(generate(opcode, false)).toContain('if (c.pc !== 0x80001004)');
+      const source = generate(opcode, false);
+      expect(source).toContain('if (c.pc !== 0x80001004)');
+      expect(source).not.toContain('c.branchTarget');
+    });
+  }
+
+  for (const [name, opcode] of cop1MemoryOps) {
+    test(`checked ${name} clears delay-slot check for the following instruction`, () => {
+      const fragment = compileOps([
+        iop(opcode, 29, 4, 8),
+        iop(decode.OP_LW, 29, 5, 12),
+      ]);
+      expect(fragment.needsDelayCheck).toBe(false);
+      expect(fragment.bodyCode).toContain('c.nextPC = 0x80001008;');
+      expect(fragment.bodyCode).not.toContain('c.delayPC ?? 0x80001008');
+      expect(fragment.bodyCode).not.toContain('if (c.pc !== 0x80001008)');
     });
   }
 
