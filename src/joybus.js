@@ -32,7 +32,6 @@ const kAttachmentControllerPak = 1;
 const kAttachmentRumblePak = 2;
 
 // Device IDs returned by status commands.
-// eslint-disable-next-line no-unused-vars -- Documents the RTC device ID until RTC support is implemented.
 const kDeviceIDRTC = 0x0010;
 const kDeviceIDEeprom4K = 0x0080;
 const kDeviceIDEeprom16K = 0x00c0;
@@ -429,8 +428,7 @@ class CartridgeChannel extends Channel {
       case kCmdEepromWrite:
         return this.writeEeprom(tx, rx, txBuf, rxBuf);
       case kCmdRTCInfo:
-        // Do not advertise an RTC until reads and writes are implemented.
-        return 0;
+        return this.rtcInfo(tx, rx, txBuf, rxBuf);
       case kCmdRTCRead:
         return this.rtcRead(tx, rx, txBuf, rxBuf);
       case kCmdRTCWrite:
@@ -511,12 +509,39 @@ class CartridgeChannel extends Channel {
     return 1;
   }
 
-  rtcRead(tx, rx, txBuf, rxBuf) {
-    n64js.warn('rtc read unhandled');
-    return 0;
+  rtcInfo(tx, rx, txBuf, rxBuf) {
+    const rtc = this.hardware.rtc;
+    if (!rtc || tx !== 1 || txBuf.length !== tx) {
+      return 0;
+    }
+    rxBuf[0] = kDeviceIDRTC >>> 8;
+    rxBuf[1] = kDeviceIDRTC & 0xff;
+    rxBuf[2] = rtc.status;
+    return 3;
   }
+
+  rtcRead(tx, rx, txBuf, rxBuf) {
+    const rtc = this.hardware.rtc;
+    if (!rtc || tx !== 2 || txBuf.length !== tx) {
+      return 0;
+    }
+    const block = rtc.readBlock(txBuf[1]);
+    if (!block) {
+      return 0;
+    }
+    for (let i = 0; i < 8; i++) {
+      rxBuf[i] = block[i];
+    }
+    rxBuf[8] = rtc.status;
+    return 9;
+  }
+
   rtcWrite(tx, rx, txBuf, rxBuf) {
-    n64js.warn('rtc write unhandled');
-    return 0;
+    const rtc = this.hardware.rtc;
+    if (!rtc || tx !== 10 || txBuf.length !== tx || !rtc.writeBlock(txBuf[1], txBuf.subarray(2))) {
+      return 0;
+    }
+    rxBuf[0] = rtc.status;
+    return 1;
   }
 }

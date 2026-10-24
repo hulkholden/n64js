@@ -15,7 +15,7 @@ import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, i
 import * as json from './json.js';
 import * as logger from './logger.js';
 import { initCPU } from './cpu/r4300.js';
-import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './romdb.js';
+import { romdb, generateRomId, generateCICType, homebrewHasRTC, uint8ArrayReadString } from './romdb.js';
 import { initRSP } from './rsp/rsp.js';
 import { categoryCodeDescriptionFromU8, countryNorthAmerica, OS_TV_NTSC, tvTypeFromCountry } from './system_constants.js';
 import { UI } from './ui/ui.js';
@@ -108,6 +108,7 @@ function loadRom(arrayBuffer) {
   rominfo.tvType = tvTypeFromCountry(hdr.countryId);
 
   const info = romdb[rominfo.id];
+  rominfo.rtc = info?.rtc ?? homebrewHasRTC(rom.u8);
   if (info) {
     logger.log(`Loaded info for ${rominfo.id} from db`);
     rominfo.name = info.name;

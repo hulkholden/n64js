@@ -22,7 +22,7 @@ function loadModules() {
 }
 
 export async function loadROMFile(romPath) {
-  const [,, { fixRomByteOrder },,,, { generateCICType, generateRomId, romdb, uint8ArrayReadString },, constants] = await loadModules();
+  const [,, { fixRomByteOrder },,,, { generateCICType, generateRomId, romdb, homebrewHasRTC, uint8ArrayReadString },, constants] = await loadModules();
   const romFile = Bun.file(romPath);
   if (!await romFile.exists()) {
     throw new Error(`ROM not found: ${romPath}`);
@@ -42,6 +42,7 @@ export async function loadROMFile(romPath) {
     country: country || constants.countryNorthAmerica,
     tvType: country ? constants.tvTypeFromCountry(country) : constants.OS_TV_NTSC,
     save: info ? info.save : 'Eeprom4k',
+    rtc: info?.rtc ?? homebrewHasRTC(bytes),
   };
   return { romBuffer, rominfo };
 }
@@ -62,6 +63,7 @@ export async function createHeadlessEmulator(loadedROM, {
   onMicrocodeLoad = null,
   onTextureUse = null,
   onGraphicsMode = null,
+  rtcNow = Date.now,
 } = {}) {
   const [
     { simulateBoot },
@@ -75,7 +77,7 @@ export async function createHeadlessEmulator(loadedROM, {
 
   let cpu0 = null;
   let fatalError = null;
-  const hardware = new Hardware(loadedROM.rominfo, { headless: true, enableCompatibilityHacks, onVerticalBlank, onGraphicsTask, onAudioTask, onMicrocodeLoad, onTextureUse, onGraphicsMode });
+  const hardware = new Hardware(loadedROM.rominfo, { headless: true, enableCompatibilityHacks, onVerticalBlank, onGraphicsTask, onAudioTask, onMicrocodeLoad, onTextureUse, onGraphicsMode, rtcNow });
   if (executeGraphics) {
     hardware.graphics = new HeadlessGraphics(hardware);
   }
