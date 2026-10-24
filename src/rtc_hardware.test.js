@@ -116,15 +116,28 @@ describe('RTC hardware integration', () => {
     expect(command([7, 2], 9).data).toEqual([...target, 0x80]);
   });
 
-  test('loads RTC metadata from big-endian and byte-swapped ROMs', async () => {
+  test('loads retail RTC presence from romdb and homebrew presence from the normalized header', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'n64js-rtc-'));
     try {
       const bytes = new Uint8Array(0x1000);
       bytes.set([0x80, 0x37, 0x12, 0x40]);
-      bytes.set([0x4e, 0x41, 0x46, 0x4a, 0], 0x3b);
       const path = join(directory, 'header.z64');
+      const header = new DataView(bytes.buffer);
+      // Database lookup uses the two header CRCs, without a game-code special case.
+      for (const [crc1, crc2, rtc] of [
+        [0xbd8e206d, 0x98c35e1c, true], // Doubutsu no Mori
+        [0xb9ae9002, 0xc1b6a367, true], // Animal Forest
+        [0x033f4c13, 0x319ee7a7, false], // The World Is Not Enough
+        [0, 0, false], // Unknown ROM
+      ]) {
+        header.setUint32(0x10, crc1);
+        header.setUint32(0x14, crc2);
+        await writeFile(path, bytes);
+        expect((await loadROMFile(path)).rominfo.rtc).toBe(rtc);
+      }
+      bytes.set([0x4e, 0x41, 0x46, 0x4a, 0], 0x3b); // NAF alone does not enable RTC.
       await writeFile(path, bytes);
-      expect((await loadROMFile(path)).rominfo.rtc).toBe(true);
+      expect((await loadROMFile(path)).rominfo.rtc).toBe(false);
       bytes.set([0x45, 0x44, 0x45, 0x11], 0x3c);
       for (let i = 0; i < bytes.length; i += 2) {
         [bytes[i], bytes[i + 1]] = [bytes[i + 1], bytes[i]];

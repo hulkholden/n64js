@@ -22,7 +22,7 @@ function loadModules() {
 }
 
 export async function loadROMFile(romPath) {
-  const [,, { fixRomByteOrder },,,, { generateCICType, generateRomId, romdb, romHasRTC, uint8ArrayReadString },, constants] = await loadModules();
+  const [,, { fixRomByteOrder },,,, { generateCICType, generateRomId, romdb, homebrewHasRTC, uint8ArrayReadString },, constants] = await loadModules();
   const romFile = Bun.file(romPath);
   if (!await romFile.exists()) {
     throw new Error(`ROM not found: ${romPath}`);
@@ -42,7 +42,7 @@ export async function loadROMFile(romPath) {
     country: country || constants.countryNorthAmerica,
     tvType: country ? constants.tvTypeFromCountry(country) : constants.OS_TV_NTSC,
     save: info ? info.save : 'Eeprom4k',
-    rtc: romHasRTC(bytes),
+    rtc: info?.rtc ?? homebrewHasRTC(bytes),
   };
   return { romBuffer, rominfo };
 }

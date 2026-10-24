@@ -29,10 +29,12 @@ combination or malformed transaction's behavior.
 ## Presence and commands
 
 The browser and headless ROM loaders set `rominfo.rtc` independently of the save
-type. `NAF` at header offsets `0x3b..0x3d` identifies Animal Forest (confirmed
-against the local Japanese ROM). Homebrew opts in with `ED` at `0x3c..0x3d` and
-bit 0 set at `0x3f`. An unrelated cartridge with the same revision bit set does
-not get an RTC. Direct hardware/headless callers can set `rominfo.rtc: true`.
+type. The Animal Forest and Doubutsu no Mori entries in `romdb` declare
+`rtc: true`. Other revisions or ROM hacks can declare the same capability in
+their own database entries. Without a database RTC setting, homebrew opts in
+with `ED` at `0x3c..0x3d` and bit 0 set at `0x3f`. An unrelated cartridge with
+the same revision bit set does not get an RTC. Direct hardware/headless callers
+can set `rominfo.rtc: true`.
 
 Channel 4 accepts these commands when `hardware.rtc` exists:
 

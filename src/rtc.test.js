@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { CartridgeRTC } from './rtc.js';
-import { romHasRTC } from './romdb.js';
+import { homebrewHasRTC } from './romdb.js';
 
 const run = [3, 0, 0, 0, 0, 0, 0, 0];
 const stop = [0, 4, 0, 0, 0, 0, 0, 0];
@@ -155,21 +155,19 @@ describe('cartridge RTC', () => {
 });
 
 describe('cartridge RTC presence', () => {
-  test('recognizes Animal Forest and explicitly configured ED homebrew only', () => {
+  test('recognizes only explicitly configured ED homebrew headers', () => {
     const bytes = new Uint8Array(64);
-    expect(romHasRTC(bytes)).toBe(false);
+    expect(homebrewHasRTC(bytes)).toBe(false);
     bytes.set([0x4e, 0x41, 0x46, 0x4a, 0], 0x3b); // NAFJ
-    expect(romHasRTC(bytes)).toBe(true);
-    bytes[0x3b] = 0;
-    expect(romHasRTC(bytes)).toBe(false);
+    expect(homebrewHasRTC(bytes)).toBe(false); // Retail presence comes from romdb.
     bytes.set([0x45, 0x44, 0, 0x10], 0x3c);
-    expect(romHasRTC(bytes)).toBe(false);
+    expect(homebrewHasRTC(bytes)).toBe(false);
     for (const flags of [1, 0x11, 0x21, 0x31, 0x51]) {
       bytes[0x3f] = flags;
-      expect(romHasRTC(bytes)).toBe(true);
+      expect(homebrewHasRTC(bytes)).toBe(true);
     }
     bytes[0x3d] = 0;
-    expect(romHasRTC(bytes)).toBe(false);
-    expect(romHasRTC(new Uint8Array(63))).toBe(false);
+    expect(homebrewHasRTC(bytes)).toBe(false);
+    expect(homebrewHasRTC(new Uint8Array(63))).toBe(false);
   });
 });

@@ -12,16 +12,13 @@ export function generateRomId(crclo, crchi) {
   return toHex(byteswap(crclo), 32) + toHex(byteswap(crchi), 32);
 }
 
-export function romHasRTC(bytes) {
+export function homebrewHasRTC(bytes) {
   if (bytes.length < 0x40) {
     return false;
   }
-  // Doubutsu no Mori's cartridge code (also retained by translations).
-  const animalForest = bytes[0x3b] === 0x4e && bytes[0x3c] === 0x41 && bytes[0x3d] === 0x46;
   // libdragon ed64romconfig: ED signature, bit 0 of the config byte.
   // https://github.com/DragonMinded/libdragon/blob/trunk/tools/ed64romconfig.c
-  const homebrew = bytes[0x3c] === 0x45 && bytes[0x3d] === 0x44 && (bytes[0x3f] & 1) !== 0;
-  return animalForest || homebrew;
+  return bytes[0x3c] === 0x45 && bytes[0x3d] === 0x44 && (bytes[0x3f] & 1) !== 0;
 }
 
 export function generateCICType(u8array) {
@@ -86,7 +83,7 @@ export const romdb = {
   'efc64654bb478ee1': {name:"All-Star Baseball 2001"                                                        },
   'a7233ec41a68b140': {name:"All-Star Baseball 99"                                                          },
   '4dd5edd974e2b86b': {name:"All-Star Baseball 99"                                                          },
-  '0290aeb967a3b6c1': {name:"Animal Forest",                                              save:'FlashRam'   },
+  '0290aeb967a3b6c1': {name:"Animal Forest",                                              save:'FlashRam', rtc:true },
   '17dbf6c032d5e080': {name:"Armorines - Project S.W.A.R.M."                                                },
   '32d9b51f1b48a93b': {name:"Armorines - Project S.W.A.R.M."                                                },
   '5071c73c87b9cd21': {name:"Armorines - Project S.W.A.R.M."                                                },
@@ -218,7 +215,7 @@ export const romdb = {
   'c769fecb2aabc0f2': {name:"Disney's Tarzan",                                            save:'Eeprom4k'   },
   'd03b1a001adeb3af': {name:"Disney's Tarzan"                                                               },
   'bfe514d6c1bc6da7': {name:"Disney's Tarzan",                                            save:'Eeprom4k'   },
-  '6d208ebd1c5ec398': {name:"Doubutsu No Mori",                                           save:'FlashRam'   },
+  '6d208ebd1c5ec398': {name:"Doubutsu No Mori",                                           save:'FlashRam', rtc:true },
   '8074f13d5aed3d19': {name:"Donald Duck - Quack Attack"                                                    },
   'bfea58ec69717cad': {name:"Donkey Kong 64",                                             save:'Eeprom16k'  },
   'a7893c05024306a5': {name:"Donkey Kong 64",                                             save:'Eeprom16k'  },
