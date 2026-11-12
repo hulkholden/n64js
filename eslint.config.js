@@ -42,11 +42,11 @@ export default [
   },
   {
     files: ['src/**/*.js', 'js/**/*.js', 'test/webgl/**/*.js'],
-    ignores: ['test/webgl/texture_sampler/run.js'],
+    ignores: ['test/webgl/run.js'],
     languageOptions: { globals: globals.browser },
   },
   {
-    files: ['src/**/*.test.js', 'src/**/*.bench.js', 'src/headless/**/*.js', 'src/systemtest/**/*.js', 'src/inventory/**/*.js', 'tools/**/*.js', 'test/webgl/texture_sampler/run.js'],
+    files: ['src/**/*.test.js', 'src/**/*.bench.js', 'src/headless/**/*.js', 'src/systemtest/**/*.js', 'src/inventory/**/*.js', 'tools/**/*.js', 'test/webgl/run.js'],
     languageOptions: { globals: { ...globals.nodeBuiltin, ...globals.bunBuiltin } },
   },
   {

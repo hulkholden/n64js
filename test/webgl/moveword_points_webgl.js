@@ -48,6 +48,7 @@ export function renderForceMatrixScene(gl) {
     }
   }
   renderer.copyTextureToFrontBuffer(renderer.renderTargets.current.texture);
+  renderer.reset();
   const error = gl.getError();
   if (error !== gl.NO_ERROR) {
     throw new Error(`ForceMatrix GL error ${error}`);
@@ -55,9 +56,10 @@ export function renderForceMatrixScene(gl) {
   return checks;
 }
 
-export function runMoveWordPointsTests(gl, pointsCanvas) {
+export function runMoveWordPointsTests(gl) {
+  gl.canvas.width = 800;
+  gl.canvas.height = 360;
   const checks = renderModifyVertexScene(gl, true);
-  pointsCanvas.getContext('2d').drawImage(gl.canvas, 0, 0);
   gl.canvas.width = 600;
   gl.canvas.height = 180;
   checks.push(...renderForceMatrixScene(gl));

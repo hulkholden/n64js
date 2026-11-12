@@ -6,8 +6,8 @@
   "main": "n64.min.js",
   "type": "module",
   "scripts": {
-    "test:visual": "node test/webgl/texture_sampler/run.js",
-    "build:visual": "bun build test/webgl/texture_sampler/visual.js --outfile=build/texture_sampler_visual.js",
+    "test:visual": "bun test/webgl/run.js",
+    "build:visual": "bun build test/webgl/texture_sampler/visual.js --outfile=build/texture_sampler_visual.js && bun build test/webgl/pixel_checks.js --outfile=build/pixel_checks.js",
     "lint": "bun --bun eslint src js test tools eslint.config.js --max-warnings 0",
     "lint:fix": "bun run lint --fix",
     "build": "bun run tools/build.js",

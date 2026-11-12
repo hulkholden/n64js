@@ -80,6 +80,7 @@ export function renderLightColorScene(gl) {
     throw new Error(`LightCol scene: GL error ${error}`);
   }
   renderer.copyTextureToFrontBuffer(renderer.renderTargets.current.texture);
+  renderer.reset();
   return checks;
 }
 
