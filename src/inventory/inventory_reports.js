@@ -1,6 +1,14 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
-import { isAbsolute, join } from 'node:path';
-import { isDeepStrictEqual } from 'node:util';
+import { join } from 'node:path';
+import {
+  REPORT_SCHEMA_VERSION,
+  ignoreMissing,
+  isPlainObject,
+  validateManifest,
+  validateReport,
+} from './inventory_schema.js';
+
+export { validateReport };
 
 const isUint32 = value => Number.isInteger(value) && value >= 0 && value <= 0xffffffff;
 
@@ -49,16 +57,9 @@ async function readJSON(path) {
 async function scanSources(directory) {
   const manifestPath = join(directory, 'manifest.json');
   const manifest = await readJSON(manifestPath);
-  if (manifest?.schemaVersion !== 1 || !Array.isArray(manifest.entries) || !manifest.settings || !manifest.emulator) {
-    throw new Error('Invalid or unsupported scan manifest');
-  }
+  validateManifest(manifest);
   const sources = new Map();
   for (const [index, entry] of manifest.entries.entries()) {
-    if (typeof entry?.path !== 'string' || !isAbsolute(entry.path) ||
-        (entry.sha256 !== null && !/^[a-f0-9]{64}$/.test(entry.sha256)) ||
-        (entry.report !== null && entry.report !== `${entry.sha256 ?? `error-${index}`}.json`)) {
-      throw new Error('Invalid ROM entry in scan manifest');
-    }
     // A pending entry without a report still needs to appear as unknown.
     const key = entry.report ?? `pending-${index}`;
     if (!sources.has(key)) {
@@ -81,11 +82,7 @@ async function discoverSources(input, errors) {
   if (info.isFile()) {
     return [{ reportPath: input, paths: [], scan: null }];
   }
-  const manifest = await stat(join(input, 'manifest.json')).catch(error => {
-    if (error.code !== 'ENOENT') {
-      throw error;
-    }
-  });
+  const manifest = await stat(join(input, 'manifest.json')).catch(ignoreMissing);
   if (manifest) {
     return scanSources(input);
   }
@@ -104,23 +101,6 @@ async function discoverSources(input, errors) {
   return sources;
 }
 
-function isObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-export function validateReport(report, source = {}) {
-  if (!isObject(report.collectors) || !isObject(report.result) || !isObject(report.settings) || !isObject(report.emulator) ||
-      typeof report.result.status !== 'string' || typeof report.result.checkpointOnly !== 'boolean' ||
-      (report.rom !== null && (typeof report.rom?.name !== 'string' || !/^[a-f0-9]{64}$/.test(report.rom?.sha256)))) {
-    throw new Error('Invalid inventory report');
-  }
-  if (source.manifest && (!isDeepStrictEqual(report.settings, source.manifest.settings) ||
-      !['revision', 'runtime', 'runtimeVersion'].every(key => report.emulator[key] === source.manifest.emulator[key]) ||
-      (report.rom?.sha256 && report.rom.sha256 !== source.sha256))) {
-    throw new Error('Report does not match its scan manifest');
-  }
-}
-
 function resultRow(source, report) {
   return {
     rom: report?.rom ?? (source.sha256 ? { sha256: source.sha256, name: null } : null),
@@ -135,17 +115,13 @@ function resultRow(source, report) {
 async function readSource(source) {
   let report;
   if (source.reportPath) {
-    report = await readJSON(source.reportPath).catch(error => {
-      if (error.code !== 'ENOENT') {
-        throw error;
-      }
-    });
+    report = await readJSON(source.reportPath).catch(ignoreMissing);
   }
-  if (report !== undefined && (!isObject(report) || !Number.isSafeInteger(report.schemaVersion) || report.schemaVersion < 1)) {
+  if (report !== undefined && (!isPlainObject(report) || !Number.isSafeInteger(report.schemaVersion) || report.schemaVersion < 1)) {
     throw new Error('Invalid inventory report');
   }
   const reportVersion = report?.schemaVersion ?? null;
-  if (reportVersion !== 1) {
+  if (reportVersion !== REPORT_SCHEMA_VERSION) {
     return { ...resultRow(source, null), reportVersion, collectors: null };
   }
   validateReport(report, source);
