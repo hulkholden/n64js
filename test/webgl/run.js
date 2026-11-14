@@ -3,18 +3,19 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { dirname, extname, relative, resolve, sep } from 'node:path';
+import { basename, dirname, extname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { chromium } from 'playwright';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const visualBundle = 'build/texture_sampler_visual.js';
+const pixelBundle = 'build/pixel_checks.js';
 const imageFields = ['actual', 'golden', 'difference'];
 
 async function main() {
   const options = readOptions();
-  buildBundles();
+  await buildBundles();
   await mkdir(options.output, { recursive: true });
 
   const { server, url } = await startServer();
@@ -88,14 +89,21 @@ function readOptions() {
   };
 }
 
-function buildBundles() {
+async function buildBundles() {
   const bundles = [
     ['test/webgl/texture_sampler/visual.js', visualBundle],
-    ['test/webgl/texture_sampler_webgl.js', 'build/texture_sampler_webgl.js'],
+    ['test/webgl/pixel_checks.js', pixelBundle],
   ];
 
-  for (const [entry, bundle] of bundles) {
-    execFileSync('bun', ['build', entry, `--outfile=${bundle}`], { cwd: root, stdio: 'inherit' });
+  for (const [entry, outfile] of bundles) {
+    const result = await Bun.build({
+      entrypoints: [resolve(root, entry)],
+      outdir: resolve(root, dirname(outfile)),
+      naming: basename(outfile),
+    });
+    if (!result.success) {
+      throw new AggregateError(result.logs, `Failed to build ${entry}`);
+    }
   }
 }
 
@@ -154,7 +162,7 @@ async function runPixelChecks(page, url) {
   // The module runs the GPU suites synchronously, delaying the load event.
   // Navigation only needs to commit; completion has its own bounded budget
   // for software rendering on slower CI runners.
-  await page.goto(`${url}/test/webgl/texture_sampler_webgl.html`, { waitUntil: 'commit' });
+  await page.goto(`${url}/test/webgl/pixel_checks.html`, { waitUntil: 'commit' });
   await page.waitForFunction(() => /passed|FAIL/.test(document.title), null, { timeout: 120000 });
 
   const results = await page.locator('#results').innerText();

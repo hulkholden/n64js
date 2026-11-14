@@ -62,11 +62,24 @@ export function createWebGLHarness(gl, {
 export function withMockMemory(ram, fn) {
   const saved = globalThis.n64js;
   try {
-    globalThis.n64js = { hardware: () => ({ cachedMemDevice: { u8: ram } }) };
+    globalThis.n64js = {
+      warn: console.warn,
+      hardware: () => ({ cachedMemDevice: { u8: ram }, timeline: { addEvent() {} } }),
+    };
     return fn();
   } finally {
     globalThis.n64js = saved;
   }
+}
+
+export function readFramebufferPixels(gl, width, height, label = 'Framebuffer read') {
+  const pixels = new Uint8Array(width * height * 4);
+  gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+  const error = gl.getError();
+  if (error !== gl.NO_ERROR) {
+    throw new Error(`${label}: GL error ${error}`);
+  }
+  return pixels;
 }
 
 export function createTestTexture(gl, width, height, pixels) {

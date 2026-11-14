@@ -74,6 +74,7 @@ export function renderModifyVertexScene(gl, legacyPoints = false) {
     throw new Error(`ModifyVertex scene: GL error ${error}`);
   }
   renderer.copyTextureToFrontBuffer(renderer.renderTargets.current.texture);
+  renderer.reset();
   return checks;
 }
 
@@ -147,5 +148,6 @@ export function renderModifyVertexXYScene(gl) {
     throw new Error(`ModifyVertex XYSCREEN scene: GL error ${error}`);
   }
   renderer.copyTextureToFrontBuffer(renderer.renderTargets.current.texture);
+  renderer.reset();
   return checks;
 }

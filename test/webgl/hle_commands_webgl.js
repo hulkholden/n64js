@@ -3,22 +3,18 @@ import { GBI1 } from '../../src/hle/graphics/microcodes/gbi1.js';
 import { GBI2 } from '../../src/hle/graphics/microcodes/gbi2.js';
 import { GBI1SDEX, GBI2SDEX } from '../../src/hle/graphics/microcodes/gbi_s2dex.js';
 import { drawS2DEXObject, s2dexObjectCases } from './s2dex_object_cases.js';
-import { assertPixels, createWebGLHarness, withMockMemory } from './webgl_test_helpers.js';
+import {
+  assertPixels,
+  createWebGLHarness,
+  readFramebufferPixels,
+  withMockMemory,
+} from './webgl_test_helpers.js';
 
 function commands(ram, address, words) {
   words.forEach(([a, b], i) => {
     ram.setUint32(address + i * 8, a);
     ram.setUint32(address + i * 8 + 4, b);
   });
-}
-
-function pixels(gl, width, height) {
-  const result = new Uint8Array(width * height * 4);
-  gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, result);
-  if (gl.getError() !== gl.NO_ERROR) {
-    throw new Error('HLE command framebuffer read failed');
-  }
-  return result;
 }
 
 function objectHarness(gl, Type) {
@@ -48,14 +44,14 @@ export function runHLECommandTests(gl) {
     for (const { options, rect } of s2dexObjectCases) {
       h.resetFrame([0, 0, 0, 0]);
       drawS2DEXObject(h, options);
-      const actual = pixels(gl, 64, 64);
+      const actual = readFramebufferPixels(gl, 64, 64, 'HLE command');
       // Render independently captured RSP output with the same texture and
       // RDP modes. This checks every covered pixel, including fractional edges.
       h.resetFrame([0, 0, 0, 0]);
       const [x0, y0, x1, y1, s0, t0, ds, dt] = rect;
       h.renderer.texRect(0, x0, y0, x1, y1, s0, t0,
         s0 + (x1 - x0) * ds, t0 + (y1 - y0) * dt, false);
-      const expected = pixels(gl, 64, 64);
+      const expected = readFramebufferPixels(gl, 64, 64, 'HLE command');
       const label = `${Type.name} RSP rectangle ${JSON.stringify(options)}`;
       if (!actual.some(v => v !== 0) || actual.some((v, i) => v !== expected[i])) {
         throw new Error(`${label}: framebuffer differs from captured RDP rectangle`);
