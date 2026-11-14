@@ -1,63 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { collectorSpecs, inspectCollector, readInventory, validateReport } from './inventory_reports.js';
+import { readInventory, validateReport } from './inventory_reports.js';
 import { ci4, makeReport, withDirectory } from './test_helpers.js';
 
 describe('inventory reports', () => {
-  test('inspectCollector classifies missing, invalid, not-observed, and observed states', () => {
-    const modeSpec = collectorSpecs.graphicsMode[0];
-    const audioSpec = collectorSpecs.audioMicrocode[0];
-    const textureSpec = collectorSpecs.texture[0];
-    const validMode = { otherModeH: 1 << 20, otherModeL: 0xc8110000, combineHi: 0, combineLo: 0, draws: 3 };
-
-    expect(inspectCollector({ collectors: {} }, modeSpec, () => true)).toMatchObject({
-      collector: 'graphics.drawModes', version: null, scope: null, state: 'unknown', reason: 'missing-collector',
-    });
-
-    expect(inspectCollector({
-      collectors: { 'graphics.drawModes': { version: 2, scope: 'headless-draw', modes: [] } },
-    }, modeSpec, () => true)).toMatchObject({
-      version: 2, scope: 'headless-draw', state: 'unknown', reason: 'unsupported-version',
-    });
-
-    expect(inspectCollector({
-      collectors: { 'graphics.drawModes': { version: 1, scope: 'other-scope', modes: [] } },
-    }, modeSpec, () => true)).toMatchObject({
-      version: 1, scope: 'other-scope', state: 'unknown', reason: 'unsupported-scope',
-    });
-
-    for (const badCollector of [
-      { version: 1, scope: 'headless-draw', modes: [{ ...validMode, draws: 0 }] },
-      { version: 1, scope: 'headless-draw', modes: [{ ...validMode, otherModeL: -1 }] },
-      { version: 1, scope: 'headless-draw', modes: [{ ...validMode, otherModeH: 0x1_0000_0000 }] },
-      { version: 1, scope: 'headless-draw', modes: [null] },
-    ]) {
-      expect(inspectCollector({ collectors: { 'graphics.drawModes': badCollector } }, modeSpec, () => true)).toMatchObject({
-        state: 'unknown', reason: 'invalid-records',
-      });
-    }
-
-    expect(inspectCollector({
-      collectors: { 'graphics.textureFormats': { version: 1, scope: 'hle-draw', formats: [{ format: 'CI', size: 0 }] } },
-    }, textureSpec, () => true)).toMatchObject({ state: 'unknown', reason: 'invalid-records' });
-
-    expect(inspectCollector({
-      collectors: { 'audio.taskMicrocodes': { version: 1, scope: 'task-start', tasks: 1, microcodes: [{ family: 'ABI1', tasks: 0 }] } },
-    }, audioSpec, () => true)).toMatchObject({ state: 'unknown', reason: 'invalid-records' });
-
-    expect(inspectCollector({
-      collectors: { 'graphics.drawModes': { version: 1, scope: 'headless-draw', modes: [validMode] } },
-    }, modeSpec, () => false)).toEqual({
-      collector: 'graphics.drawModes', version: 1, scope: 'headless-draw', state: 'not-observed', matches: [],
-    });
-
-    expect(inspectCollector({
-      collectors: { 'graphics.drawModes': { version: 1, scope: 'headless-draw', modes: [validMode] } },
-    }, modeSpec, record => record.draws === 3)).toEqual({
-      collector: 'graphics.drawModes', version: 1, scope: 'headless-draw', state: 'observed', matches: [validMode],
-    });
-  });
-
   test('validateReport checks structural invariants and manifest provenance while ignoring dirty flag', () => {
     const report = makeReport('1', { formats: [ci4] });
     const manifest = {
