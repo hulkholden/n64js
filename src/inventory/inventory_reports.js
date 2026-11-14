@@ -10,46 +10,6 @@ import {
 
 export { validateReport };
 
-const isUint32 = value => Number.isInteger(value) && value >= 0 && value <= 0xffffffff;
-
-export const collectorSpecs = {
-  graphicsMode: [{
-    name: 'graphics.drawModes', scope: 'headless-draw', records: 'modes',
-    validate: record => record != null &&
-      ['otherModeH', 'otherModeL', 'combineHi', 'combineLo'].every(key => isUint32(record[key])) &&
-      Number.isSafeInteger(record.draws) && record.draws > 0,
-  }],
-  audioMicrocode: [{ name: 'audio.taskMicrocodes', scope: 'task-start', records: 'microcodes', count: 'tasks' }],
-  microcode: [
-    { name: 'graphics.taskMicrocodes', scope: 'task-start', records: 'microcodes', count: 'tasks' },
-    { name: 'graphics.microcodeLoads', scope: 'hle-load', records: 'microcodes', count: 'loads' },
-  ],
-  texture: [{ name: 'graphics.textureFormats', scope: 'hle-draw', records: 'formats' }],
-};
-
-export function inspectCollector(report, spec, predicate) {
-  const data = report.collectors[spec.name];
-  const result = { collector: spec.name, version: data?.version ?? null, scope: data?.scope ?? null, state: 'unknown' };
-  if (!data) {
-    return { ...result, reason: 'missing-collector' };
-  }
-  if (data.version !== 1) {
-    return { ...result, reason: 'unsupported-version' };
-  }
-  if (data.scope !== spec.scope) {
-    return { ...result, reason: 'unsupported-scope' };
-  }
-  const records = data[spec.records];
-  const validRecord = spec.validate ?? (spec.count
-    ? record => typeof record?.family === 'string' && Number.isSafeInteger(record[spec.count]) && record[spec.count] > 0
-    : record => Number.isInteger(record?.format) && Number.isInteger(record?.size));
-  if (!Array.isArray(records) || !records.every(validRecord)) {
-    return { ...result, reason: 'invalid-records' };
-  }
-  const matches = records.filter(predicate);
-  return { ...result, state: matches.length ? 'observed' : 'not-observed', matches };
-}
-
 async function readJSON(path) {
   return JSON.parse(await readFile(path, 'utf8'));
 }
