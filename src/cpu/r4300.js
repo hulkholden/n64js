@@ -2974,6 +2974,16 @@ function canEnterFragment(fragment, cpu0, eventQueue) {
     (cpu0.delayPC === null || fragment.entryDelayPC !== null);
 }
 
+// Hot compiled-fragment dispatch loop. This is performance critical (~millions
+// of runs per second across short traces), so canEnterFragment, finishFragment,
+// eventQueue.incrementCount, and primary getNextFragment checks are manually
+// inlined across contiguous compiled fragments, while fireEvents(), secondary
+// successor lookups, and isUnfinishedTrace() checks stay out-of-line on the
+// cold paths. The unsigned bounds check prevents out-of-bounds array reads when
+// self-loops return opsExecuted > opsCompiled. Kept in a standalone function
+// rather than nested inside CPU0.runImpl() so the megamorphic fragment.func()
+// loop does not bloat register allocation or OSR tiering across the
+// interpreter loop.
 function executeFragment(fragment, cpu0, eventQueue) {
   do {
     if (
