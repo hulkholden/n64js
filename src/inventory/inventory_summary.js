@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { allCollectorSpecs, inspectCollector, unknownReportReason } from './inventory_collectors.js';
 import { readInventory } from './inventory_reports.js';
+import { runInventoryCLI } from './inventory_cli.js';
 
 const usage = `Usage: bun run inventory-summary <inventory-root|scan-directory|report.json>
   --help  Show this help
@@ -25,7 +26,8 @@ are taken from reports; missing/unsupported reports have an unknown outcome.
 Exit codes: 0 summary read successfully (even with failed ROM runs); 2 argument
 or data error.`;
 
-function summarizeRun({ collectors, ...row }) {
+/** Normalizes collector observations for a single run row. */
+export function summarizeRun({ collectors, ...row }) {
   row.collectors = Object.fromEntries(allCollectorSpecs.map(spec => {
     if (!collectors) {
       return [spec.name, {
@@ -38,7 +40,8 @@ function summarizeRun({ collectors, ...row }) {
   return row;
 }
 
-async function summarize(input) {
+/** Summarizes all saved runs and collector counts in an inventory path. */
+export async function summarizeInventory(input) {
   const { runs, errors } = await readInventory(input);
   const rows = runs.map(summarizeRun);
   const statuses = new Map();
@@ -64,21 +67,25 @@ async function summarize(input) {
   };
 }
 
-try {
+/** Parses CLI arguments and prints an inventory summary as JSON. */
+export async function runInventorySummaryCommand(argv = Bun.argv.slice(2)) {
   const { values, positionals } = parseArgs({
-    args: Bun.argv.slice(2), allowPositionals: true, options: { help: { type: 'boolean' } },
+    args: argv,
+    allowPositionals: true,
+    options: { help: { type: 'boolean' } },
   });
   if (values.help) {
     console.log(usage);
-  } else {
-    if (positionals.length !== 1) {
-      throw new Error('Expected one inventory root, scan directory, or report path');
-    }
-    const output = await summarize(resolve(positionals[0]));
-    console.log(JSON.stringify(output, null, 2));
-    process.exitCode = output.errors.length ? 2 : 0;
+    return 0;
   }
-} catch (error) {
-  console.error(`${error.message ?? error}\n${usage}`);
-  process.exitCode = 2;
+  if (positionals.length !== 1) {
+    throw new Error('Expected one inventory root, scan directory, or report path');
+  }
+  const output = await summarizeInventory(resolve(positionals[0]));
+  console.log(JSON.stringify(output, null, 2));
+  return output.errors.length ? 2 : 0;
+}
+
+if (import.meta.main) {
+  await runInventoryCLI(usage, runInventorySummaryCommand);
 }

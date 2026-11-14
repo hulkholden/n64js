@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { collectorSpecs, inspectCollector, parseTextureFormat, unknownReportReason } from './inventory_collectors.js';
 import { readInventory } from './inventory_reports.js';
+import { runInventoryCLI } from './inventory_cli.js';
 
 const usage = `Usage: bun run inventory-query <inventory-root|scan-directory|report.json> [filters]
   --microcode <family>  Match a handler family, e.g. GBI2 (case insensitive)
@@ -39,7 +40,8 @@ Queries read saved data from any emulator revision without starting emulation.
 Malformed files are listed as errors while other reports are still queried.
 Exit codes: 0 matches found; 1 no confirmed matches; 2 argument or data error.`;
 
-function parseFilters(values) {
+/** Parses and validates inventory query filter options from parseArgs values. */
+export function parseFilters(values) {
   const filters = {};
   const graphicsMode = {};
   if (values['blend-mode'] !== undefined) {
@@ -90,7 +92,8 @@ const featurePredicates = {
   texture: value => record => record.format === value.format && record.size === value.size,
 };
 
-function assess(collectors, filters) {
+/** Evaluates parsed query filters against a report's collectors map. */
+export function assessReport(collectors, filters) {
   const checks = {};
   for (const [feature, value] of Object.entries(filters)) {
     const predicate = featurePredicates[feature](value);
@@ -104,7 +107,8 @@ function assess(collectors, filters) {
   return { state, checks };
 }
 
-async function query(input, filters) {
+/** Queries an inventory root, scan directory, or report path with normalized filters. */
+export async function queryInventory(input, filters) {
   const output = {
     schemaVersion: 1,
     filters: { ...filters, ...(filters.texture ? { texture: filters.texture.name } : {}) },
@@ -114,7 +118,7 @@ async function query(input, filters) {
   const { runs, errors } = await readInventory(input);
   output.errors = errors;
   for (const { collectors, reportVersion, ...row } of runs) {
-    const { state, checks } = collectors ? assess(collectors, filters) : {
+    const { state, checks } = collectors ? assessReport(collectors, filters) : {
       state: 'unknown',
       checks: Object.fromEntries(Object.keys(filters).map(feature => [feature, {
         state: 'unknown', reason: unknownReportReason(reportVersion), reportVersion,
@@ -135,22 +139,32 @@ async function query(input, filters) {
   return output;
 }
 
-try {
+/** Parses CLI arguments and prints matching inventory reports as JSON. */
+export async function runInventoryQueryCommand(argv = Bun.argv.slice(2)) {
   const { values, positionals } = parseArgs({
-    args: Bun.argv.slice(2), allowPositionals: true,
-    options: { 'blend-mode': { type: 'string' }, 'cycle-type': { type: 'string' }, microcode: { type: 'string' }, 'audio-microcode': { type: 'string' }, texture: { type: 'string' }, help: { type: 'boolean' } },
+    args: argv,
+    allowPositionals: true,
+    options: {
+      'blend-mode': { type: 'string' },
+      'cycle-type': { type: 'string' },
+      microcode: { type: 'string' },
+      'audio-microcode': { type: 'string' },
+      texture: { type: 'string' },
+      help: { type: 'boolean' },
+    },
   });
   if (values.help) {
     console.log(usage);
-  } else {
-    if (positionals.length !== 1) {
-      throw new Error('Expected one inventory root, scan directory, or report path');
-    }
-    const output = await query(resolve(positionals[0]), parseFilters(values));
-    console.log(JSON.stringify(output, null, 2));
-    process.exitCode = output.errors.length ? 2 : output.matches.length ? 0 : 1;
+    return 0;
   }
-} catch (error) {
-  console.error(`${error.message ?? error}\n${usage}`);
-  process.exitCode = 2;
+  if (positionals.length !== 1) {
+    throw new Error('Expected one inventory root, scan directory, or report path');
+  }
+  const output = await queryInventory(resolve(positionals[0]), parseFilters(values));
+  console.log(JSON.stringify(output, null, 2));
+  return output.errors.length ? 2 : output.matches.length ? 0 : 1;
+}
+
+if (import.meta.main) {
+  await runInventoryCLI(usage, runInventoryQueryCommand);
 }

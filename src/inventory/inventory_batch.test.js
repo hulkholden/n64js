@@ -4,6 +4,7 @@ import { readFile, readdir, rm, stat, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseInputScript } from './inventory_input.js';
+import { discoverROMs } from './inventory_batch.js';
 import { invokeCLI, makeROM, swapRomBytes16, withDirectory } from './test_helpers.js';
 
 const batchCLI = fileURLToPath(new URL('./inventory_batch.js', import.meta.url));
@@ -338,6 +339,35 @@ describe('inventory batch command', () => {
       expect(invalid.stderr).toContain('Invalid seed');
       expect(invalid.stdout).toBe('');
       expect(await readdir(directory)).toEqual([]);
+    });
+  });
+
+  test('discoverROMs walks nested ROM files, ignores directory symlinks and non-ROMs, and rejects empty sets', async () => {
+    await withDirectory('n64js-inventory-batch-', async directory => {
+      const romsDir = join(directory, 'roms');
+      const emptyDir = join(directory, 'empty');
+      await Bun.write(join(emptyDir, 'readme.txt'), 'not a rom');
+      await expect(discoverROMs([emptyDir])).rejects.toThrow('No ROM files found');
+
+      const z64 = join(romsDir, 'a.z64');
+      const v64 = join(romsDir, 'nested/b.V64');
+      const n64 = join(romsDir, 'nested/c.n64');
+      const brokenLink = join(romsDir, 'broken.z64');
+      const explicitMissing = join(directory, 'explicit-missing.z64');
+      await Bun.write(z64, 'a');
+      await Bun.write(v64, 'b');
+      await Bun.write(n64, 'c');
+      await Bun.write(join(romsDir, 'ignored.txt'), 'd');
+      await symlink(romsDir, join(romsDir, 'loop'));
+      await symlink(join(directory, 'nonexistent.z64'), brokenLink);
+
+      expect(await discoverROMs([romsDir, z64, explicitMissing])).toEqual([
+        explicitMissing,
+        z64,
+        brokenLink,
+        v64,
+        n64,
+      ].sort());
     });
   });
 });

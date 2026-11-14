@@ -7,6 +7,7 @@ import { inventoryOptions, inventorySettings, loadInputScript, runInventory } fr
 import { inputScriptHelp } from './inventory_input.js';
 import { loadReplayReport } from './inventory_replay.js';
 import { REPORT_EXIT_CODES } from './inventory_schema.js';
+import { runInventoryCLI } from './inventory_cli.js';
 
 const usage = `Usage: bun run inventory <rom-path> [options]
        bun run inventory <rom-path> --replay <report.json> [--output <path>]
@@ -37,7 +38,8 @@ wall-clock limits can change the outcome. The original report is never overwritt
 
 ${inputScriptHelp}`;
 
-async function checkOutput(output, inputs) {
+/** Verifies the destination path is non-empty and will not overwrite any input file. */
+export async function checkOutput(output, inputs) {
   if (!output) {
     throw new Error('Output path must not be empty');
   }
@@ -53,9 +55,10 @@ async function checkOutput(output, inputs) {
   }
 }
 
-try {
+/** Parses CLI arguments and runs a single-ROM inventory or replay command. */
+export async function runInventoryCommand(argv = Bun.argv.slice(2)) {
   const { values, positionals } = parseArgs({
-    args: Bun.argv.slice(2),
+    args: argv,
     allowPositionals: true,
     options: {
       ...inventoryOptions,
@@ -66,31 +69,32 @@ try {
   });
   if (values.help) {
     console.log(usage);
-  } else {
-    if (positionals.length !== 1) {
-      throw new Error('Expected one ROM path');
-    }
-    if (values.replay !== undefined && Object.keys(inventoryOptions).some(key => values[key] !== undefined)) {
-      throw new Error('--replay cannot be combined with inventory settings options');
-    }
-    const replay = values.replay === undefined ? null : await loadReplayReport(values.replay);
-    const settings = replay?.settings ?? inventorySettings(values, await loadInputScript(values['input-script']));
-    const romPath = resolve(positionals[0]);
-    const inputs = [[romPath, 'ROM']];
-    if (replay) {
-      inputs.push([values.replay, 'replay report']);
-    }
-    await checkOutput(values.output, inputs);
-    const report = await runInventory(romPath, settings, { replayOf: replay?.replayOf });
-    const json = JSON.stringify(report, null, 2) + '\n';
-    if (values.output === '-') {
-      process.stdout.write(json);
-    } else {
-      await Bun.write(values.output, json);
-    }
-    process.exitCode = REPORT_EXIT_CODES[report.result.status];
+    return 0;
   }
-} catch (error) {
-  console.error(`${error?.message ?? error}\n${usage}`);
-  process.exitCode = 2;
+  if (positionals.length !== 1) {
+    throw new Error('Expected one ROM path');
+  }
+  if (values.replay !== undefined && Object.keys(inventoryOptions).some(key => values[key] !== undefined)) {
+    throw new Error('--replay cannot be combined with inventory settings options');
+  }
+  const replay = values.replay === undefined ? null : await loadReplayReport(values.replay);
+  const settings = replay?.settings ?? inventorySettings(values, await loadInputScript(values['input-script']));
+  const romPath = resolve(positionals[0]);
+  const inputs = [[romPath, 'ROM']];
+  if (replay) {
+    inputs.push([values.replay, 'replay report']);
+  }
+  await checkOutput(values.output, inputs);
+  const report = await runInventory(romPath, settings, { replayOf: replay?.replayOf });
+  const json = JSON.stringify(report, null, 2) + '\n';
+  if (values.output === '-') {
+    process.stdout.write(json);
+  } else {
+    await Bun.write(values.output, json);
+  }
+  return REPORT_EXIT_CODES[report.result.status];
+}
+
+if (import.meta.main) {
+  await runInventoryCLI(usage, runInventoryCommand);
 }
