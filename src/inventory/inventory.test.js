@@ -4,6 +4,7 @@ import { link, readFile, readdir, rm, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseInputScript } from './inventory_input.js';
+import { checkOutput } from './inventory.js';
 import { CycleType, ImageFormat, ImageSize } from '../hle/graphics/gbi.js';
 import { invokeCLI, makeROM, swapRomBytes16, swapRomBytes32, withDirectory } from './test_helpers.js';
 
@@ -396,6 +397,30 @@ describe('inventory command', () => {
       const overwrite = await invokeCLI(cli, ['test.z64', '--output', './test.z64'], { cwd: directory });
       expect(overwrite.code).toBe(2);
       expect(new Uint8Array(await readFile(join(directory, 'test.z64')))).toEqual(rom);
+    });
+  });
+
+  test('checkOutput permits stdout and distinct files while blocking direct and linked collisions', async () => {
+    await expect(checkOutput('-', [])).resolves.toBeUndefined();
+    await expect(checkOutput('', [])).rejects.toThrow('Output path must not be empty');
+
+    await withDirectory('n64js-inventory-', async directory => {
+      const romPath = join(directory, 'test.z64');
+      const symlinkPath = join(directory, 'rom-link.z64');
+      const hardlinkPath = join(directory, 'rom-hard.z64');
+      const reportPath = join(directory, 'out.json');
+      await Bun.write(romPath, makeROM());
+      await symlink(romPath, symlinkPath);
+      await link(romPath, hardlinkPath);
+
+      await expect(checkOutput(reportPath, [[romPath, 'ROM']])).resolves.toBeUndefined();
+      for (const output of [romPath, symlinkPath, hardlinkPath]) {
+        await expect(checkOutput(output, [[romPath, 'ROM']])).rejects.toThrow('Output path must not overwrite the ROM');
+      }
+      await expect(checkOutput(join(directory, 'replay.json'), [
+        [romPath, 'ROM'],
+        [join(directory, 'replay.json'), 'replay report'],
+      ])).rejects.toThrow('Output path must not overwrite the replay report');
     });
   });
 });

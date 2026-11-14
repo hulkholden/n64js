@@ -19,6 +19,7 @@ import {
   validateManifest as validateManifestSchema,
   validateReport,
 } from './inventory_schema.js';
+import { runInventoryCLI } from './inventory_cli.js';
 
 // Conventional shell exit statuses: 128 + signal number (SIGINT = 2, SIGTERM = 15).
 const EXIT_CODE_SIGINT = 130;
@@ -87,7 +88,8 @@ async function directoryFiles(directory) {
   return files.sort();
 }
 
-async function discover(inputs) {
+/** Discovers `.z64`, `.v64`, and `.n64` ROM files recursively and retains explicit file arguments. */
+export async function discoverROMs(inputs) {
   const files = new Set();
   for (const input of inputs) {
     const path = resolve(input);
@@ -109,7 +111,8 @@ async function discover(inputs) {
   return [...files].sort();
 }
 
-async function sourceHash() {
+/** Computes a SHA-256 digest of all non-test JS sources and lock/manifest metadata. */
+export async function sourceHash() {
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const files = (await directoryFiles(join(root, 'src'))).filter(path => path.endsWith('.js') && !path.endsWith('.test.js'));
   files.push(join(root, 'package.json'), join(root, 'bun.lock'));
@@ -196,7 +199,8 @@ async function collectEntry(scanDirectory, manifest, index, signal) {
   return report;
 }
 
-async function scan(scanDirectory, signal) {
+/** Executes or resumes a single scan directory while holding its lock file. */
+export async function scan(scanDirectory, signal) {
   const lockPath = join(scanDirectory, '.lock');
   const lock = await open(lockPath, 'wx').catch(error => {
     if (error.code === 'EEXIST') {
@@ -232,7 +236,8 @@ async function scan(scanDirectory, signal) {
   }
 }
 
-async function scanAll(scanDirectories) {
+/** Runs sequential scans across directories with SIGINT/SIGTERM handling. */
+export async function scanAll(scanDirectories) {
   const controller = new AbortController();
   let interruptCode = EXIT_CODE_SIGINT;
   const onInterrupt = () => controller.abort();
@@ -261,7 +266,8 @@ async function scanAll(scanDirectories) {
   }
 }
 
-async function createScans(outputDirectory, paths, settingsList) {
+/** Creates one scan directory and manifest per settings entry before running. */
+export async function createScans(outputDirectory, paths, settingsList) {
   const emulator = emulatorVersion();
   const sourceSha256 = await sourceHash();
   const directories = [];
@@ -282,33 +288,52 @@ async function createScans(outputDirectory, paths, settingsList) {
   return directories;
 }
 
-try {
+function parseBatchArgs(argv) {
   const { values, positionals } = parseArgs({
-    args: Bun.argv.slice(2), allowPositionals: true,
+    args: argv,
+    allowPositionals: true,
     options: {
-      ...inventoryOptions, seed: { type: 'string', multiple: true },
-      'output-dir': { type: 'string' }, resume: { type: 'string', multiple: true }, help: { type: 'boolean' },
+      ...inventoryOptions,
+      seed: { type: 'string', multiple: true },
+      'output-dir': { type: 'string' },
+      resume: { type: 'string', multiple: true },
+      help: { type: 'boolean' },
     },
   });
   if (values.help) {
-    console.log(usage);
-  } else if (values.resume !== undefined) {
+    return { mode: 'help' };
+  }
+  if (values.resume !== undefined) {
     if (values.resume.some(path => !path) || positionals.length || Object.keys(values).some(key => key !== 'resume')) {
       throw new Error('--resume takes only scan directories; inputs and settings come from their manifests');
     }
-    process.exitCode = await scanAll([...new Set(values.resume.map(path => resolve(path)))]);
-  } else {
-    if (!values['output-dir'] || !positionals.length) {
-      throw new Error('Expected ROM paths/directories and --output-dir');
-    }
-    const script = await loadInputScript(values['input-script']);
-    const settings = (values.seed ?? ['1']).map(seed => inventorySettings({ ...values, seed }, script));
-    const uniqueSettings = [...new Map(settings.map(value => [value.seed, value])).values()];
-    const paths = await discover(positionals);
-    const directories = await createScans(values['output-dir'], paths, uniqueSettings);
-    process.exitCode = await scanAll(directories);
+    return { mode: 'resume', scanDirectories: [...new Set(values.resume.map(path => resolve(path)))] };
   }
-} catch (error) {
-  console.error(`${error?.message ?? error}\n${usage}`);
-  process.exitCode = 2;
+  if (!values['output-dir'] || !positionals.length) {
+    throw new Error('Expected ROM paths/directories and --output-dir');
+  }
+  return { mode: 'scan', values, positionals };
+}
+
+/** Parses CLI arguments and creates or resumes batch inventory scans. */
+export async function runInventoryBatchCommand(argv = Bun.argv.slice(2)) {
+  const parsed = parseBatchArgs(argv);
+  if (parsed.mode === 'help') {
+    console.log(usage);
+    return 0;
+  }
+  if (parsed.mode === 'resume') {
+    return scanAll(parsed.scanDirectories);
+  }
+  const { values, positionals } = parsed;
+  const script = await loadInputScript(values['input-script']);
+  const settings = (values.seed ?? ['1']).map(seed => inventorySettings({ ...values, seed }, script));
+  const uniqueSettings = [...new Map(settings.map(value => [value.seed, value])).values()];
+  const paths = await discoverROMs(positionals);
+  const directories = await createScans(values['output-dir'], paths, uniqueSettings);
+  return scanAll(directories);
+}
+
+if (import.meta.main) {
+  await runInventoryCLI(usage, runInventoryBatchCommand);
 }
