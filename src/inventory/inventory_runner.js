@@ -5,6 +5,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { EmulationMode } from '../hle/emulation_mode.js';
 import { inputPolicy, parseInputScript } from './inventory_input.js';
 import { captureFailure } from './inventory_failure.js';
+import { REPORT_SCHEMA_VERSION, isPlainObject } from './inventory_schema.js';
 
 export const inventoryOptions = {
   seed: { type: 'string' },
@@ -34,7 +35,7 @@ export function inventorySettings(values, script) {
 
 // Reject settings this version cannot reproduce, including changed input policies.
 export function restoreInventorySettings(settings) {
-  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+  if (!isPlainObject(settings)) {
     throw new Error('Invalid inventory settings');
   }
   const expected = inventorySettings({
@@ -70,7 +71,7 @@ export function emulatorVersion() {
 
 export async function runInventory(romPath, settings, { signal, replayOf } = {}) {
   const report = {
-    schemaVersion: 1,
+    schemaVersion: REPORT_SCHEMA_VERSION,
     rom: null,
     emulator: emulatorVersion(),
     settings,

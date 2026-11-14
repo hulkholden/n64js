@@ -6,6 +6,7 @@ import { parseArgs } from 'node:util';
 import { inventoryOptions, inventorySettings, loadInputScript, runInventory } from './inventory_runner.js';
 import { inputScriptHelp } from './inventory_input.js';
 import { loadReplayReport } from './inventory_replay.js';
+import { REPORT_EXIT_CODES } from './inventory_schema.js';
 
 const usage = `Usage: bun run inventory <rom-path> [options]
        bun run inventory <rom-path> --replay <report.json> [--output <path>]
@@ -87,7 +88,7 @@ try {
     } else {
       await Bun.write(values.output, json);
     }
-    process.exitCode = { completed: 0, 'cycle-limit': 3, timeout: 124, halted: 2, error: 2 }[report.result.status];
+    process.exitCode = REPORT_EXIT_CODES[report.result.status];
   }
 } catch (error) {
   console.error(`${error?.message ?? error}\n${usage}`);
