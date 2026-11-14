@@ -147,13 +147,14 @@ export class Fragment {
    */
   getNextFragment(pc, opsExecuted) {
     // Different branch outcomes can execute the same number of instructions.
-    let nextFragment = this.nextFragments[opsExecuted];
+    const nextFragments = this.nextFragments;
+    let nextFragment = (opsExecuted >>> 0) < nextFragments.length ? nextFragments[opsExecuted] : undefined;
     if (!nextFragment || nextFragment.entryPC !== pc) {
       nextFragment = this.lookupNextFragment(pc, opsExecuted);
     }
     // Reset unfinished traces on reentry. The dispatcher validates pending
     // compiled code immediately before execution.
-    if (nextFragment?.isUnfinishedTrace()) {
+    if (nextFragment && nextFragment.func === undefined && nextFragment.isUnfinishedTrace()) {
       nextFragment.invalidate();
     }
     return nextFragment;

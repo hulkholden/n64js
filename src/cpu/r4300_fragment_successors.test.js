@@ -3,10 +3,12 @@ import { setPerformanceProfiling } from '../debug/performance_profile.js';
 import * as regs from './cpu0reg.js';
 import { Fragment } from './fragments.js';
 import {
+  ADDIU_T0_1,
   DEFAULT_PC,
   JR_RA,
   compileFragmentAt,
   createTestEmulator,
+  iop,
 } from './test_helpers.js';
 
 const entry = DEFAULT_PC;
@@ -45,12 +47,16 @@ async function dispatchFixture(uncached) {
   const caller = h.fragmentCache.fragments.get(entry);
   expect(caller.opsCompiled).toBe(11);
   if (uncached) {
-    // Force misses at both cache levels, including newly compiled generations.
-    const getNext = Fragment.prototype.getNextFragment;
-    spyOn(Fragment.prototype, 'getNextFragment').mockImplementation(function (pc, ops) {
+    // Force misses at both cache levels, including newly compiled generations
+    // and inline primary nextFragments[opsExecuted] checks in executeFragment.
+    const lookupNext = Fragment.prototype.lookupNextFragment;
+    spyOn(Fragment.prototype, 'lookupNextFragment').mockImplementation(function (pc, ops) {
       this.nextFragments[ops] = undefined;
       this.successors.fill(null);
-      return getNext.call(this, pc, ops);
+      const next = lookupNext.call(this, pc, ops);
+      this.nextFragments[ops] = undefined;
+      this.successors.fill(null);
+      return next;
     });
   }
   const snapshots = [];
@@ -204,5 +210,90 @@ for (const profiled of [false, true]) {
         expect(results[1]).toEqual(results[0]);
       });
     }
+
+    test('fragmentOps preserves -1 sentinel across reset, flush, execution, and exception unwinding', async () => {
+      const e = await createTestEmulator();
+      const { cpu0: cpu, hardware: h } = e;
+      cpu.reset();
+      expect(cpu.fragmentOps).toBe(-1);
+
+      const initialCount = cpu.controlCountValue;
+      const initialCountdown = cpu.eventQueue.cyclesToFirstEvent;
+      cpu.flushFragmentCycles();
+      expect(cpu.controlCountValue).toBe(initialCount);
+      expect(cpu.eventQueue.cyclesToFirstEvent).toBe(initialCountdown);
+
+      h.ram.set32(0x1000, ADDIU_T0_1);
+      h.ram.set32(0x1004, iop(0x23, 4, 9)); // LW t1, 0(a0)
+      h.ram.set32(0x1008, JR_RA);
+      h.ram.set32(0x100c, 0);
+
+      cpu.pc = entry;
+      cpu.delayPC = null;
+      cpu.setControlU32(regs.controlStatus, 0x20000000);
+      cpu.setRegS32Extend(4, 0x80003000);
+      cpu.setRegS32Extend(31, entry);
+      compileFragmentAt(cpu, entry, 4);
+
+      setPerformanceProfiling(profiled);
+      cpu.pc = entry;
+      cpu.delayPC = null;
+      cpu.setRegS32Extend(4, 0x80003000);
+      cpu.run(4);
+      expect(e.fatalError()).toBeNull();
+      expect(cpu.fragmentOps).toBe(-1);
+      expect(cpu.fragmentCycles).toBe(0);
+      expect(cpu.rspFragmentOps).toBe(0);
+
+      const finishSpy = spyOn(cpu, 'finishFragment');
+      cpu.pc = entry;
+      cpu.delayPC = null;
+      cpu.setRegS32Extend(4, 0x80003001);
+      cpu.run(6);
+      expect(e.fatalError()).toBeNull();
+      expect(finishSpy).toHaveBeenCalledWith(1);
+      expect(cpu.getControlU32(regs.controlEPC)).toBe(entry + 4);
+      expect(cpu.getControlU32(regs.controlBadVAddr)).toBe(0x80003001);
+      expect(cpu.fragmentOps).toBe(-1);
+      expect(cpu.fragmentCycles).toBe(0);
+      expect(cpu.rspFragmentOps).toBe(0);
+    });
   });
 }
+
+describe('inline hot fragment dispatch', () => {
+  test('inline primary successor hit resets an unfinished trace before dropping to interpreter', async () => {
+    setPerformanceProfiling(false);
+    const e = await createTestEmulator();
+    const { cpu0: cpu, hardware: h } = e;
+    cpu.reset();
+
+    const target = 0x80001100;
+    h.ram.set32(0x1000, JR_RA);
+    h.ram.set32(0x1004, 0);
+    h.ram.set32(0x1100, iop(9, 9, 9, 1)); // ADDIU t1, t1, 1
+    h.ram.set32(0x1104, JR_RA);
+    h.ram.set32(0x1108, 0);
+
+    cpu.pc = entry;
+    cpu.delayPC = null;
+    cpu.setRegS32Extend(31, entry);
+    const caller = compileFragmentAt(cpu, entry, 2);
+    expect(caller.opsCompiled).toBe(2);
+
+    const unfinished = new Fragment(target, h.fragmentCache);
+    unfinished.opsCompiled = 2;
+    h.fragmentCache.fragments.set(target, unfinished);
+    caller.nextFragments[2] = unfinished;
+
+    cpu.pc = entry;
+    cpu.delayPC = null;
+    cpu.setRegS32Extend(9, 0);
+    cpu.setRegS32Extend(31, target);
+    cpu.run(3);
+    expect(e.fatalError()).toBeNull();
+    expect(unfinished.generation).toBe(1);
+    expect(unfinished.opsCompiled).toBe(1);
+    expect(cpu.getRegU32Lo(9)).toBe(1);
+  });
+});

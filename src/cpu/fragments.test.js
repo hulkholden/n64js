@@ -1,5 +1,9 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import { Fragment, FragmentCache } from './fragments.js';
+
+afterEach(() => {
+  mock.restore();
+});
 
 function fixture() {
   const cache = new FragmentCache();
@@ -117,5 +121,24 @@ describe('hybrid successor cache', () => {
     source.invalidate();
     expect(source.getNextFragment(b.entryPC, 11)).toBe(b);
     expect(lookups()).toBe(3);
+  });
+
+  test('skips isUnfinishedTrace when nextFragment.func is defined, and checks it otherwise', () => {
+    const { source, target } = fixture();
+    const a = target(0x7f0b05ec);
+    const b = target(0x7f0b05f4);
+    source.getNextFragment(a.entryPC, 11);
+    source.getNextFragment(b.entryPC, 11);
+
+    const spy = spyOn(Fragment.prototype, 'isUnfinishedTrace');
+    expect(source.getNextFragment(b.entryPC, 11)).toBe(b); // primary hit
+    expect(source.getNextFragment(a.entryPC, 11)).toBe(a); // secondary hit
+    expect(spy).not.toHaveBeenCalled();
+
+    b.func = undefined;
+    expect(source.getNextFragment(b.entryPC, 11)).toBe(b);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(b.opsCompiled).toBe(0);
+    expect(b.generation).toBe(1);
   });
 });

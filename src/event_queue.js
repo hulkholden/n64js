@@ -16,7 +16,12 @@ export class EventQueue {
   }
 
   incrementCount(count) {
-    this.cyclesToFirstEvent -= count;
+    if ((this.cyclesToFirstEvent -= count) <= 0) {
+      this.fireEvents();
+    }
+  }
+
+  fireEvents() {
     while (this.cyclesToFirstEvent <= 0) {
       const evt = this.firstEvent;
       if (!evt) {

@@ -3,12 +3,20 @@ import '../headless/headless_env.js';
 import { MemoryRegion } from '../memory/memory_region.js';
 import { initRSP, RSP } from './rsp.js';
 
+let hardware;
 let rsp;
 beforeEach(() => {
-  const hardware = {
-    cpu0: { fragmentOps: null, rspFragmentOps: 0 },
+  hardware = {
+    cpu0: { fragmentOps: -1, rspFragmentOps: 0 },
     sp_mem: new MemoryRegion(new ArrayBuffer(0x2000)),
     sp_ibist_mem: new MemoryRegion(new ArrayBuffer(8)),
+    spRegDevice: {
+      readRegU32: () => 0,
+      writeReg32: () => {},
+    },
+    timeline: {
+      startEvent: () => ({ stop: () => {} }),
+    },
   };
   rsp = hardware.rsp = new RSP(hardware);
   initRSP(hardware);
@@ -162,5 +170,35 @@ describe('RSP scalar dispatch', () => {
     expect(rsp.getRegU32(5)).toBe(0x8008);
     expect(rsp.dmem.getU16(16)).toBe(0x8001);
     expect(rsp.pc).toBe(32);
+  });
+
+  test('CPU fragment cycle tracking preserves -1 sentinel outside fragments and syncs inside fragments', () => {
+    rsp.imemDV.setUint32(0, 0);
+    rsp.imemDV.setUint32(4, 0);
+
+    hardware.cpu0.fragmentOps = -1;
+    hardware.cpu0.rspFragmentOps = 0;
+    rsp.unhalt();
+    expect(hardware.cpu0.fragmentOps).toBe(-1);
+    expect(hardware.cpu0.rspFragmentOps).toBe(0);
+    rsp.step();
+    expect(hardware.cpu0.rspFragmentOps).toBe(1);
+    rsp.moveFromControl(0);
+    expect(hardware.cpu0.fragmentOps).toBe(-1);
+    rsp.moveToControl(0, 0x100);
+    expect(hardware.cpu0.fragmentOps).toBe(-1);
+
+    hardware.cpu0.fragmentOps = 0;
+    hardware.cpu0.rspFragmentOps = 0;
+    rsp.unhalt();
+    expect(hardware.cpu0.rspFragmentOps).toBe(1);
+    rsp.step();
+    expect(hardware.cpu0.rspFragmentOps).toBe(2);
+    rsp.moveFromControl(0);
+    expect(hardware.cpu0.fragmentOps).toBe(2);
+    rsp.step();
+    expect(hardware.cpu0.rspFragmentOps).toBe(3);
+    rsp.moveToControl(0, 0x100);
+    expect(hardware.cpu0.fragmentOps).toBe(3);
   });
 });
