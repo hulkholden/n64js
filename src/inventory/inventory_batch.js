@@ -2,12 +2,23 @@
 
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, open, readFile, readdir, rename, stat, unlink } from 'node:fs/promises';
-import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isDeepStrictEqual, parseArgs } from 'node:util';
+import { parseArgs } from 'node:util';
 import { fixRomByteOrder } from '../endian.js';
 import { emulatorVersion, inventoryOptions, inventorySettings, loadInputScript, restoreInventorySettings, runInventory } from './inventory_runner.js';
 import { inputScriptHelp } from './inventory_input.js';
+import {
+  MANIFEST_SCHEMA_VERSION,
+  REPORT_SCHEMA_VERSION,
+  TERMINAL_STATUSES,
+  entryReportName,
+  ignoreMissing,
+  sameEmulator,
+  sha256Hex,
+  validateManifest as validateManifestSchema,
+  validateReport,
+} from './inventory_schema.js';
 
 // Conventional shell exit statuses: 128 + signal number (SIGINT = 2, SIGTERM = 15).
 const EXIT_CODE_SIGINT = 130;
@@ -46,8 +57,6 @@ storage error; ${EXIT_CODE_SIGINT} interrupted by SIGINT; ${EXIT_CODE_SIGTERM} i
 ${inputScriptHelp}
 Batch manifests embed the script; --resume does not read the original file.`;
 
-const terminal = new Set(['completed', 'cycle-limit', 'timeout', 'halted', 'error']);
-
 // Publish complete JSON before advancing the manifest. On resume an already
 // published report can be recovered even if the manifest update was interrupted.
 async function writeJSON(path, value) {
@@ -56,11 +65,7 @@ async function writeJSON(path, value) {
     await Bun.write(temporary, JSON.stringify(value, null, 2) + '\n');
     await rename(temporary, path);
   } finally {
-    await unlink(temporary).catch(error => {
-      if (error.code !== 'ENOENT') {
-        throw error;
-      }
-    });
+    await unlink(temporary).catch(ignoreMissing);
   }
 }
 
@@ -73,11 +78,7 @@ async function directoryFiles(directory) {
     } else if (entry.isFile()) {
       files.push(path);
     } else if (entry.isSymbolicLink()) {
-      const target = await stat(path).catch(error => {
-        if (error.code !== 'ENOENT') {
-          throw error;
-        }
-      });
+      const target = await stat(path).catch(ignoreMissing);
       if (!target || target.isFile()) {
         files.push(path);
       }
@@ -90,11 +91,7 @@ async function discover(inputs) {
   const files = new Set();
   for (const input of inputs) {
     const path = resolve(input);
-    const info = await stat(path).catch(error => {
-      if (error.code !== 'ENOENT') {
-        throw error;
-      }
-    });
+    const info = await stat(path).catch(ignoreMissing);
     if (info?.isDirectory()) {
       for (const file of await directoryFiles(path)) {
         if (['.z64', '.v64', '.n64'].includes(extname(file).toLowerCase())) {
@@ -123,12 +120,6 @@ async function sourceHash() {
   return hash.digest('hex');
 }
 
-function sameEmulator(left, right) {
-  // The source hash covers dirty emulator edits. Unrelated worktree changes
-  // (including generated reports) may change the dirty flag without changing code.
-  return ['revision', 'runtime', 'runtimeVersion'].every(key => left?.[key] === right?.[key]);
-}
-
 async function checkSource(manifest) {
   if (!sameEmulator(manifest.emulator, emulatorVersion()) || manifest.sourceSha256 !== await sourceHash()) {
     throw new Error('Emulator source, revision or runtime changed; start a new scan');
@@ -138,7 +129,7 @@ async function checkSource(manifest) {
 async function romHash(path) {
   const buffer = await Bun.file(path).arrayBuffer();
   fixRomByteOrder(buffer);
-  return createHash('sha256').update(new Uint8Array(buffer)).digest('hex');
+  return sha256Hex(new Uint8Array(buffer));
 }
 
 async function savedReport(scanDirectory, manifest, entry) {
@@ -146,36 +137,26 @@ async function savedReport(scanDirectory, manifest, entry) {
     return null;
   }
   const path = join(scanDirectory, entry.report);
-  const json = await readFile(path, 'utf8').catch(error => {
-    if (error.code !== 'ENOENT') {
-      throw error;
-    }
-  });
+  const json = await readFile(path, 'utf8').catch(ignoreMissing);
   if (json === undefined) {
     return null;
   }
   const report = JSON.parse(json);
-  if (report.schemaVersion !== 1 || !sameEmulator(report.emulator, manifest.emulator) ||
-      !isDeepStrictEqual(report.settings, manifest.settings) ||
-      (report.rom?.sha256 && report.rom.sha256 !== entry.sha256) ||
-      (!terminal.has(report.result?.status) && report.result?.status !== 'interrupted')) {
+  try {
+    if (report?.schemaVersion !== REPORT_SCHEMA_VERSION ||
+        (!TERMINAL_STATUSES.has(report.result?.status) && report.result?.status !== 'interrupted')) {
+      throw new Error('Invalid inventory report');
+    }
+    validateReport(report, { manifest, sha256: entry.sha256 });
+  } catch {
     throw new Error(`Report does not match this scan: ${path}`);
   }
   return report;
 }
 
 function validateManifest(manifest) {
-  if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.entries) || !manifest.settings) {
-    throw new Error('Invalid scan manifest');
-  }
+  validateManifestSchema(manifest);
   restoreInventorySettings(manifest.settings);
-  for (const [index, entry] of manifest.entries.entries()) {
-    if (typeof entry.path !== 'string' || !isAbsolute(entry.path) ||
-        (entry.sha256 !== null && !/^[a-f0-9]{64}$/.test(entry.sha256)) ||
-        (entry.report !== null && entry.report !== `${entry.sha256 ?? `error-${index}`}.json`)) {
-      throw new Error('Invalid ROM entry in scan manifest');
-    }
-  }
 }
 
 async function prepareEntry(scanDirectory, manifest, index) {
@@ -186,7 +167,7 @@ async function prepareEntry(scanDirectory, manifest, index) {
     throw new Error(`ROM changed since this scan started: ${entry.path}`);
   }
   entry.sha256 = sha256;
-  entry.report = `${sha256 ?? `error-${index}`}.json`;
+  entry.report = entryReportName(sha256, index);
   entry.status = 'pending';
   await writeJSON(join(scanDirectory, 'manifest.json'), manifest);
 }
@@ -194,14 +175,14 @@ async function prepareEntry(scanDirectory, manifest, index) {
 async function collectEntry(scanDirectory, manifest, index, signal) {
   const entry = manifest.entries[index];
   let report = await savedReport(scanDirectory, manifest, entry);
-  if (terminal.has(report?.result.status)) {
+  if (TERMINAL_STATUSES.has(report?.result.status)) {
     return report;
   }
 
   await prepareEntry(scanDirectory, manifest, index);
   // Other paths or byte orders of the same ROM reuse its first result.
   report = await savedReport(scanDirectory, manifest, entry);
-  if (terminal.has(report?.result.status)) {
+  if (TERMINAL_STATUSES.has(report?.result.status)) {
     return report;
   }
 
@@ -242,7 +223,7 @@ async function scan(scanDirectory, signal) {
       console.error(`[${index + 1}/${manifest.entries.length}] ${entry.status}: ${entry.path}`);
     }
 
-    manifest.status = manifest.entries.every(entry => terminal.has(entry.status)) ? 'completed' : 'interrupted';
+    manifest.status = manifest.entries.every(entry => TERMINAL_STATUSES.has(entry.status)) ? 'completed' : 'interrupted';
     await writeJSON(manifestPath, manifest);
     return manifest.entries.every(entry => entry.status === 'completed') ? 0 : 1;
   } finally {
@@ -288,7 +269,7 @@ async function createScans(outputDirectory, paths, settingsList) {
     const id = randomUUID();
     const directory = resolve(outputDirectory, 'runs', id);
     const manifest = {
-      schemaVersion: 1, id, createdAt: new Date().toISOString(),
+      schemaVersion: MANIFEST_SCHEMA_VERSION, id, createdAt: new Date().toISOString(),
       emulator, sourceSha256, settings,
       status: 'pending',
       entries: paths.map(path => ({ path, sha256: null, report: null, status: 'pending' })),

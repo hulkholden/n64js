@@ -1,9 +1,9 @@
-import { createHash } from 'node:crypto';
 import { createHeadlessEmulator, loadROMFile } from '../headless/headless_env.js';
 import { createInputDriver, createRandom } from './inventory_input.js';
 import { ImageFormat } from '../hle/graphics/gbi.js';
 import { captureFailure } from './inventory_failure.js';
 import { sendInventoryUpdate } from './inventory_ipc.js';
+import { sha256Hex } from './inventory_schema.js';
 
 // This process may block inside emulation. The CLI owns the wall-clock timeout
 // and retains the last checkpoint received before terminating this process.
@@ -85,7 +85,7 @@ try {
   rom = {
     ...loadedROM.rominfo,
     // Hash the canonical big-endian ROM, before hardware pads its private copy.
-    sha256: createHash('sha256').update(new Uint8Array(loadedROM.romBuffer)).digest('hex'),
+    sha256: sha256Hex(new Uint8Array(loadedROM.romBuffer)),
     bytes: loadedROM.romBuffer.byteLength,
   };
   // Compare the same canonical bytes that will be used to create the emulator.

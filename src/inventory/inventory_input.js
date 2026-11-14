@@ -1,3 +1,5 @@
+import { isPlainObject } from './inventory_schema.js';
+
 // Mulberry32: keep CPU randomness and controller randomness on separate streams.
 export function createRandom(seed) {
   let state = seed >>> 0;
@@ -28,7 +30,7 @@ After the last step, seeded random input starts at the beginning of its sequence
 The frame limit includes the script. Reports embed the script for replay.`;
 
 function checkKeys(value, keys, context) {
-  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !keys.includes(key))) {
+  if (!isPlainObject(value) || Object.keys(value).some(key => !keys.includes(key))) {
     throw new Error(`Invalid input script ${context}`);
   }
 }
