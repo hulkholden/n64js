@@ -1192,7 +1192,7 @@ export class CPU0 {
     // TODO: this probably needs to throw a JS exception which is caught in `run`.
     // to ensure bookkeeping (like updating the delayPC) isn't run.
     const bit = 1 << (SR_CUSHIFT + copIdx);
-    const usable = (this.getControlU32(cpu0reg.controlStatus) & bit) != 0;
+    const usable = (this.controlRegU32[cpu0reg.controlStatus * 2] & bit) !== 0;
     if (!usable) {
       this.raiseCopXUnusable(copIdx);
       return false;
@@ -1986,35 +1986,35 @@ export class CPU0 {
   execLUI(rt, imm) { this.setRegS32Extend(rt, imm << 16); }
 
   // Helpers for load and store instructions.
-  addrS32(base, imms) { return (this.getRegS32Lo(base) + imms) >> 0; }
-  addrU32(base, imms) { return (this.getRegS32Lo(base) + imms) >>> 0; }
+  addrS32(base, imms) { return (this.gprS32[base * 2] + imms) | 0; }
+  addrU32(base, imms) { return (this.gprS32[base * 2] + imms) >>> 0; }
 
   calcDebuggerAddress(inst) {
     return this.addrS32(base(inst), imms(inst));
   }
 
   execLB(rt, base, imms) {
-    const value = memaccess.loadS8fast(this.addrS32(base, imms));
+    const value = memaccess.loadS8fast((this.gprS32[base * 2] + imms) | 0);
     this.setRegS32Extend(rt, value);
   }
 
   execLBU(rt, base, imms) {
-    const value = memaccess.loadU8fast(this.addrS32(base, imms));
+    const value = memaccess.loadU8fast((this.gprS32[base * 2] + imms) | 0);
     this.setRegU32Extend(rt, value);
   }
 
   execLH(rt, base, imms) {
-    const value = memaccess.loadS16fast(this.addrS32(base, imms));
+    const value = memaccess.loadS16fast((this.gprS32[base * 2] + imms) | 0);
     this.setRegS32Extend(rt, value);
   }
 
   execLHU(rt, base, imms) {
-    const value = memaccess.loadU16fast(this.addrS32(base, imms));
+    const value = memaccess.loadU16fast((this.gprS32[base * 2] + imms) | 0);
     this.setRegU32Extend(rt, value);
   }
 
   execLW(rt, base, imms) {
-    const value = memaccess.loadS32fast(this.addrS32(base, imms));
+    const value = memaccess.loadS32fast((this.gprS32[base * 2] + imms) | 0);
 
     // TODO: check if SF2049 requires LW to R0 to be ignored.
     // This is redundant right now because we also force R0 to zero in runImpl.
@@ -2026,16 +2026,16 @@ export class CPU0 {
   }
 
   execLWU(rt, base, imms) {
-    const value = memaccess.loadU32fast(this.addrS32(base, imms));
+    const value = memaccess.loadU32fast((this.gprS32[base * 2] + imms) | 0);
     this.setRegU32Extend(rt, value);
   }
 
   execLD(rt, base, imms) {
-    const addr = this.addrS32(base, imms);
+    const addr = (this.gprS32[base * 2] + imms) | 0;
     if ((addr & 7) === 0 && addr < memaccess.kKseg0RamEndS32) {
       // Copy aligned KSEG0 RAM directly into the two register words. Going
       // through BigInt is expensive in context-save/restore loops.
-      const phys = (addr + 0x80000000) | 0;
+      const phys = addr ^ -0x80000000;
       const hi = this.ramDV.getInt32(phys, false);
       const lo = this.ramDV.getInt32(phys + 4, false);
       this.setRegS64LoHi(rt, lo, hi);
@@ -2081,12 +2081,18 @@ export class CPU0 {
     if (!this.checkCopXUsable(1)) {
       return;
     }
-    this.execLWC1Unchecked(rt, base, imms);
+    const addr = (this.gprS32[base * 2] + imms) | 0;
+    const phys = addr ^ -0x80000000;
+    const v = (phys & -0x7ffffd) === 0 ? this.ramDV.getInt32(phys, false) : memaccess.loadS32fast(addr);
+    cpu1.regS32[cpu1.regIdx32_cop[rt]] = v;
   }
 
   // Caller must have established that COP1 is usable.
   execLWC1Unchecked(rt, base, imms) {
-    cpu1.store32(cpu1.copRegIdx32(rt), memaccess.loadS32fast(this.addrS32(base, imms)));
+    const addr = (this.gprS32[base * 2] + imms) | 0;
+    const phys = addr ^ -0x80000000;
+    const v = (phys & -0x7ffffd) === 0 ? this.ramDV.getInt32(phys, false) : memaccess.loadS32fast(addr);
+    cpu1.regS32[cpu1.regIdx32_cop[rt]] = v;
   }
 
   execLWC2(rt, base, imms) {
@@ -2105,16 +2111,16 @@ export class CPU0 {
 
   // Caller must have established that COP1 is usable.
   execLDC1Unchecked(rt, base, imms) {
-    const addr = this.addrS32(base, imms);
-    const regIdx = cpu1.copRegIdx64(rt);
+    const addr = (this.gprS32[base * 2] + imms) | 0;
+    const regIdx = cpu1.regIdx64_cop[rt];
     if ((addr & 7) === 0 && addr < memaccess.kKseg0RamEndS32) {
-      const phys = (addr + 0x80000000) | 0;
+      const phys = addr ^ -0x80000000;
       const hi = this.ramDV.getInt32(phys, false);
       const lo = this.ramDV.getInt32(phys + 4, false);
-      cpu1.store32(regIdx * 2, lo);
-      cpu1.store32(regIdx * 2 + 1, hi);
+      cpu1.regS32[regIdx * 2] = lo;
+      cpu1.regS32[regIdx * 2 + 1] = hi;
     } else {
-      cpu1.store64(regIdx, memaccess.loadU64fast(addr));
+      cpu1.regU64[regIdx] = memaccess.loadU64fast(addr);
     }
   }
 
@@ -2126,18 +2132,18 @@ export class CPU0 {
   }
 
   execSB(rt, base, imms) {
-    memaccess.store8fast(this.addrS32(base, imms), this.getRegS32Lo(rt) /*& 0xff*/);
+    memaccess.store8fast((this.gprS32[base * 2] + imms) | 0, this.gprS32[rt * 2] /*& 0xff*/);
   }
   execSH(rt, base, imms) {
-    memaccess.store16fast(this.addrS32(base, imms), this.getRegS32Lo(rt) /*& 0xffff*/);
+    memaccess.store16fast((this.gprS32[base * 2] + imms) | 0, this.gprS32[rt * 2] /*& 0xffff*/);
   }
   execSW(rt, base, imms) {
-    memaccess.store32fast(this.addrS32(base, imms), this.getRegS32Lo(rt));
+    memaccess.store32fast((this.gprS32[base * 2] + imms) | 0, this.gprS32[rt * 2]);
   }
   execSD(rt, base, imms) {
-    const addr = this.addrS32(base, imms);
+    const addr = (this.gprS32[base * 2] + imms) | 0;
     if ((addr & 7) === 0 && addr < memaccess.kKseg0RamEndS32) {
-      const phys = (addr + 0x80000000) | 0;
+      const phys = addr ^ -0x80000000;
       this.ramDV.setInt32(phys, this.gprS32[rt * 2 + 1], false);
       this.ramDV.setInt32(phys + 4, this.gprS32[rt * 2], false);
     } else {
@@ -2181,12 +2187,26 @@ export class CPU0 {
     if (!this.checkCopXUsable(1)) {
       return;
     }
-    this.execSWC1Unchecked(rt, base, imms);
+    const addr = (this.gprS32[base * 2] + imms) | 0;
+    const phys = addr ^ -0x80000000;
+    const v = cpu1.regS32[cpu1.regIdx32_cop[rt]];
+    if ((phys & -0x7ffffd) === 0) {
+      this.ramDV.setInt32(phys, v, false);
+    } else {
+      memaccess.store32fast(addr, v);
+    }
   }
 
   // Caller must have established that COP1 is usable.
   execSWC1Unchecked(rt, base, imms) {
-    memaccess.store32fast(this.addrS32(base, imms), cpu1.loadU32(cpu1.copRegIdx32(rt)));
+    const addr = (this.gprS32[base * 2] + imms) | 0;
+    const phys = addr ^ -0x80000000;
+    const v = cpu1.regS32[cpu1.regIdx32_cop[rt]];
+    if ((phys & -0x7ffffd) === 0) {
+      this.ramDV.setInt32(phys, v, false);
+    } else {
+      memaccess.store32fast(addr, v);
+    }
   }
 
   execSWC2(rt, base, imms) {
@@ -2205,14 +2225,14 @@ export class CPU0 {
 
   // Caller must have established that COP1 is usable.
   execSDC1Unchecked(rt, base, imms) {
-    const addr = this.addrS32(base, imms);
-    const regIdx = cpu1.copRegIdx64(rt);
+    const addr = (this.gprS32[base * 2] + imms) | 0;
+    const regIdx = cpu1.regIdx64_cop[rt];
     if ((addr & 7) === 0 && addr < memaccess.kKseg0RamEndS32) {
-      const phys = (addr + 0x80000000) | 0;
-      this.ramDV.setInt32(phys, cpu1.loadS32(regIdx * 2 + 1), false);
-      this.ramDV.setInt32(phys + 4, cpu1.loadS32(regIdx * 2), false);
+      const phys = addr ^ -0x80000000;
+      this.ramDV.setInt32(phys, cpu1.regS32[regIdx * 2 + 1], false);
+      this.ramDV.setInt32(phys + 4, cpu1.regS32[regIdx * 2], false);
     } else {
-      memaccess.store64fast(addr, cpu1.loadU64(regIdx));
+      memaccess.store64fast(addr, cpu1.regU64[regIdx]);
     }
   }
 
@@ -2404,10 +2424,10 @@ export class CPU0 {
   }
 
   // Cop1
-  execMFC1(rt, fs) { this.setRegS32Extend(rt, cpu1.loadS32(cpu1.copRegIdx32(fs))); }
-  execDMFC1(rt, fs) { this.setRegU64(rt, cpu1.loadU64(cpu1.copRegIdx64(fs))); }
-  execMTC1(rt, fs) { cpu1.store32(cpu1.copRegIdx32(fs), this.getRegS32Lo(rt)); }
-  execDMTC1(rt, fs) { cpu1.store64(cpu1.copRegIdx64(fs), this.getRegS64(rt)); }
+  execMFC1(rt, fs) { this.setRegS32Extend(rt, cpu1.regS32[cpu1.regIdx32_cop[fs]]); }
+  execDMFC1(rt, fs) { this.setRegU64(rt, cpu1.regU64[cpu1.regIdx64_cop[fs]]); }
+  execMTC1(rt, fs) { cpu1.regS32[cpu1.regIdx32_cop[fs]] = this.gprS32[rt * 2]; }
+  execDMTC1(rt, fs) { cpu1.regU64[cpu1.regIdx64_cop[fs]] = this.gprS64[rt]; }
 
   execCFC1(rt, fs) {
     switch (fs) {

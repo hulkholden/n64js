@@ -695,9 +695,11 @@ for (const profiled of [false, true]) {
       expect(result.compiledCop1Checks).toBe(2);
     });
 
-    for (const [name, opcode, store, wide] of [
-      ['LWC1', decode.OP_LWC1, false, false], ['LDC1', decode.OP_LDC1, false, true],
-      ['SWC1', decode.OP_SWC1, true, false], ['SDC1', decode.OP_SDC1, true, true],
+    for (const [name, opcode, store, wide, uncheckedAccess] of [
+      ['LWC1', decode.OP_LWC1, false, false, 'c.execLWC1Unchecked(3, 4, 0);'],
+      ['LDC1', decode.OP_LDC1, false, true, 'c.execLDC1Unchecked(3, 4, 0);'],
+      ['SWC1', decode.OP_SWC1, true, false, 'c.execSWC1Unchecked(3, 4, 0);'],
+      ['SDC1', decode.OP_SDC1, true, true, 'c.execSDC1Unchecked(3, 4, 0);'],
     ]) {
       for (const taken of [false, true]) {
         test(`unchecked ${name} delay target differs from training, taken=${taken}`, async () => {
@@ -753,9 +755,9 @@ for (const profiled of [false, true]) {
             expect(result.cause).toBe(0);
             expect(result.code).not.toContain('if (c.pc !== 0x8000100c)');
             expect(result.code).not.toContain('if (c.pc !== 0x80001010)');
-            const afterAccess = result.code.slice(result.code.indexOf(`c.exec${name}Unchecked`));
+            const afterAccess = result.code.slice(result.code.indexOf(uncheckedAccess));
             expect(afterAccess).not.toContain('if (c.delayPC !== null)');
-            expect(result.code).toContain('c.exec' + name + 'Unchecked');
+            expect(result.code).toContain(uncheckedAccess);
             if (profiled) {
               expect(result.profile.compiledOps).toBe(runCycles);
             }
