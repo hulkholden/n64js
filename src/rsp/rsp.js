@@ -472,7 +472,7 @@ export class RSP {
   unhalt() {
     // TODO: should this just check the status bits?
     this.halted = false;
-    if (this.hardware.cpu0.fragmentOps !== null) {
+    if (this.hardware.cpu0.fragmentOps >= 0) {
       this.hardware.cpu0.rspFragmentOps = this.hardware.cpu0.fragmentOps + 1;
     }
 
@@ -548,7 +548,7 @@ export class RSP {
   }
 
   moveFromControl(controlReg) {
-    if (this.hardware.cpu0.fragmentOps !== null) {
+    if (this.hardware.cpu0.fragmentOps >= 0) {
       this.hardware.cpu0.fragmentOps = this.hardware.cpu0.rspFragmentOps;
     }
     switch (controlReg) {
@@ -576,7 +576,7 @@ export class RSP {
   }
 
   moveToControl(controlReg, value) {
-    if (this.hardware.cpu0.fragmentOps !== null) {
+    if (this.hardware.cpu0.fragmentOps >= 0) {
       this.hardware.cpu0.fragmentOps = this.hardware.cpu0.rspFragmentOps;
     }
     switch (controlReg) {

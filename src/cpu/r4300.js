@@ -428,8 +428,8 @@ export class CPU0 {
     this.controlCountValue = 0;
 
     // Completed instructions before a potentially throwing compiled operation.
-    // Null means execution is outside a compiled fragment.
-    this.fragmentOps = null;
+    // -1 means execution is outside a compiled fragment.
+    this.fragmentOps = -1;
     this.fragmentCycles = 0; // Instructions whose Count/event updates were flushed.
     this.rspFragmentOps = 0;
 
@@ -539,7 +539,7 @@ export class CPU0 {
   }
 
   flushFragmentCycles() {
-    if (this.fragmentOps !== null && this.fragmentOps > this.fragmentCycles) {
+    if (this.fragmentOps > this.fragmentCycles) {
       this.syncFragmentCycles(this.fragmentOps);
     }
   }
@@ -551,10 +551,14 @@ export class CPU0 {
   }
 
   finishFragment(opsExecuted) {
-    this.syncFragmentCycles(opsExecuted);
-    this.fragmentOps = null;
+    const cycles = opsExecuted - this.fragmentCycles;
+    this.fragmentOps = -1;
     this.fragmentCycles = 0;
     this.rspFragmentOps = 0;
+    if (!kAccurateCountUpdating) {
+      this.controlCountValue += cycles;
+    }
+    this.eventQueue.incrementCount(cycles);
   }
 
   getRegS32Lo(r) { return this.gprS32[r * 2 + 0]; }
@@ -687,7 +691,7 @@ export class CPU0 {
 
   reset() {
     this.hardware.fragmentCache.reset();
-    this.fragmentOps = null;
+    this.fragmentOps = -1;
     this.fragmentCycles = 0;
     this.rspFragmentOps = 0;
     this.compatibilityHacks = this.hardware.enableCompatibilityHacks ? getCompatibilityHacks(this.hardware.rominfo.id) : null;
@@ -939,7 +943,7 @@ export class CPU0 {
         this.runImpl();
         break;
       } catch (e) {
-        if (this.fragmentOps !== null) {
+        if (this.fragmentOps >= 0) {
           const completedOps = this.fragmentOps;
           this.finishFragment(completedOps);
           if (performanceProfile.enabled) {
@@ -974,15 +978,17 @@ export class CPU0 {
 
   runImpl() {
     const eventQueue = this.eventQueue;
-    const runFragment = performanceProfile.enabled ? executeFragmentProfiled : executeFragment;
+    const profiling = performanceProfile.enabled;
 
     while (this.hasEvent(kEventRunForCycles)) {
       let fragment = this.hardware.fragmentCache.lookupFragment(this.pc);
 
       while (!this.stuffToDo) {
 
-        if (fragment && fragment.func) {
-          fragment = runFragment(fragment, this, eventQueue);
+        if (fragment !== null && fragment.func !== undefined) {
+          fragment = profiling
+            ? executeFragmentProfiled(fragment, this, eventQueue)
+            : executeFragment(fragment, this, eventQueue);
         } else {
           // Validate only immediately before execution, including cached
           // successors. Lookup may happen before an interrupt changes RAM.
@@ -992,7 +998,7 @@ export class CPU0 {
               continue;
             }
           }
-          if (performanceProfile.enabled) {
+          if (profiling) {
             performanceProfile.counters.interpretedOps++;
           }
 
@@ -2964,22 +2970,55 @@ function revalidateFragment(fragment, cpu0) {
 }
 
 function canEnterFragment(fragment, cpu0, eventQueue) {
-  return eventQueue.nextEventCountdown() >= fragment.opsCompiled &&
+  return eventQueue.cyclesToFirstEvent >= fragment.opsCompiled &&
     (cpu0.delayPC === null || fragment.entryDelayPC !== null);
 }
 
+// Hot compiled-fragment dispatch loop. This is performance critical (~millions
+// of runs per second across short traces), so canEnterFragment, finishFragment,
+// eventQueue.incrementCount, and primary getNextFragment checks are manually
+// inlined across contiguous compiled fragments, while fireEvents(), secondary
+// successor lookups, and isUnfinishedTrace() checks stay out-of-line on the
+// cold paths. The unsigned bounds check prevents out-of-bounds array reads when
+// self-loops return opsExecuted > opsCompiled. Kept in a standalone function
+// rather than nested inside CPU0.runImpl() so the megamorphic fragment.func()
+// loop does not bloat register allocation or OSR tiering across the
+// interpreter loop.
 function executeFragment(fragment, cpu0, eventQueue) {
-  if (!canEnterFragment(fragment, cpu0, eventQueue)) {
-    // We're close to another event or in a delay slot for a non-delay fragment: drop to the interpreter.
-    return null;
-  }
-  fragment.executionCount++;
-  cpu0.fragmentOps = 0;
-  cpu0.rspFragmentOps = 0;
-  const opsExecuted = fragment.func();
-  cpu0.finishFragment(opsExecuted);
+  do {
+    if (
+      eventQueue.cyclesToFirstEvent < fragment.opsCompiled ||
+      (cpu0.delayPC !== null && fragment.entryDelayPC === null)
+    ) {
+      // We're close to another event or in a delay slot for a non-delay fragment: drop to the interpreter.
+      return null;
+    }
+    fragment.executionCount++;
+    cpu0.fragmentOps = 0;
+    cpu0.rspFragmentOps = 0;
+    const opsExecuted = fragment.func();
+    const cycles = opsExecuted - cpu0.fragmentCycles;
+    cpu0.fragmentOps = -1;
+    cpu0.fragmentCycles = 0;
+    cpu0.rspFragmentOps = 0;
+    if (!kAccurateCountUpdating) {
+      cpu0.controlCountValue += cycles;
+    }
+    if ((eventQueue.cyclesToFirstEvent -= cycles) <= 0) {
+      eventQueue.fireEvents();
+    }
+    const nextFragments = fragment.nextFragments;
+    let nextFragment = (opsExecuted >>> 0) < nextFragments.length ? nextFragments[opsExecuted] : undefined;
+    if (!nextFragment || nextFragment.entryPC !== cpu0.pc) {
+      nextFragment = fragment.lookupNextFragment(cpu0.pc, opsExecuted);
+    }
+    if (nextFragment && nextFragment.func === undefined && nextFragment.isUnfinishedTrace()) {
+      nextFragment.invalidate();
+    }
+    fragment = nextFragment;
+  } while (!cpu0.stuffToDo && fragment !== null && fragment.func !== undefined);
 
-  return fragment.getNextFragment(cpu0.pc, opsExecuted);
+  return fragment;
 }
 
 function executeFragmentProfiled(fragment, cpu0, eventQueue) {
