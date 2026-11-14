@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'bun:test';
+import { AssertException } from '../../assert.js';
 import * as gbi from './gbi.js';
 import * as rdp_blend from './rdp_blend_constants.js';
 import { Renderer } from './renderer.js';
 import { RSPState } from './rsp_state.js';
-import { getCombinerText, getOrCreateN64Shader } from './shaders.js';
+import { createShaderProgram, getCombinerText, getOrCreateN64Shader } from './shaders.js';
 
 function createMockGL() {
   let programsCreated = 0;
@@ -20,10 +21,15 @@ function createMockGL() {
     shaderSource() {},
     compileShader() {},
     getShaderParameter: () => true,
+    getShaderInfoLog: () => '',
     createProgram: () => ({ id: ++programsCreated }),
     attachShader() {},
+    detachShader() {},
+    deleteShader() {},
+    deleteProgram() {},
     linkProgram() {},
     getProgramParameter: () => true,
+    getProgramInfoLog: () => '',
     createVertexArray: () => ({}),
     bindVertexArray() {},
     getAttribLocation: () => 0,
@@ -235,6 +241,268 @@ describe('combiner descriptions', () => {
     expect(upload.floats.slice(7, 11)).toEqual([3, -4, 0.25, 2]);
     expect(upload.words[11]).toBe(0xaabbccdd);
     expect(upload.floats.slice(12, 14)).toEqual([-3.5, 4.75]);
+  });
+});
+
+function createTrackedMockGL({
+  linkStatus = () => true,
+  compileStatus = () => true,
+  shaderInfoLog = () => '',
+  programInfoLog = () => '',
+} = {}) {
+  const baseGL = createMockGL();
+  let shaderId = 0;
+  let programId = 0;
+  const calls = [];
+  const createdShaders = [];
+  const detachedShaders = [];
+  const deletedShaders = [];
+  const deletedPrograms = [];
+  const shaderParameterQueries = [];
+  const shaderInfoLogQueries = [];
+  const programParameterQueries = [];
+
+  const gl = {
+    ...baseGL,
+    createShader(type) {
+      const shader = { id: ++shaderId, type };
+      createdShaders.push(shader);
+      calls.push({ op: 'createShader', shader });
+      return shader;
+    },
+    shaderSource(shader, source) {
+      calls.push({ op: 'shaderSource', shader, source });
+    },
+    compileShader(shader) {
+      calls.push({ op: 'compileShader', shader });
+    },
+    getShaderParameter(shader, pname) {
+      shaderParameterQueries.push({ shader, pname });
+      calls.push({ op: 'getShaderParameter', shader, pname });
+      if (pname === baseGL.COMPILE_STATUS) {
+        return compileStatus(shader);
+      }
+      return true;
+    },
+    getShaderInfoLog(shader) {
+      shaderInfoLogQueries.push(shader);
+      calls.push({ op: 'getShaderInfoLog', shader });
+      return shaderInfoLog(shader);
+    },
+    createProgram() {
+      const program = { id: ++programId };
+      calls.push({ op: 'createProgram', program });
+      return program;
+    },
+    attachShader(program, shader) {
+      calls.push({ op: 'attachShader', program, shader });
+    },
+    detachShader(program, shader) {
+      detachedShaders.push({ program, shader });
+      calls.push({ op: 'detachShader', program, shader });
+    },
+    deleteShader(shader) {
+      deletedShaders.push(shader);
+      calls.push({ op: 'deleteShader', shader });
+    },
+    deleteProgram(program) {
+      deletedPrograms.push(program);
+      calls.push({ op: 'deleteProgram', program });
+    },
+    linkProgram(program) {
+      calls.push({ op: 'linkProgram', program });
+    },
+    getProgramParameter(program, pname) {
+      programParameterQueries.push({ program, pname });
+      calls.push({ op: 'getProgramParameter', program, pname });
+      if (pname === baseGL.LINK_STATUS) {
+        return linkStatus(program);
+      }
+      return true;
+    },
+    getProgramInfoLog(program) {
+      calls.push({ op: 'getProgramInfoLog', program });
+      return programInfoLog(program);
+    },
+  };
+
+  return {
+    gl,
+    calls,
+    createdShaders,
+    detachedShaders,
+    deletedShaders,
+    deletedPrograms,
+    shaderParameterQueries,
+    shaderInfoLogQueries,
+    programParameterQueries,
+  };
+}
+
+describe('shader compilation and linking', () => {
+  test('createShaderProgram defers COMPILE_STATUS queries when LINK_STATUS succeeds and deletes one-off shaders', () => {
+    const tracker = createTrackedMockGL();
+    const { gl } = tracker;
+
+    const program = createShaderProgram(gl, 'vert source', 'frag source');
+    expect(program).toEqual({ id: 1 });
+    expect(tracker.shaderParameterQueries).toEqual([]);
+    expect(tracker.programParameterQueries).toEqual([{ program, pname: gl.LINK_STATUS }]);
+    expect(tracker.deletedPrograms).toEqual([]);
+
+    const [vertexShader, fragmentShader] = tracker.createdShaders;
+    expect(vertexShader.type).toBe(gl.VERTEX_SHADER);
+    expect(fragmentShader.type).toBe(gl.FRAGMENT_SHADER);
+    expect(tracker.detachedShaders).toEqual([
+      { program, shader: vertexShader },
+      { program, shader: fragmentShader },
+    ]);
+    expect(tracker.deletedShaders).toEqual([vertexShader, fragmentShader]);
+
+    const opOrder = tracker.calls.map(call => call.op);
+    const linkIndex = opOrder.indexOf('linkProgram');
+    const linkStatusIndex = opOrder.indexOf('getProgramParameter');
+    expect(opOrder.filter(op => op === 'compileShader')).toHaveLength(2);
+    expect(opOrder.filter(op => op === 'attachShader')).toHaveLength(2);
+    expect(linkIndex).toBeGreaterThan(opOrder.lastIndexOf('attachShader'));
+    expect(linkStatusIndex).toBe(linkIndex + 1);
+  });
+
+  test('getOrCreateN64Shader skips COMPILE_STATUS when linking succeeds, deletes fragment shaders, and retains shared vertex shaders', () => {
+    const tracker = createTrackedMockGL();
+    const { gl } = tracker;
+
+    getOrCreateN64Shader(gl, 0x00123456, 0x789abcde, gbi.CycleType.G_CYC_1CYCLE, 0, false, false);
+    getOrCreateN64Shader(gl, 0x01234567, 0x089abcde, gbi.CycleType.G_CYC_1CYCLE, 0, false, false);
+    getOrCreateN64Shader(gl, 0x00123456, 0x789abcde, gbi.CycleType.G_CYC_1CYCLE, 0, false, true);
+
+    expect(tracker.shaderParameterQueries).toEqual([]);
+    expect(tracker.programParameterQueries).toHaveLength(3);
+    expect(tracker.deletedPrograms).toEqual([]);
+
+    const vertexShaders = tracker.createdShaders.filter(s => s.type === gl.VERTEX_SHADER);
+    const fragmentShaders = tracker.createdShaders.filter(s => s.type === gl.FRAGMENT_SHADER);
+    expect(vertexShaders).toHaveLength(2);
+    expect(fragmentShaders).toHaveLength(3);
+
+    expect(tracker.detachedShaders.map(entry => entry.shader)).toEqual(fragmentShaders);
+    expect(tracker.deletedShaders).toEqual(fragmentShaders);
+    for (const vertexShader of vertexShaders) {
+      expect(tracker.deletedShaders).not.toContain(vertexShader);
+    }
+  });
+
+  test('createShaderProgram reports vertex, fragment, and program logs on LINK_STATUS failure and cleans up', () => {
+    // Vertex shader compilation failure.
+    const vertexTracker = createTrackedMockGL({
+      linkStatus: () => false,
+      compileStatus: shader => shader.type !== 0x8b31,
+      shaderInfoLog: shader => (shader.type === 0x8b31 ? 'ERROR: vertex syntax error' : ''),
+      programInfoLog: () => 'missing vertex shader object',
+    });
+    let caughtError = null;
+    try {
+      createShaderProgram(vertexTracker.gl, 'bad vert', 'good frag');
+    } catch (error) {
+      caughtError = error;
+    }
+    expect(caughtError).toBeInstanceOf(AssertException);
+    expect(caughtError.message).toContain('ERROR: vertex syntax error');
+    expect(caughtError.message).toContain('missing vertex shader object');
+    expect(vertexTracker.deletedShaders).toEqual(vertexTracker.createdShaders);
+    expect(vertexTracker.deletedPrograms).toEqual([{ id: 1 }]);
+
+    // Fragment shader compilation failure.
+    const fragmentTracker = createTrackedMockGL({
+      linkStatus: () => false,
+      compileStatus: shader => shader.type !== 0x8b30,
+      shaderInfoLog: shader => (shader.type === 0x8b30 ? 'ERROR: fragment undeclared identifier' : ''),
+    });
+    caughtError = null;
+    try {
+      createShaderProgram(fragmentTracker.gl, 'good vert', 'bad frag');
+    } catch (error) {
+      caughtError = error;
+    }
+    expect(caughtError).toBeInstanceOf(AssertException);
+    expect(caughtError.message).toContain('ERROR: fragment undeclared identifier');
+    expect(fragmentTracker.deletedShaders).toEqual(fragmentTracker.createdShaders);
+    expect(fragmentTracker.deletedPrograms).toEqual([{ id: 1 }]);
+
+    // Link-only failure (both shaders compiled cleanly).
+    const linkTracker = createTrackedMockGL({
+      linkStatus: () => false,
+      compileStatus: () => true,
+      programInfoLog: () => 'varying mismatch between vertex and fragment',
+    });
+    caughtError = null;
+    try {
+      createShaderProgram(linkTracker.gl, 'vert', 'frag');
+    } catch (error) {
+      caughtError = error;
+    }
+    expect(caughtError).toBeInstanceOf(AssertException);
+    expect(caughtError.message).toContain('varying mismatch between vertex and fragment');
+    expect(linkTracker.shaderInfoLogQueries).toEqual([]);
+    expect(linkTracker.deletedShaders).toEqual(linkTracker.createdShaders);
+    expect(linkTracker.deletedPrograms).toEqual([{ id: 1 }]);
+  });
+
+  test('getOrCreateN64Shader deletes failed initial vertexShader without caching it, and preserves cached vertexShader when a later fragment fails', () => {
+    // 1. Initial vertex shader fails to compile: do not cache it; retry should recompile vertex shader and succeed.
+    let failInitialVertex = true;
+    const retryTracker = createTrackedMockGL({
+      linkStatus: () => !failInitialVertex,
+      compileStatus: shader => !(failInitialVertex && shader.type === 0x8b31),
+      shaderInfoLog: shader => (failInitialVertex && shader.type === 0x8b31 ? 'vertex compile boom' : ''),
+    });
+
+    let caughtError = null;
+    try {
+      getOrCreateN64Shader(retryTracker.gl, 0x00123456, 0x789abcde, gbi.CycleType.G_CYC_1CYCLE, 0, false, false);
+    } catch (error) {
+      caughtError = error;
+    }
+    expect(caughtError).toBeInstanceOf(AssertException);
+    expect(caughtError.message).toContain('vertex compile boom');
+    expect(retryTracker.deletedShaders).toEqual(retryTracker.createdShaders);
+    expect(retryTracker.deletedPrograms).toEqual([{ id: 1 }]);
+
+    failInitialVertex = false;
+    const recovered = getOrCreateN64Shader(retryTracker.gl, 0x00123456, 0x789abcde, gbi.CycleType.G_CYC_1CYCLE, 0, false, false);
+    expect(recovered.program).toEqual({ id: 2 });
+    const compiledVertexShaders = retryTracker.createdShaders.filter(s => s.type === retryTracker.gl.VERTEX_SHADER);
+    expect(compiledVertexShaders).toHaveLength(2);
+    expect(retryTracker.deletedShaders).not.toContain(compiledVertexShaders[1]);
+
+    // 2. Subsequent fragment shader fails after vertexShader is cached: preserve cached vertexShader.
+    let failNextFragment = false;
+    const tracker = createTrackedMockGL({
+      linkStatus: () => !failNextFragment,
+      compileStatus: shader => !(failNextFragment && shader.type === 0x8b30),
+      shaderInfoLog: shader => (failNextFragment && shader.type === 0x8b30 ? 'fragment combiner error' : ''),
+      programInfoLog: () => (failNextFragment ? 'linker aborted due to fragment error' : ''),
+    });
+
+    getOrCreateN64Shader(tracker.gl, 0x00123456, 0x789abcde, gbi.CycleType.G_CYC_1CYCLE, 0, false, false);
+    const [cachedVertexShader] = tracker.createdShaders.filter(s => s.type === tracker.gl.VERTEX_SHADER);
+
+    failNextFragment = true;
+    caughtError = null;
+    try {
+      getOrCreateN64Shader(tracker.gl, 0x01234567, 0x089abcde, gbi.CycleType.G_CYC_1CYCLE, 0, false, false);
+    } catch (error) {
+      caughtError = error;
+    }
+    expect(caughtError).toBeInstanceOf(AssertException);
+    expect(caughtError.message).toContain('fragment combiner error');
+    expect(caughtError.message).toContain('linker aborted due to fragment error');
+
+    const fragmentShaders = tracker.createdShaders.filter(s => s.type === tracker.gl.FRAGMENT_SHADER);
+    expect(fragmentShaders).toHaveLength(2);
+    expect(tracker.deletedShaders).toEqual(fragmentShaders);
+    expect(tracker.deletedShaders).not.toContain(cachedVertexShader);
+    expect(tracker.deletedPrograms).toEqual([{ id: 2 }]);
   });
 });
 
