@@ -1393,13 +1393,20 @@ function generateJ(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
+function genSetLinkReg(reg, ctx) {
+  if (ctx.needsDelayCheck) {
+    return genSetRegS32Extend(reg, '(c.nextPC + 4) | 0');
+  }
+  // When delayPC is known to be null, nextPC is guaranteed to be ctx.pc + 4.
+  const ra = ctx.pc + 8;
+  const ra_hi = (ra & 0x80000000) ? -1 : 0;
+  return genSetRegS64LoHi(reg, toString32(ra), ra_hi);
+}
+
 function generateJAL(ctx) {
   // TODO: can this call execJAL? It would need reworking to use branchTarget.
   const addr = jumpAddress(ctx.pc, ctx.instruction);
-  const ra = ctx.nextPC + 4;
-  // Optimise as sign is known at compile time.
-  const ra_hi = (ra & 0x80000000) ? -1 : 0;
-  const impl = `c.delayPC = ${toString32(addr)};\n${genSetRegS64LoHi(cpu0reg.RA, toString32(ra), ra_hi)}`;
+  const impl = `c.delayPC = ${toString32(addr)};\n${genSetLinkReg(cpu0reg.RA, ctx)}`;
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
@@ -1408,10 +1415,8 @@ function generateJALR(ctx) {
   const s = ctx.instr_rs();
   const d = ctx.instr_rd();
 
-  const ra = ctx.nextPC + 4;
-  const ra_hi = (ra & 0x80000000) ? -1 : 0;
-  // NB needs to be unsigned
-  const setLink = genSetRegS64LoHi(d, toString32(ra), ra_hi);
+  // NB needs to be unsigned; read rs before writing rd to preserve rd === rs.
+  const setLink = genSetLinkReg(d, ctx);
   const impl = `c.delayPC = ${genSrcRegU32Lo(s)};${setLink ? `\n${setLink}` : ''}`;
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
