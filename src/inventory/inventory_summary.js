@@ -2,7 +2,8 @@
 
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { collectorSpecs, inspectCollector, readInventory } from './inventory_reports.js';
+import { allCollectorSpecs, inspectCollector, unknownReportReason } from './inventory_collectors.js';
+import { readInventory } from './inventory_reports.js';
 
 const usage = `Usage: bun run inventory-summary <inventory-root|scan-directory|report.json>
   --help  Show this help
@@ -24,16 +25,14 @@ are taken from reports; missing/unsupported reports have an unknown outcome.
 Exit codes: 0 summary read successfully (even with failed ROM runs); 2 argument
 or data error.`;
 
-const specs = Object.values(collectorSpecs).flat();
-
 function summarizeRun({ collectors, ...row }) {
-  row.collectors = Object.fromEntries(specs.map(spec => {
+  row.collectors = Object.fromEntries(allCollectorSpecs.map(spec => {
     if (!collectors) {
       return [spec.name, {
-        state: 'unknown', reason: row.reportVersion === null ? 'missing-report' : 'unsupported-report-version',
+        state: 'unknown', reason: unknownReportReason(row.reportVersion),
       }];
     }
-    const { collector, matches: records, ...observation } = inspectCollector({ collectors }, spec, () => true);
+    const { collector, matches: records, ...observation } = inspectCollector(collectors, spec);
     return [collector, { ...observation, ...(records ? { records } : {}) }];
   }));
   return row;
@@ -43,7 +42,7 @@ async function summarize(input) {
   const { runs, errors } = await readInventory(input);
   const rows = runs.map(summarizeRun);
   const statuses = new Map();
-  const collectors = Object.fromEntries(specs.map(spec => [spec.name, { observed: 0, notObserved: 0, unknown: 0 }]));
+  const collectors = Object.fromEntries(allCollectorSpecs.map(spec => [spec.name, { observed: 0, notObserved: 0, unknown: 0 }]));
   for (const row of rows) {
     const status = row.result?.status ?? 'unknown';
     statuses.set(status, (statuses.get(status) ?? 0) + 1);

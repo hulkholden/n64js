@@ -1,6 +1,6 @@
 import { createHeadlessEmulator, loadROMFile } from '../headless/headless_env.js';
+import { createInventoryCollectors } from './inventory_collectors.js';
 import { createInputDriver, createRandom } from './inventory_input.js';
-import { ImageFormat } from '../hle/graphics/gbi.js';
 import { captureFailure } from './inventory_failure.js';
 import { sendInventoryUpdate } from './inventory_ipc.js';
 import { sha256Hex } from './inventory_schema.js';
@@ -13,14 +13,7 @@ let emulator = null;
 let collecting = false;
 const cycleLimitEvent = 'Inventory cycle limit';
 let cycleLimitReached = false;
-let tasks = 0;
-const taskMicrocodes = new Map();
-let loads = 0;
-const loadedMicrocodes = new Map();
-const textureFormats = new Map();
-const drawModes = new Map();
-let audioTasks = 0;
-const audioMicrocodes = new Map();
+const collectors = createInventoryCollectors();
 
 function cyclesExecuted() {
   if (!collecting) {
@@ -40,36 +33,7 @@ function snapshot() {
     rom,
     frames: emulator?.hardware.verticalBlankCount ?? 0,
     cycles: cyclesExecuted(),
-    collectors: collecting ? {
-      'audio.taskMicrocodes': {
-        version: 1,
-        scope: 'task-start',
-        tasks: audioTasks,
-        microcodes: [...audioMicrocodes.values()],
-      },
-      'graphics.taskMicrocodes': {
-        version: 1,
-        scope: 'task-start',
-        tasks,
-        microcodes: [...taskMicrocodes.values()],
-      },
-      'graphics.microcodeLoads': {
-        version: 1,
-        scope: 'hle-load',
-        loads,
-        microcodes: [...loadedMicrocodes.values()],
-      },
-      'graphics.drawModes': {
-        version: 1,
-        scope: 'headless-draw',
-        modes: [...drawModes.values()],
-      },
-      'graphics.textureFormats': {
-        version: 1,
-        scope: 'hle-draw',
-        formats: [...textureFormats.values()],
-      },
-    } : {},
+    collectors: collecting ? collectors.snapshot() : {},
   };
 }
 
@@ -97,52 +61,7 @@ try {
   emulator = await createHeadlessEmulator(loadedROM, {
     executeGraphics: true,
     onVerticalBlank: frame => updateInput(frame, emulator.inputs[0]),
-    onAudioTask: info => {
-      audioTasks++;
-      const key = JSON.stringify(info);
-      const record = audioMicrocodes.get(key);
-      if (record) {
-        record.tasks++;
-      } else {
-        audioMicrocodes.set(key, { ...info, tasks: 1 });
-      }
-    },
-    onGraphicsTask: info => {
-      tasks++;
-      const key = JSON.stringify(info);
-      const record = taskMicrocodes.get(key);
-      if (record) {
-        record.tasks++;
-      } else {
-        taskMicrocodes.set(key, { ...info, tasks: 1 });
-      }
-    },
-    onMicrocodeLoad: info => {
-      loads++;
-      const key = JSON.stringify(info);
-      const record = loadedMicrocodes.get(key);
-      if (record) {
-        record.loads++;
-      } else {
-        loadedMicrocodes.set(key, { ...info, loads: 1 });
-      }
-    },
-    onGraphicsMode: info => {
-      const key = JSON.stringify(info);
-      const record = drawModes.get(key);
-      if (record) {
-        record.draws++;
-      } else {
-        drawModes.set(key, { ...info, draws: 1 });
-      }
-    },
-    onTextureUse: info => {
-      const key = `${info.format}:${info.size}`;
-      if (!textureFormats.has(key)) {
-        const format = ImageFormat.nameOf(info.format).replace('G_IM_FMT_', '');
-        textureFormats.set(key, { ...info, name: `${format}${4 << info.size}` });
-      }
-    },
+    ...collectors.hooks,
     onHalt: (_message, details) => {
       failure = captureFailure(details ? 'exception' : 'halt', details?.error, emulator);
     },

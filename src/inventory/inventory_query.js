@@ -2,8 +2,8 @@
 
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { collectorSpecs, inspectCollector, readInventory } from './inventory_reports.js';
-import { ImageFormat, ImageSize } from '../hle/graphics/gbi.js';
+import { collectorSpecs, inspectCollector, parseTextureFormat, unknownReportReason } from './inventory_collectors.js';
+import { readInventory } from './inventory_reports.js';
 
 const usage = `Usage: bun run inventory-query <inventory-root|scan-directory|report.json> [filters]
   --microcode <family>  Match a handler family, e.g. GBI2 (case insensitive)
@@ -73,14 +73,7 @@ function parseFilters(values) {
     filters.microcode = values.microcode.trim().toUpperCase();
   }
   if (values.texture !== undefined) {
-    const name = values.texture.trim().toUpperCase();
-    const match = /^(RGBA|YUV|CI|IA|I)(4|8|16|32)$/.exec(name);
-    if (!match) {
-      throw new Error('Expected a texture format such as CI4 or RGBA16');
-    }
-    filters.texture = {
-      name, format: ImageFormat[`G_IM_FMT_${match[1]}`], size: ImageSize[`G_IM_SIZ_${match[2]}b`],
-    };
+    filters.texture = parseTextureFormat(values.texture);
   }
   if (!Object.keys(filters).length) {
     throw new Error('Specify --microcode, --audio-microcode, --texture, --blend-mode or --cycle-type');
@@ -88,19 +81,23 @@ function parseFilters(values) {
   return filters;
 }
 
-function assess(report, filters) {
+const featurePredicates = {
+  graphicsMode: value => record =>
+    (value.blendMode === undefined || (record.otherModeL >>> 16) === value.blendMode) &&
+    (value.cycleType === undefined || ((record.otherModeH >>> 20) & 3) === value.cycleType),
+  audioMicrocode: value => record => record.family.toUpperCase() === value,
+  microcode: value => record => record.family.toUpperCase() === value,
+  texture: value => record => record.format === value.format && record.size === value.size,
+};
+
+function assess(collectors, filters) {
   const checks = {};
   for (const [feature, value] of Object.entries(filters)) {
-    const predicate = feature === 'graphicsMode'
-      ? record => (value.blendMode === undefined || (record.otherModeL >>> 16) === value.blendMode) &&
-        (value.cycleType === undefined || ((record.otherModeH >>> 20) & 3) === value.cycleType)
-      : feature !== 'texture'
-        ? record => record.family.toUpperCase() === value
-        : record => record.format === value.format && record.size === value.size;
-    const collectors = collectorSpecs[feature].map(spec => inspectCollector(report, spec, predicate));
-    const state = collectors.some(item => item.state === 'observed') ? 'observed'
-      : collectors.some(item => item.state === 'unknown') ? 'unknown' : 'not-observed';
-    checks[feature] = { state, collectors };
+    const predicate = featurePredicates[feature](value);
+    const inspected = collectorSpecs[feature].map(spec => inspectCollector(collectors, spec, predicate));
+    const state = inspected.some(item => item.state === 'observed') ? 'observed'
+      : inspected.some(item => item.state === 'unknown') ? 'unknown' : 'not-observed';
+    checks[feature] = { state, collectors: inspected };
   }
   const states = Object.values(checks).map(check => check.state);
   const state = states.includes('not-observed') ? 'not-observed' : states.includes('unknown') ? 'unknown' : 'observed';
@@ -117,10 +114,10 @@ async function query(input, filters) {
   const { runs, errors } = await readInventory(input);
   output.errors = errors;
   for (const { collectors, reportVersion, ...row } of runs) {
-    const { state, checks } = collectors ? assess({ collectors }, filters) : {
+    const { state, checks } = collectors ? assess(collectors, filters) : {
       state: 'unknown',
       checks: Object.fromEntries(Object.keys(filters).map(feature => [feature, {
-        state: 'unknown', reason: reportVersion === null ? 'missing-report' : 'unsupported-report-version', reportVersion,
+        state: 'unknown', reason: unknownReportReason(reportVersion), reportVersion,
       }])),
     };
     row.checks = checks;
