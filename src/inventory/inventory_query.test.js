@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ImageFormat, ImageSize } from '../hle/graphics/gbi.js';
+import { parseFilters } from './inventory_query.js';
 import { ci4, invokeCLI, makeReport, rgba16, withDirectory, writeScan } from './test_helpers.js';
 
 const cli = fileURLToPath(new URL('./inventory_query.js', import.meta.url));
@@ -194,5 +196,34 @@ describe('inventory query', () => {
       expect(result.code).toBe(2);
       expect(result.stdout).toBe('');
     }
+  });
+
+  test('parseFilters normalizes blend modes, cycle types, microcodes, and textures directly', () => {
+    expect(parseFilters({
+      'blend-mode': ' 0xC811 ',
+      'cycle-type': ' 2CYCLE ',
+      microcode: ' gbi2 ',
+      'audio-microcode': ' abi1 ',
+      texture: ' ci4 ',
+    })).toEqual({
+      graphicsMode: { blendMode: 0xc811, cycleType: 1 },
+      microcode: 'GBI2',
+      audioMicrocode: 'ABI1',
+      texture: { name: 'CI4', format: ImageFormat.G_IM_FMT_CI, size: ImageSize.G_IM_SIZ_4b },
+    });
+
+    for (const [cycleType, expected] of [['1cycle', 0], ['2cycle', 1], ['copy', 2], ['fill', 3]]) {
+      expect(parseFilters({ 'cycle-type': cycleType })).toEqual({ graphicsMode: { cycleType: expected } });
+    }
+    expect(parseFilters({ 'blend-mode': '51217' })).toEqual({ graphicsMode: { blendMode: 51217 } });
+
+    expect(() => parseFilters({})).toThrow('Specify --microcode, --audio-microcode, --texture, --blend-mode or --cycle-type');
+    for (const badBlend of ['-1', '0x10000', '1.5', '', 'abcd']) {
+      expect(() => parseFilters({ 'blend-mode': badBlend })).toThrow('Expected a 16-bit blend mode');
+    }
+    expect(() => parseFilters({ 'cycle-type': '3cycle' })).toThrow('Expected cycle type 1cycle, 2cycle, copy, or fill');
+    expect(() => parseFilters({ microcode: '   ' })).toThrow('Expected a microcode family');
+    expect(() => parseFilters({ 'audio-microcode': '   ' })).toThrow('Expected an audio microcode family');
+    expect(() => parseFilters({ texture: 'RGBBAD' })).toThrow('Expected a texture format such as CI4 or RGBA16');
   });
 });
