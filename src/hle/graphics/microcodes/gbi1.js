@@ -174,7 +174,7 @@ export class GBI1 extends GBIMicrocode {
   }
 
   executeVertex(cmd0, cmd1, dis) {
-    const v0 = ((cmd0 >>> 16) & 0xff) / this.vertexStride;
+    const v0 = Math.floor(((cmd0 >>> 16) & 0xff) / this.vertexStride);
     const n = ((cmd0 >>> 10) & 0x3f);
     //const length = (cmd0 >>>  0) & 0x3ff;
     const address = this.state.rdpSegmentAddress(cmd1);
@@ -350,9 +350,9 @@ export class GBI1 extends GBIMicrocode {
     let limit = dis ? 1 : 0;
     let commandsExecuted = this.state.executeBatch(limit, (cmd0, cmd1) => {
       const flag = (cmd1 >>> 24) & 0xff;
-      const idx0 = ((cmd1 >>> 16) & 0xff) / stride;
-      const idx1 = ((cmd1 >>> 8) & 0xff) / stride;
-      const idx2 = ((cmd1 >>> 0) & 0xff) / stride;
+      const idx0 = Math.floor(((cmd1 >>> 16) & 0xff) / stride);
+      const idx1 = Math.floor(((cmd1 >>> 8) & 0xff) / stride);
+      const idx2 = Math.floor(((cmd1 >>> 0) & 0xff) / stride);
 
       if (dis) {
         dis.text(`gsSP1Triangle(${idx0}, ${idx1}, ${idx2}, ${flag});`);
@@ -375,12 +375,12 @@ export class GBI1 extends GBIMicrocode {
     // Process triangles individually when disassembling
     let limit = dis ? 1 : 0;
     let commandsExecuted = this.state.executeBatch(limit, (cmd0, cmd1) => {
-      const idx0 = ((cmd0 >>> 16) & 0xff) / stride;
-      const idx1 = ((cmd0 >>> 8) & 0xff) / stride;
-      const idx2 = ((cmd0 >>> 0) & 0xff) / stride;
-      const idx3 = ((cmd1 >>> 16) & 0xff) / stride;
-      const idx4 = ((cmd1 >>> 8) & 0xff) / stride;
-      const idx5 = ((cmd1 >>> 0) & 0xff) / stride;
+      const idx0 = Math.floor(((cmd0 >>> 16) & 0xff) / stride);
+      const idx1 = Math.floor(((cmd0 >>> 8) & 0xff) / stride);
+      const idx2 = Math.floor(((cmd0 >>> 0) & 0xff) / stride);
+      const idx3 = Math.floor(((cmd1 >>> 16) & 0xff) / stride);
+      const idx4 = Math.floor(((cmd1 >>> 8) & 0xff) / stride);
+      const idx5 = Math.floor(((cmd1 >>> 0) & 0xff) / stride);
 
       if (dis) {
         dis.text(`gsSP1Triangle2(${idx0},${idx1},${idx2}, ${idx3},${idx4},${idx5});`);
@@ -403,10 +403,10 @@ export class GBI1 extends GBIMicrocode {
     // Process triangles individually when disassembling
     let limit = dis ? 1 : 0;
     let commandsExecuted = this.state.executeBatch(limit, (cmd0, cmd1) => {
-      const idx3 = ((cmd1 >>> 24) & 0xff) / stride;
-      const idx0 = ((cmd1 >>> 16) & 0xff) / stride;
-      const idx1 = ((cmd1 >>> 8) & 0xff) / stride;
-      const idx2 = ((cmd1 >>> 0) & 0xff) / stride;
+      const idx3 = Math.floor(((cmd1 >>> 24) & 0xff) / stride);
+      const idx0 = Math.floor(((cmd1 >>> 16) & 0xff) / stride);
+      const idx1 = Math.floor(((cmd1 >>> 8) & 0xff) / stride);
+      const idx2 = Math.floor(((cmd1 >>> 0) & 0xff) / stride);
 
       if (dis) {
         dis.text(`gsSPLine3D(${idx0}, ${idx1}, ${idx2}, ${idx3});`);
