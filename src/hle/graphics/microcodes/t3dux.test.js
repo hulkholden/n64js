@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { executeDisplayList } from '../display_list.js';
+import { RenderMode } from '../gbi.js';
 import { identifyMicrocode, MicrocodeId } from '../microcode_identifier.js';
 import { create } from '../microcodes.js';
 import { NullRenderer } from '../null_renderer.js';
+import { Renderer } from '../renderer.js';
 import { RSPState } from '../rsp_state.js';
 import { t3duxNeedsWriteback } from './t3dux.js';
 
@@ -120,11 +122,11 @@ describe('T3DUX object lists', () => {
             -1, 1, 0, 1, -1, -1, 0, 1, 1, 1, 0, 1],
           colors: Array(6).fill(0x44332211),
           uv: [-1, 2, 3, -4, 5, 6, 7, 8, 5, 6, 3, -4],
-          palette: 9, texture: true,
+          palette: 9, texture: 1,
         });
         expect(draws[1].colors).toEqual([0xff0000ff, 0xff00ff00, 0xffff0000]);
         expect(draws[1].uv).toEqual([0, 0, 0, 0, 0, 0]);
-        expect(draws[1].texture).toBe(false);
+        expect(draws[1].texture).toBe(0);
         expect(rectangles).toEqual([[0, 0, 0, 16, 8, 1, 2, 17, 10, false]]);
         expect(state.fillColor).toBe(0x11223344);
         expect(state.segments[0]).toBe(0x1000);
@@ -210,7 +212,7 @@ describe('T3DUX object lists', () => {
       executeDisplayList(state, microcode);
       expect(draws).toHaveLength(2);
       expect(draws[0].colors).toEqual(Array(6).fill(0x44332211));
-      expect(draws[0].texture).toBe(false);
+      expect(draws[0].texture).toBe(0);
       expect(draws[0].palette).toBe(0);
     }
   });
@@ -226,5 +228,53 @@ describe('T3DUX object lists', () => {
       const { state, microcode } = setup(dv, hashes[0]);
       expect(() => executeDisplayList(state, microcode)).toThrow(message);
     }
+  });
+
+  test('sets numeric geometryMode.zbuffer so Renderer.initDepth disables depth testing when zbuffer is off', () => {
+    const dv = fixture();
+    dv.setUint32(0x1314, RenderMode.Z_CMP);
+    dv.setUint32(0x1394, RenderMode.Z_CMP);
+
+    const { state, microcode } = setup(dv, hashes[0]);
+    let depthTest = null;
+    let depthFunc = null;
+    const gl = {
+      DEPTH_TEST: 0x0b71,
+      LEQUAL: 0x0203,
+      ALWAYS: 0x0207,
+      enable(cap) {
+        if (cap === this.DEPTH_TEST) {
+          depthTest = true;
+        }
+      },
+      disable(cap) {
+        if (cap === this.DEPTH_TEST) {
+          depthTest = false;
+        }
+      },
+      depthFunc(func) { depthFunc = func; },
+      depthMask() {},
+      depthRange() {},
+    };
+    const depthStates = [];
+    microcode.renderer.flushTris = tb => {
+      if (!tb.empty()) {
+        depthTest = null;
+        depthFunc = null;
+        Renderer.prototype.initDepth.call({ gl, state });
+        depthStates.push({
+          zbuffer: state.geometryMode.zbuffer,
+          depthTest,
+          depthFunc,
+        });
+      }
+      tb.reset();
+    };
+
+    executeDisplayList(state, microcode);
+    expect(depthStates).toEqual([
+      { zbuffer: 0, depthTest: false, depthFunc: null },
+      { zbuffer: 1, depthTest: true, depthFunc: gl.LEQUAL },
+    ]);
   });
 });

@@ -204,8 +204,8 @@ export class T3DUX extends ObjectMicrocode {
     // RDP triangle texture/z bits; lighting and texgen are not performed.
     state.geometryModeBits = (geomMode << GEOM_MODE_GBI1_SHIFT) | gbi.GeometryModeGBI1.G_SHADE;
     state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
-    state.geometryMode.texture = (texMode & TEX_MODE_TEXTURE) !== 0;
-    state.geometryMode.zbuffer = (texMode & TEX_MODE_ZBUFFER) !== 0;
+    state.geometryMode.texture = (texMode & TEX_MODE_TEXTURE) ? 1 : 0;
+    state.geometryMode.zbuffer = (texMode & TEX_MODE_ZBUFFER) ? 1 : 0;
     state.setTexture(1, 1, (renderState & RENDER_STATE_LEVEL_MASK) >>> RENDER_STATE_LEVEL_SHIFT,
       renderState & RENDER_STATE_TILE_MASK);
 
