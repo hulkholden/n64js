@@ -497,7 +497,7 @@ export class Renderer extends RendererBase {
     const depth = this.state.primDepth / 0x8000;
     gl.depthRange(depthSourcePrim ? depth : 0, depthSourcePrim ? depth : 1);
 
-    const zGeomMode = (this.state.geometryMode.zbuffer) !== 0;
+    const zGeomMode = Boolean(this.state.geometryMode.zbuffer);
     const zCmpRenderMode = (this.state.rdpOtherModeL & gbi.RenderMode.Z_CMP) !== 0;
     const zUpdRenderMode = (this.state.rdpOtherModeL & gbi.RenderMode.Z_UPD) !== 0;
     const compare = (zGeomMode || depthSourcePrim) && zCmpRenderMode;
