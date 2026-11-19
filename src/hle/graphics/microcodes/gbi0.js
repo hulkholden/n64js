@@ -330,7 +330,7 @@ export class GBI0WR extends GBI0 {
 
   executeVertex(cmd0, cmd1, dis) {
     const n = ((cmd0 >>> 9) & 0x7f);
-    const v0 = ((cmd0 >>> 16) & 0xff) / 5;
+    const v0 = Math.floor(((cmd0 >>> 16) & 0xff) / 5);
     const address = this.state.rdpSegmentAddress(cmd1);
 
     if (dis) {
@@ -348,7 +348,7 @@ export class GBI0SE extends GBI0 {
   }
 
   executeVertex(cmd0, cmd1, dis) {
-    const n = (((cmd0 >>> 4) & 0xfff) / 33) + 1;
+    const n = Math.floor(((cmd0 >>> 4) & 0xfff) / 33) + 1;
     const v0 = 0;
     const address = this.state.rdpSegmentAddress(cmd1);
 
