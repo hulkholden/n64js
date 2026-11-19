@@ -88,9 +88,9 @@ const f32SignallingNaNBits = 0x7fbf_ffff;
 const f32PosZeroBits = 0;
 const f32NegZeroBits = f32SignBit;
 const f32MinPosNumberBits = 0x0080_0000;
-const f32MinNegNumberBits = f32SignBit | f32MinPosNumberBits;
+const f32MinNegNumberBits = (f32SignBit | f32MinPosNumberBits) >>> 0;
 const f32PosInfinityBits = f32ExponentBits;
-const f32NegInfinityBits = f32SignBit | f32ExponentBits;
+const f32NegInfinityBits = (f32SignBit | f32ExponentBits) >>> 0;
 
 const f64SignBit = 0x8000_0000_0000_0000n;
 const f64ExponentBits = 0x7ff0_0000_0000_0000n;
@@ -204,7 +204,7 @@ const f64UnderflowResults = validateRoundingModeTable([
 ]);
 
 const f32MaxNumberBits = f32PosInfinityBits - 1;
-const f32NegMaxNumberBits = f32SignBit | f32MaxNumberBits;
+const f32NegMaxNumberBits = (f32SignBit | f32MaxNumberBits) >>> 0;
 const f64MaxNumberBits = f64PosInfinityBits - 1n;
 const f64NegMaxNumberBits = f64SignBit | f64MaxNumberBits;
 
