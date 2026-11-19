@@ -1,7 +1,7 @@
 /*global n64js*/
 
 import { Device } from './device.js';
-import { toString32, toString16, toString8 } from '../format.js';
+import { toString64, toString32, toString16, toString8 } from '../format.js';
 import * as logger from '../logger.js';
 import { MemoryRegion } from '../memory/memory_region.js';
 
@@ -42,6 +42,9 @@ export class ROMD1A1Device extends Device {
         super("ROMd1a1", hardware, hardware.rom, rangeStart, rangeEnd);
     }
 
+    write64(address, value) { throw `Writing to rom d1a1 ${toString64(value)} -> [${toString32(address)}]`; }
+    write64masked(address, value) { throw `Writing to rom d1a1 ${toString64(value)} -> [${toString32(address)}]`; }
+    write32masked(address, value) { throw `Writing to rom d1a1 ${toString32(value)} -> [${toString32(address)}]`; }
     write32(address, value) { throw `Writing to rom d1a1 ${toString32(value)} -> [${toString32(address)}]`; }
     write16(address, value) { throw `Writing to rom d1a1 ${toString16(value)} -> [${toString32(address)}]`; }
     write8(address, value) { throw `Writing to rom d1a1 ${toString8(value)} -> [${toString32(address)}]`; }
@@ -85,6 +88,27 @@ export class ROMD1A2Device extends Device {
         }
         // Only the upper 32 bits are used.
         this.cacheLastWrite(Number(value >> 32n));
+    }
+
+    write64masked(address, value, mask) {
+        const aligned = (address & ~7) >>> 0;
+        if (this.isDebugBufferAddress(aligned, 8)) {
+            this.debugBuffer.set64masked(aligned - dbgOutBufStart, value, mask);
+            return;
+        }
+        this.cacheLastWrite(Number((value & mask) >> 32n));
+    }
+
+    write32masked(address, value, mask) {
+        const aligned = (address & ~3) >>> 0;
+        if (aligned == dbgOutWriteLen) {
+            return this.writeDebugBufferLen((value & mask) >>> 0);
+        }
+        if (this.isDebugBufferAddress(aligned, 4)) {
+            this.debugBuffer.set32masked(aligned - dbgOutBufStart, value, mask);
+            return;
+        }
+        this.cacheLastWrite((value & mask) >>> 0);
     }
 
     write32(address, value) {
@@ -207,6 +231,8 @@ export class ROMD1A3Device extends Device {
     // Domain 1 Address 3 is used by cartridge hardware such as the SC64. If
     // no such hardware is present, writes used to probe for it have no effect.
     write64(address, value) {}
+    write64masked() {}
+    write32masked() {}
     write32(address, value) {}
     write16(address, value) {}
     write8(address, value) {}
