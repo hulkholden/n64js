@@ -116,7 +116,7 @@ export class Device {
   readU64(address) {
     const ea = this.calcReadEA(address);
     if (ea + 8 > this.u8.length) {
-      return 0;
+      return 0n;
     }
     return this.mem.getU64(ea);
   }
