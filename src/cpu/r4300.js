@@ -118,6 +118,11 @@ const SR_CUSHIFT      = 28;
 // Only bit 19 is unwritable.
 const statusWritableBits = 0xfff7_ffff;
 
+// Flipping bit 31 translates KSEG0 RAM (0x8000_0000..0x807f_ffff) to a signed
+// Int32 physical offset (0..0x7f_ffff) without Double arithmetic.
+const kKseg0SignBit = -0x8000_0000;
+const kKseg0AlignedWordMask = ~0x007f_fffc;
+
 const CAUSE_BD        = 0x80000000;
 const CAUSE_CEMASK    = 0x30000000;
 const CAUSE_CESHIFT   = 28;
@@ -2035,7 +2040,7 @@ export class CPU0 {
     if ((addr & 7) === 0 && addr < memaccess.kKseg0RamEndS32) {
       // Copy aligned KSEG0 RAM directly into the two register words. Going
       // through BigInt is expensive in context-save/restore loops.
-      const phys = addr ^ -0x80000000;
+      const phys = addr ^ kKseg0SignBit;
       const hi = this.ramDV.getInt32(phys, false);
       const lo = this.ramDV.getInt32(phys + 4, false);
       this.setRegS64LoHi(rt, lo, hi);
@@ -2081,17 +2086,14 @@ export class CPU0 {
     if (!this.checkCopXUsable(1)) {
       return;
     }
-    const addr = (this.gprS32[base * 2] + imms) | 0;
-    const phys = addr ^ -0x80000000;
-    const v = (phys & -0x7ffffd) === 0 ? this.ramDV.getInt32(phys, false) : memaccess.loadS32fast(addr);
-    cpu1.regS32[cpu1.regIdx32_cop[rt]] = v;
+    this.execLWC1Unchecked(rt, base, imms);
   }
 
   // Caller must have established that COP1 is usable.
   execLWC1Unchecked(rt, base, imms) {
     const addr = (this.gprS32[base * 2] + imms) | 0;
-    const phys = addr ^ -0x80000000;
-    const v = (phys & -0x7ffffd) === 0 ? this.ramDV.getInt32(phys, false) : memaccess.loadS32fast(addr);
+    const phys = addr ^ kKseg0SignBit;
+    const v = (phys & kKseg0AlignedWordMask) === 0 ? this.ramDV.getInt32(phys, false) : memaccess.loadS32fast(addr);
     cpu1.regS32[cpu1.regIdx32_cop[rt]] = v;
   }
 
@@ -2114,7 +2116,7 @@ export class CPU0 {
     const addr = (this.gprS32[base * 2] + imms) | 0;
     const regIdx = cpu1.regIdx64_cop[rt];
     if ((addr & 7) === 0 && addr < memaccess.kKseg0RamEndS32) {
-      const phys = addr ^ -0x80000000;
+      const phys = addr ^ kKseg0SignBit;
       const hi = this.ramDV.getInt32(phys, false);
       const lo = this.ramDV.getInt32(phys + 4, false);
       cpu1.regS32[regIdx * 2] = lo;
@@ -2143,7 +2145,7 @@ export class CPU0 {
   execSD(rt, base, imms) {
     const addr = (this.gprS32[base * 2] + imms) | 0;
     if ((addr & 7) === 0 && addr < memaccess.kKseg0RamEndS32) {
-      const phys = addr ^ -0x80000000;
+      const phys = addr ^ kKseg0SignBit;
       this.ramDV.setInt32(phys, this.gprS32[rt * 2 + 1], false);
       this.ramDV.setInt32(phys + 4, this.gprS32[rt * 2], false);
     } else {
@@ -2187,22 +2189,15 @@ export class CPU0 {
     if (!this.checkCopXUsable(1)) {
       return;
     }
-    const addr = (this.gprS32[base * 2] + imms) | 0;
-    const phys = addr ^ -0x80000000;
-    const v = cpu1.regS32[cpu1.regIdx32_cop[rt]];
-    if ((phys & -0x7ffffd) === 0) {
-      this.ramDV.setInt32(phys, v, false);
-    } else {
-      memaccess.store32fast(addr, v);
-    }
+    this.execSWC1Unchecked(rt, base, imms);
   }
 
   // Caller must have established that COP1 is usable.
   execSWC1Unchecked(rt, base, imms) {
     const addr = (this.gprS32[base * 2] + imms) | 0;
-    const phys = addr ^ -0x80000000;
+    const phys = addr ^ kKseg0SignBit;
     const v = cpu1.regS32[cpu1.regIdx32_cop[rt]];
-    if ((phys & -0x7ffffd) === 0) {
+    if ((phys & kKseg0AlignedWordMask) === 0) {
       this.ramDV.setInt32(phys, v, false);
     } else {
       memaccess.store32fast(addr, v);
@@ -2228,7 +2223,7 @@ export class CPU0 {
     const addr = (this.gprS32[base * 2] + imms) | 0;
     const regIdx = cpu1.regIdx64_cop[rt];
     if ((addr & 7) === 0 && addr < memaccess.kKseg0RamEndS32) {
-      const phys = addr ^ -0x80000000;
+      const phys = addr ^ kKseg0SignBit;
       this.ramDV.setInt32(phys, cpu1.regS32[regIdx * 2 + 1], false);
       this.ramDV.setInt32(phys + 4, cpu1.regS32[regIdx * 2], false);
     } else {
