@@ -50,6 +50,35 @@ export class PIFMemDevice extends Device {
     return v;
   }
 
+  write64(address, value) {
+    this.writePIFRam(this.calcWriteEA(address), 8, ea => this.mem.set64(ea, value));
+  }
+
+  write64masked(address, value, mask) {
+    this.writePIFRam(this.calcWriteEA(address) & ~7, 8, ea => this.mem.set64masked(ea, value, mask));
+  }
+
+  write32masked(address, value, mask) {
+    this.writePIFRam(this.calcWriteEA(address) & ~3, 4, ea => this.mem.set32masked(ea, value, mask));
+  }
+
+  writePIFRam(ea, size, writeFn) {
+    if (ea < PIF_RAM_OFFSET) {
+      logger.log('Attempting to write to PIF ROM');
+      return;
+    }
+    if (ea + size > this.u8.length) {
+      return;
+    }
+
+    writeFn(ea);
+    const ramOffset = ea - PIF_RAM_OFFSET;
+    if (ramOffset <= 0x3c && ramOffset + size > 0x3c) {
+      this.updateControl();
+    }
+    n64js.joybus().cpuWrite(ramOffset);
+  }
+
   write32(address, value) {
     const ea = this.calcWriteEA(address);
     if (ea < PIF_RAM_OFFSET) {
