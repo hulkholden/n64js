@@ -10,6 +10,7 @@ export class RenderTargets {
     this.height = height;
     this.targets = new Map();
     this.ramDV = null;
+    this.ramU8 = null;
     this.frame = 0;
     this.frozenTargets = null;
     this.frozenCopies = new Set();
@@ -38,7 +39,16 @@ export class RenderTargets {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
     gl.bindTexture(gl.TEXTURE_2D, null);
-    return { framebuffer, texture, image: null, height: 0, dirty: false };
+    return {
+      framebuffer,
+      texture,
+      image: null,
+      height: 0,
+      dirty: false,
+      ramSnapshotBuffer: null,
+      ramSnapshotLength: 0,
+      ramFrame: 0,
+    };
   }
 
   resize(width, height) {
@@ -151,7 +161,10 @@ export class RenderTargets {
   }
 
   beginFrame(ramDV) {
-    this.ramDV = ramDV;
+    if (ramDV !== this.ramDV) {
+      this.ramDV = ramDV;
+      this.ramU8 = ramDV ? new Uint8Array(ramDV.buffer, ramDV.byteOffset, ramDV.byteLength) : null;
+    }
     this.frame++;
   }
 
@@ -203,24 +216,47 @@ export class RenderTargets {
       maxY = scissor.y1;
     }
     target.height = Math.max(target.height, Math.min(Math.ceil(maxY), Math.ceil(scissor.y1), target.nativeHeight));
-    if (this.ramDV) {
-      // RDRAM can be repurposed by CPU stores/decompression without another
-      // SetColorImage for this address. Remember its contents when we draw so
-      // an old GPU image cannot later overwrite the replacement data.
-      const start = target.image.address;
-      const bytesPerPixel = target.image.size === ImageSize.G_IM_SIZ_32b ? 4 : 2;
-      const length = Math.max(0, Math.min(target.image.width * target.height * bytesPerPixel, this.ramDV.byteLength - start));
-      const ram = new Uint8Array(this.ramDV.buffer, this.ramDV.byteOffset + start, length);
-      if (!target.dirty || target.ramFrame !== this.frame) {
-        target.ramSnapshot = ram.slice();
-      } else if (target.ramSnapshot.length < length) {
-        const snapshot = ram.slice();
-        snapshot.set(target.ramSnapshot);
-        target.ramSnapshot = snapshot;
-      }
-      target.ramFrame = this.frame;
+    if (this.ramU8) {
+      this.updateRamSnapshot(target);
     }
     target.dirty = true;
+  }
+
+  updateRamSnapshot(target) {
+    // RDRAM can be repurposed by CPU stores/decompression without another
+    // SetColorImage for this address. Remember its contents when we draw so
+    // an old GPU image cannot later overwrite the replacement data.
+    const start = target.image.address;
+    const bytesPerPixel = target.image.size === ImageSize.G_IM_SIZ_32b ? 4 : 2;
+    const length = Math.max(0, Math.min(target.image.width * target.height * bytesPerPixel, this.ramU8.length - start));
+    const isFresh = !target.dirty || target.ramFrame !== this.frame;
+    if (!isFresh && target.ramSnapshotLength >= length) {
+      return;
+    }
+
+    const offset = isFresh ? 0 : target.ramSnapshotLength;
+    if (length > 0) {
+      const buffer = this.ensureSnapshotBuffer(target, length, bytesPerPixel, offset);
+      buffer.set(this.ramU8.subarray(start + offset, start + length), offset);
+    }
+    target.ramSnapshotLength = length;
+    target.ramFrame = this.frame;
+  }
+
+  ensureSnapshotBuffer(target, length, bytesPerPixel, preservedLength) {
+    if (target.ramSnapshotBuffer && target.ramSnapshotBuffer.length >= length) {
+      return target.ramSnapshotBuffer;
+    }
+    const maxLength = Math.min(
+      target.image.width * target.nativeHeight * bytesPerPixel,
+      this.ramU8.length - target.image.address,
+    );
+    const next = new Uint8Array(maxLength);
+    if (preservedLength > 0 && target.ramSnapshotBuffer) {
+      next.set(target.ramSnapshotBuffer.subarray(0, preservedLength), 0);
+    }
+    target.ramSnapshotBuffer = next;
+    return next;
   }
 
   contains(target, address) {
@@ -261,13 +297,24 @@ export class RenderTargets {
     if (!target?.dirty) {
       return;
     }
-    if (target.ramSnapshot) {
-      const ram = new Uint8Array(ramDV.buffer, ramDV.byteOffset + target.image.address, target.ramSnapshot.length);
-      if (!target.ramSnapshot.every((value, i) => value === ram[i])) {
-        // Cruis'n Exotica reuses a menu framebuffer for course data. Reading
-        // back the menu here corrupts that data and stalls the race.
+    if (target.ramSnapshotLength > 0) {
+      const ramU8 = ramDV === this.ramDV && this.ramU8
+        ? this.ramU8
+        : new Uint8Array(ramDV.buffer, ramDV.byteOffset, ramDV.byteLength);
+      const snapshot = target.ramSnapshotBuffer;
+      const start = target.image.address;
+      const length = target.ramSnapshotLength;
+      if (start + length > ramU8.length) {
         target.dirty = false;
         return;
+      }
+      for (let i = 0; i < length; i++) {
+        if (snapshot[i] !== ramU8[start + i]) {
+          // Cruis'n Exotica reuses a menu framebuffer for course data. Reading
+          // back the menu here corrupts that data and stalls the race.
+          target.dirty = false;
+          return;
+        }
       }
     }
     const width = Math.min(target.image.width, target.nativeWidth);

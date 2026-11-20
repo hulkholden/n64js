@@ -135,6 +135,61 @@ describe('rendered color images', () => {
     expect(ram.getUint32(0)).toBe(0xffffffff);
   });
 
+  test('reuses snapshot storage across growth and frames while preserving intra-frame prefix snapshots', () => {
+    const gl = fakeGL();
+    const targets = new RenderTargets(gl, 4, 4);
+    const ram = new DataView(new ArrayBuffer(64));
+    targets.beginFrame(ram);
+    const cachedView = targets.ramU8;
+    targets.bindColorImage(colorImage(0, 4), 4, 4);
+    const target = targets.current;
+    target.framebuffer.pixels = new Uint8Array(64).fill(255);
+
+    // First draw allocates the reusable buffer once and snapshots only row 0.
+    targets.markDirty({ y1: 4 }, 1);
+    const buffer = target.ramSnapshotBuffer;
+    expect(buffer).toBeInstanceOf(Uint8Array);
+    expect(target.ramSnapshotLength).toBe(8);
+
+    // Mutate row 0 (already snapshotted) and row 1 (not yet snapshotted), then grow to row 2.
+    ram.setUint32(0, 0x11223344);
+    ram.setUint32(8, 0x55667788);
+    targets.markDirty({ y1: 4 }, 2);
+    expect(target.ramSnapshotBuffer).toBe(buffer);
+    expect(target.ramSnapshotLength).toBe(16);
+
+    // Steady-state draw at same/smaller height must fast-exit without overwriting the snapshot.
+    targets.markDirty({ y1: 4 }, 2);
+    expect(target.ramSnapshotBuffer).toBe(buffer);
+
+    // Row 0's original snapshot (0) must be preserved, so syncToRAM detects the overwrite.
+    targets.syncToRAM(0, ram);
+    expect(gl.reads).toHaveLength(0);
+    expect(ram.getUint32(0)).toBe(0x11223344);
+    expect(target.dirty).toBe(false);
+
+    // Next frame with the same ramDV reuses both ramU8 and target.ramSnapshotBuffer.
+    targets.beginFrame(ram);
+    expect(targets.ramU8).toBe(cachedView);
+    targets.markDirty({ y1: 4 }, 2);
+    expect(target.ramSnapshotBuffer).toBe(buffer);
+    expect(target.ramSnapshotLength).toBe(16);
+    // Mutating bytes beyond ramSnapshotLength (still within buffer capacity) must not trip the guard.
+    ram.setUint32(16, 0xdeadbeef);
+    targets.syncToRAM(0, ram);
+    expect(gl.reads).toHaveLength(1);
+    expect(ram.getUint32(0)).toBe(0xffffffff);
+    expect(ram.getUint32(16)).toBe(0xdeadbeef);
+
+    // Switching ramDV updates the cached view; passing null clears it.
+    const otherRam = new DataView(new ArrayBuffer(64));
+    targets.beginFrame(otherRam);
+    expect(targets.ramU8).not.toBe(cachedView);
+    expect(targets.ramU8.buffer).toBe(otherRam.buffer);
+    targets.beginFrame(null);
+    expect(targets.ramU8).toBeNull();
+  });
+
   test('VI sees frames in order while HLE prepares a frozen double buffer', () => {
     const gl = fakeGL();
     const targets = new RenderTargets(gl, 2, 2);
