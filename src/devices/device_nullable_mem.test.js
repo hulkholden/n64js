@@ -14,7 +14,8 @@ describe('Device nullable backing memory and read-only write-through guards', ()
     device.setMem(null);
 
     expect(device.mem).toBeNull();
-    expect(device.u8).toBeNull();
+    expect(device.u8).toBeInstanceOf(Uint8Array);
+    expect(device.u8.length).toBe(0);
     expect(device.readInternal32(0xa0000000)).toBe(0xdddddddd);
     expect(() => device.writeInternal32(0xa0000000, 0x12345678)).not.toThrow();
     expect(device.readU64(0xa0000000)).toBe(0n);
@@ -27,6 +28,13 @@ describe('Device nullable backing memory and read-only write-through guards', ()
     expect(() => device.write32(0xa0000000, 0x12345678)).not.toThrow();
     expect(() => device.write16(0xa0000000, 0x1234)).not.toThrow();
     expect(() => device.write8(0xa0000000, 0x12)).not.toThrow();
+
+    const backed = new Device('Backed', null, new MemoryRegion(new ArrayBuffer(16)), 0xa0000000, 0xa0000010);
+    expect(backed.readInternal32(0x9ffffffc)).toBe(0xdddddddd);
+    expect(() => backed.writeInternal32(0x9ffffffc, 0x12345678)).not.toThrow();
+    expect(backed.readU64(0x9ffffff8)).toBe(0n);
+    expect(backed.readU32(0x9ffffffc)).toBe(0);
+    expect(() => backed.write32(0x9ffffffc, 0x12345678)).not.toThrow();
   });
 
   test('ROM devices with null backing memory safely handle debugger and 64-bit/masked accesses', () => {

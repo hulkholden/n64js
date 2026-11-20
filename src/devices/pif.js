@@ -67,7 +67,7 @@ export class PIFMemDevice extends Device {
       logger.log('Attempting to write to PIF ROM');
       return;
     }
-    if (!this.u8 || ea + size > this.u8.length) {
+    if (ea + size > this.u8.length) {
       return;
     }
 
