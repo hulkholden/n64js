@@ -102,7 +102,7 @@ export class AIRegDevice extends Device {
       status |= (this.dmaCount > 0) ? AI_STATUS_DMA_BUSY : 0;
       status |= (this.dmaCount > 1) ? AI_STATUS_FIFO_FULL : 0;
       status |= (this.dmaCount > 1) ? AI_STATUS_FIFO_FULL0 : 0;
-      return status;
+      return status >>> 0;
     }
 
     // All other reads return the current length.
