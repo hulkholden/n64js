@@ -59,8 +59,8 @@ export class Debugger {
     /** @type {!Array<!Object>} A list of recent memory accesses. */
     this.recentMemoryAccesses = [];
 
-    /** @type {number} The address of the last memory access. */
-    this.lastMemoryAccessAddress = 0;
+    /** @type {number|null} The address of the last memory access. */
+    this.lastMemoryAccessAddress = null;
 
     /**
      * When we execute a store instruction, keep track of some details so we can
@@ -103,7 +103,8 @@ export class Debugger {
 
     document.querySelectorAll('#memory-content input').forEach(input => {
       input.addEventListener('change', event => {
-        this.lastMemoryAccessAddress = parseInt(event.currentTarget.value, 16);
+        const parsed = parseInt(event.currentTarget.value, 16);
+        this.lastMemoryAccessAddress = Number.isNaN(parsed) ? null : (parsed >>> 0);
         this.updateMemoryView();
       });
     });
@@ -164,7 +165,7 @@ export class Debugger {
   }
 
   updateMemoryView() {
-    const addr = this.lastMemoryAccessAddress || 0x80000000;
+    const addr = this.lastMemoryAccessAddress ?? 0x80000000;
     const pre = this.memoryContent.querySelector('pre');
     pre.replaceChildren(this.makeMemoryAccessRow(addr, 1024));
   }
