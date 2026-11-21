@@ -1,22 +1,24 @@
 import { expect, test } from 'bun:test';
+import { GLState } from './gl_state.js';
 import { TMEM } from './tmem.js';
 import { TMEMTexture } from './tmem_texture.js';
 
-function fixture(maxEntries) {
-  const images = [], updates = [], deleted = [], bindings = [];
+function fixture(maxEntries, { withGLState = false } = {}) {
+  const images = [], updates = [], deleted = [], bindings = [], boundTextures = [];
   let bound;
   const gl = {
     TEXTURE0: 100, TEXTURE_2D: 200, R8UI: 300, RED_INTEGER: 400, UNSIGNED_BYTE: 500,
     createTexture: () => ({}), deleteTexture: value => deleted.push(value),
     activeTexture: value => bindings.push(value),
-    bindTexture: (target, texture) => { bound = texture; },
+    bindTexture: (target, texture) => { bound = texture; boundTextures.push(texture); },
     texParameteri() {},
     texImage2D: (...args) => { images.push(args); bound.bytes = args[8].slice(); },
     texSubImage2D: (...args) => { updates.push(args); bound.bytes = args[8].slice(); },
   };
-  const gpu = new TMEMTexture(gl, maxEntries), tmem = new TMEM();
+  const glState = withGLState ? new GLState(gl) : null;
+  const gpu = new TMEMTexture(gl, maxEntries, glState), tmem = new TMEM();
   const load = value => { tmem.tmemData.fill(value); tmem.version++; gpu.bind(tmem); return gpu.texture; };
-  return { gpu, tmem, load, images, updates, deleted, bindings, gl };
+  return { gpu, tmem, load, images, updates, deleted, bindings, boundTextures, gl, glState };
 }
 
 test('TMEM uploads exact integer bytes and skips hashing unchanged snapshots', () => {
@@ -133,4 +135,65 @@ test('TMEM cache rejects capacities that cannot retain a current snapshot', () =
   for (const capacity of [0, -1, 0.5, NaN]) {
     expect(() => fixture(capacity)).toThrow(RangeError);
   }
+});
+
+test('with GLState, unchanged snapshots skip redundant activeTexture and bindTexture calls until invalidated', () => {
+  const { gpu, tmem, bindings, boundTextures, glState } = fixture(4096, { withGLState: true });
+  tmem.tmemData[0] = 0x42;
+  tmem.version++;
+  gpu.bind(tmem);
+  expect(bindings).toHaveLength(1);
+  expect(boundTextures).toHaveLength(1);
+
+  // Unchanged version skips both activeTexture and bindTexture.
+  gpu.bind(tmem);
+  expect(bindings).toHaveLength(1);
+  expect(boundTextures).toHaveLength(1);
+
+  // Identical reload (new version, same hash & texture) also skips bindTexture.
+  tmem.version++;
+  gpu.bind(tmem);
+  expect(gpu.hits).toBe(1);
+  expect(bindings).toHaveLength(1);
+  expect(boundTextures).toHaveLength(1);
+
+  // After external texture invalidation, the next bind rebinds the snapshot.
+  glState.invalidateTexture();
+  gpu.bind(tmem);
+  expect(bindings).toHaveLength(2);
+  expect(boundTextures).toHaveLength(2);
+});
+
+test('avoids Map delete+set LRU churn on cache hits while well below capacity', () => {
+  const { gpu, load } = fixture(16);
+  const first = load(1);
+  const second = load(2);
+
+  let deletes = 0;
+  let sets = 0;
+  const origDelete = gpu.entries.delete.bind(gpu.entries);
+  const origSet = gpu.entries.set.bind(gpu.entries);
+  gpu.entries.delete = (...args) => { deletes++; return origDelete(...args); };
+  gpu.entries.set = (...args) => { sets++; return origSet(...args); };
+
+  // Occupancy is 2 < 8 (maxEntries >> 1), so hits must not churn the Map.
+  expect(load(1)).toBe(first);
+  expect(load(2)).toBe(second);
+  expect(load(1)).toBe(first);
+  expect(deletes).toBe(0);
+  expect(sets).toBe(0);
+
+  // Once occupancy reaches half capacity (8), non-newest hits resume LRU promotion.
+  for (let i = 3; i <= 8; i++) {
+    load(i);
+  }
+  deletes = 0;
+  sets = 0;
+  expect(load(1)).toBe(first);
+  expect(deletes).toBe(1);
+  expect(sets).toBe(1);
+  // Repeating the already-newest hit does not churn the Map either.
+  expect(load(1)).toBe(first);
+  expect(deletes).toBe(1);
+  expect(sets).toBe(1);
 });

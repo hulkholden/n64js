@@ -229,7 +229,8 @@ describe('combiner descriptions', () => {
     expect(calls.bufferData).toEqual([]);
     expect(calls.enableVertexAttribArray).toEqual([]);
     expect(calls.vertexAttribPointer).toEqual([]);
-    expect(calls.bindBuffer).toBe(2);
+    expect(calls.bindVertexArray).toHaveLength(1);
+    expect(calls.bindBuffer).toBe(1);
     expect(calls.bufferSubData).toHaveLength(2);
 
     const upload = calls.bufferSubData[0];

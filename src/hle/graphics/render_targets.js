@@ -14,6 +14,7 @@ export class RenderTargets {
     this.frame = 0;
     this.frozenTargets = null;
     this.frozenCopies = new Set();
+    this.onTextureBindingChange = null;
     this.depth = gl.createRenderbuffer();
     gl.bindRenderbuffer(gl.RENDERBUFFER, this.depth);
     gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
@@ -39,6 +40,7 @@ export class RenderTargets {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
     gl.bindTexture(gl.TEXTURE_2D, null);
+    this.onTextureBindingChange?.();
     return {
       framebuffer,
       texture,
@@ -92,6 +94,7 @@ export class RenderTargets {
     this.preserveForVI(target);
     this.gl.deleteFramebuffer(target.framebuffer);
     this.gl.deleteTexture(target.texture);
+    this.onTextureBindingChange?.();
   }
 
   reset() {

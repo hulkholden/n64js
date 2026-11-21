@@ -300,6 +300,25 @@ class N64Shader {
       enabled: gl.getUniformLocation(program, `uTile${slot}.enabled`),
       memory: gl.getUniformLocation(program, `uTile${slot}.memory`),
       palette: gl.getUniformLocation(program, `uTile${slot}.palette`),
+      cachedEnabled: -1,
+      cachedTmem: -1,
+      cachedLine: -1,
+      cachedFormat: -1,
+      cachedSize: -1,
+      cachedPalette: -1,
+      cachedTlut: -1,
+      cachedScaleS: NaN,
+      cachedScaleT: NaN,
+      cachedOffsetS: NaN,
+      cachedOffsetT: NaN,
+      cachedBounds0: NaN,
+      cachedBounds1: NaN,
+      cachedBounds2: NaN,
+      cachedBounds3: NaN,
+      cachedMaskS: -1,
+      cachedMaskT: -1,
+      cachedModeS: -1,
+      cachedModeT: -1,
     }));
 
     this.uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
@@ -311,7 +330,37 @@ class N64Shader {
     this.uTextureConvertUniform  = gl.getUniformLocation(program, "uTextureConvert");
     this.uTextureYUVUniform      = gl.getUniformLocation(program, "uTextureYUV");
     this.uAlphaThresholdUniform  = gl.getUniformLocation(program, "uAlphaThreshold");
-    this.uAffineUVUniform          = gl.getUniformLocation(program, "uAffineUV");
+    this.uAffineUVUniform        = gl.getUniformLocation(program, "uAffineUV");
+
+    // Last-uploaded uniform values for this WebGLProgram.
+    this.tmemInitialized = false;
+    this.affineUV = -1;
+    this.textureFilter = -1;
+    this.textureRectEnabled = -1;
+    this.rectScreenX = NaN;
+    this.rectScreenY = NaN;
+    this.rectScreenW = NaN;
+    this.rectOriginX = NaN;
+    this.rectOriginY = NaN;
+    this.rectOriginS = NaN;
+    this.rectOriginT = NaN;
+    this.rectDeriv0 = NaN;
+    this.rectDeriv1 = NaN;
+    this.rectDeriv2 = NaN;
+    this.rectDeriv3 = NaN;
+    this.alphaThreshold = NaN;
+    this.convert0 = NaN;
+    this.convert1 = NaN;
+    this.convert2 = NaN;
+    this.convert3 = NaN;
+    this.convert4 = NaN;
+    this.convert5 = NaN;
+    this.textureConvert = -1;
+    this.textureYUV = -1;
+    this.primColor = -1;
+    this.primLodFrac = NaN;
+    this.envColor = -1;
+    this.fogColor = -1;
   }
 }
 

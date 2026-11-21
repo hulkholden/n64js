@@ -52,16 +52,16 @@ export class VertexArray {
     this.unbind();
   }
 
-  setInterleavedData(positions, colours, coords, numVertices = positions.length >>> 2) {
+  setInterleavedData(positions, colours, coords, numVertices = positions.length >>> 2, bindBuffer = true) {
     const gl = this.gl;
+    if (bindBuffer) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.interleavedBuffer);
+    }
     if (numVertices * kVertexStrideFloats > this.interleavedFloats.length) {
       this.interleavedData = new ArrayBuffer(numVertices * kVertexStrideBytes);
       this.interleavedFloats = new Float32Array(this.interleavedData);
       this.interleavedUints = new Uint32Array(this.interleavedData);
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.interleavedBuffer);
       gl.bufferData(gl.ARRAY_BUFFER, this.interleavedData.byteLength, gl.DYNAMIC_DRAW);
-    } else {
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.interleavedBuffer);
     }
 
     const floats = this.interleavedFloats;

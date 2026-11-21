@@ -2,11 +2,12 @@
 // budget holds 16 MiB of texels, allocated on demand. Hash matches are trusted;
 // unchanged draws check tmem.version to skip hashing.
 export class TMEMTexture {
-  constructor(gl, maxEntries = 4096) {
+  constructor(gl, maxEntries = 4096, glState = null) {
     if (!Number.isInteger(maxEntries) || maxEntries < 1) {
       throw new RangeError('TMEM cache must hold at least one snapshot');
     }
     this.gl = gl;
+    this.glState = glState;
     this.maxEntries = maxEntries;
     this.entries = new Map();
     this.texture = null;
@@ -17,40 +18,55 @@ export class TMEMTexture {
     this.evictions = 0;
   }
 
+  bindTexture(texture) {
+    if (this.glState) {
+      this.glState.bindTexture0(texture);
+    } else {
+      const gl = this.gl;
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+    }
+  }
+
   bind(tmem) {
-    const gl = this.gl;
-    gl.activeTexture(gl.TEXTURE0);
     if (this.texture && this.tmemVersion === tmem.version) {
-      gl.bindTexture(gl.TEXTURE_2D, this.texture);
+      this.bindTexture(this.texture);
       return;
     }
 
+    const gl = this.gl;
     const hash = tmem.hashContents();
     let texture = this.entries.get(hash);
     if (texture) {
-      // Map iteration order is the LRU order. The current snapshot remains
-      // newest during unchanged draws, so those need no cache bookkeeping.
-      this.entries.delete(hash);
-      gl.bindTexture(gl.TEXTURE_2D, texture);
+      this.bindTexture(texture);
       this.hits++;
-    } else {
-      this.misses++;
-      if (this.entries.size < this.maxEntries) {
-        texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, 64, 64, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, tmem.tmemData);
-      } else {
-        const oldest = this.entries.keys().next().value;
-        texture = this.entries.get(oldest);
-        this.entries.delete(oldest);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 64, 64, gl.RED_INTEGER, gl.UNSIGNED_BYTE, tmem.tmemData);
-        this.evictions++;
+      // Map iteration order is the LRU order. Defer Map delete+set promotion
+      // until occupancy reaches half capacity to avoid V8 OrderedHashMap churn.
+      if (this.entries.size >= (this.maxEntries >> 1) && texture !== this.texture) {
+        this.entries.delete(hash);
+        this.entries.set(hash, texture);
       }
+      this.texture = texture;
+      this.tmemVersion = tmem.version;
+      return;
+    }
+
+    this.misses++;
+    if (this.entries.size < this.maxEntries) {
+      texture = gl.createTexture();
+      this.bindTexture(texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, 64, 64, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, tmem.tmemData);
+    } else {
+      const oldest = this.entries.keys().next().value;
+      texture = this.entries.get(oldest);
+      this.entries.delete(oldest);
+      this.bindTexture(texture);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 64, 64, gl.RED_INTEGER, gl.UNSIGNED_BYTE, tmem.tmemData);
+      this.evictions++;
     }
     this.entries.set(hash, texture);
     this.texture = texture;
@@ -65,5 +81,6 @@ export class TMEMTexture {
     this.texture = null;
     this.tmemVersion = -1;
     this.hits = this.misses = this.evictions = 0;
+    this.glState?.invalidateTexture();
   }
 }
