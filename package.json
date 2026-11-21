@@ -15,9 +15,9 @@
     "benchmark": "bun run ./src/headless/benchmark.js",
     "headless": "bun run ./src/headless/headless.js",
     "inventory": "bun run ./src/inventory/inventory.js",
-    "inventory-batch": "bun run ./src/inventory/inventory_batch.js",
-    "inventory-query": "bun run ./src/inventory/inventory_query.js",
-    "inventory-summary": "bun run ./src/inventory/inventory_summary.js"
+    "inventory-batch": "bun run ./src/inventory/batch.js",
+    "inventory-query": "bun run ./src/inventory/query.js",
+    "inventory-summary": "bun run ./src/inventory/summary.js"
   },
   "repository": {
     "type": "git",

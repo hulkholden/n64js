@@ -3,13 +3,13 @@ import { createHash } from 'node:crypto';
 import { link, readFile, readdir, rm, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseInputScript } from './inventory_input.js';
+import { parseInputScript } from './input.js';
 import { checkOutput } from './inventory.js';
 import { CycleType, ImageFormat, ImageSize } from '../hle/graphics/gbi.js';
 import { invokeCLI, makeROM, swapRomBytes16, swapRomBytes32, withDirectory } from './test_helpers.js';
 
 const cli = fileURLToPath(new URL('./inventory.js', import.meta.url));
-const queryCLI = fileURLToPath(new URL('./inventory_query.js', import.meta.url));
+const queryCLI = fileURLToPath(new URL('./query.js', import.meta.url));
 
 describe('inventory command', () => {
   test('prints usage with --help and validates CLI positional and output options', async () => {
@@ -193,7 +193,7 @@ describe('inventory command', () => {
   });
 
   test('rejects missing, malformed and invalid scripts before running or creating scans', async () => {
-    const batchCLI = fileURLToPath(new URL('./inventory_batch.js', import.meta.url));
+    const batchCLI = fileURLToPath(new URL('./batch.js', import.meta.url));
     await withDirectory('n64js-inventory-', async directory => {
       await Bun.write(join(directory, 'malformed.json'), '{');
       await Bun.write(join(directory, 'invalid.json'), JSON.stringify({ version: 1, steps: [{ frames: 0 }] }));

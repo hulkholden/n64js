@@ -2,9 +2,9 @@
 
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { collectorSpecs, inspectCollector, parseTextureFormat, unknownReportReason } from './inventory_collectors.js';
-import { readInventory } from './inventory_reports.js';
-import { runInventoryCLI } from './inventory_cli.js';
+import { collectorSpecs, inspectCollector, parseTextureFormat, unknownReportReason } from './collectors.js';
+import { readInventory } from './reports.js';
+import { runInventoryCLI } from './cli.js';
 
 const usage = `Usage: bun run inventory-query <inventory-root|scan-directory|report.json> [filters]
   --microcode <family>  Match a handler family, e.g. GBI2 (case insensitive)

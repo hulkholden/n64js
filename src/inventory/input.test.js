@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createInputDriver, createRandom, parseInputScript } from './inventory_input.js';
+import { createInputDriver, createRandom, parseInputScript } from './input.js';
 
 describe('inventory input', () => {
   test('holds complete scripted states for exact VI durations before starting the seeded sequence', () => {

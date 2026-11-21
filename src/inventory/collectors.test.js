@@ -8,7 +8,7 @@ import {
   inspectCollector,
   parseTextureFormat,
   unknownReportReason,
-} from './inventory_collectors.js';
+} from './collectors.js';
 
 describe('inventory collectors', () => {
   test('inspectCollector classifies missing, invalid, not-observed, and observed states', () => {

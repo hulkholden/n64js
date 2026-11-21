@@ -2,9 +2,9 @@
 
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { allCollectorSpecs, inspectCollector, unknownReportReason } from './inventory_collectors.js';
-import { readInventory } from './inventory_reports.js';
-import { runInventoryCLI } from './inventory_cli.js';
+import { allCollectorSpecs, inspectCollector, unknownReportReason } from './collectors.js';
+import { readInventory } from './reports.js';
+import { runInventoryCLI } from './cli.js';
 
 const usage = `Usage: bun run inventory-summary <inventory-root|scan-directory|report.json>
   --help  Show this help

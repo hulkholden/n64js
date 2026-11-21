@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ci4, invokeCLI, makeReport, rgba16, withDirectory, writeScan } from './test_helpers.js';
 
-const summaryCLI = fileURLToPath(new URL('./inventory_summary.js', import.meta.url));
+const summaryCLI = fileURLToPath(new URL('./summary.js', import.meta.url));
 
 async function invokeSummary(args) {
   const result = await invokeCLI(summaryCLI, args);

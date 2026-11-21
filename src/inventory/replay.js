@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
-import { restoreInventorySettings } from './inventory_runner.js';
-import { REPORT_SCHEMA_VERSION, isSha256, sha256Hex, validateReport } from './inventory_schema.js';
+import { restoreInventorySettings } from './runner.js';
+import { REPORT_SCHEMA_VERSION, isSha256, sha256Hex, validateReport } from './schema.js';
 
 export async function loadReplayReport(path) {
   // Hash and parse one read so the provenance identifies the settings we used.

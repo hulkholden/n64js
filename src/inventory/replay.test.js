@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { EmulationMode } from '../hle/emulation_mode.js';
-import { loadReplayReport } from './inventory_replay.js';
+import { loadReplayReport } from './replay.js';
 import { withDirectory } from './test_helpers.js';
 
 function makeReplayableReport() {

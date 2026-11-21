@@ -1,9 +1,9 @@
 import { createHeadlessEmulator, loadROMFile } from '../headless/headless_env.js';
-import { createInventoryCollectors } from './inventory_collectors.js';
-import { createInputDriver, createRandom } from './inventory_input.js';
-import { captureFailure } from './inventory_failure.js';
-import { sendInventoryUpdate } from './inventory_ipc.js';
-import { sha256Hex } from './inventory_schema.js';
+import { createInventoryCollectors } from './collectors.js';
+import { createInputDriver, createRandom } from './input.js';
+import { captureFailure } from './failure.js';
+import { sendInventoryUpdate } from './ipc.js';
+import { sha256Hex } from './schema.js';
 
 // This process may block inside emulation. The CLI owns the wall-clock timeout
 // and retains the last checkpoint received before terminating this process.
