@@ -753,7 +753,7 @@ class CPUDebugState {
   }
 }
 
-class R4300DebugState extends CPUDebugState {
+export class R4300DebugState extends CPUDebugState {
   disassembleRange() {
     return disassembleRange(this.disasmAddress - 64, this.disasmAddress + 64, true);
   }
@@ -873,10 +873,12 @@ class R4300DebugState extends CPUDebugState {
       const name = cop1RegisterNames[i];
       const row = body.insertRow();
       appendCell(row, name);
-      const word = appendCell(row, toString32(cpu1.regU32[i]), 'fixed fp-w');
-      const single = appendCell(row, cpu1.regF32[i], 'fixed fp-s');
-      const double = (i & 1) === 0
-        ? appendCell(row, cpu1.regF64[i / 2], 'fixed fp-d')
+      const regIdx32 = cpu1.copRegIdx32(i);
+      const showDouble = cpu1.fullMode || (i & 1) === 0;
+      const word = appendCell(row, toString32(cpu1.loadU32(regIdx32)), 'fixed fp-w');
+      const single = appendCell(row, cpu1.loadF32(regIdx32), 'fixed fp-s');
+      const double = showDouble
+        ? appendCell(row, cpu1.loadF64(cpu1.copRegIdx64(i)), 'fixed fp-d')
         : appendCell(row, '');
 
       if (registerColours.has(name)) {
@@ -885,7 +887,7 @@ class R4300DebugState extends CPUDebugState {
         word.style.backgroundColor = registerColours.get(name + '-w');
       } else if (registerColours.has(name + '-s')) {
         single.style.backgroundColor = registerColours.get(name + '-s');
-      } else if (registerColours.has(name + '-d') && (i & 1) === 0) {
+      } else if (registerColours.has(name + '-d') && showDouble) {
         double.style.backgroundColor = registerColours.get(name + '-d');
       }
     }
