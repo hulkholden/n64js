@@ -6,6 +6,9 @@ import { collectorSpecs, inspectCollector, parseTextureFormat, unknownReportReas
 import { readInventory } from './reports.js';
 import { runInventoryCLI } from './cli.js';
 
+const CYCLE_TYPES = ['1cycle', '2cycle', 'copy', 'fill'];
+const MAX_BLEND_MODE = 0xffff;
+
 const usage = `Usage: bun run inventory-query <inventory-root|scan-directory|report.json> [filters]
   --microcode <family>  Match a handler family, e.g. GBI2 (case insensitive)
   --audio-microcode <family>  Match an audio family (ABI1, NAUDIO, NEAD, Unknown)
@@ -40,39 +43,48 @@ Queries read saved data from any emulator revision without starting emulation.
 Malformed files are listed as errors while other reports are still queried.
 Exit codes: 0 matches found; 1 no confirmed matches; 2 argument or data error.`;
 
+function parseBlendMode(raw) {
+  const value = raw.trim();
+  if (!/^(?:0x[0-9a-f]+|[0-9]+)$/i.test(value) || Number(value) > MAX_BLEND_MODE) {
+    throw new Error('Expected a 16-bit blend mode (0–65535 or 0x0000–0xffff)');
+  }
+  return Number(value);
+}
+
+function parseCycleType(raw) {
+  const index = CYCLE_TYPES.indexOf(raw.trim().toLowerCase());
+  if (index < 0) {
+    throw new Error('Expected cycle type 1cycle, 2cycle, copy, or fill');
+  }
+  return index;
+}
+
+function parseMicrocodeFamily(raw, label) {
+  const family = raw.trim();
+  if (!family) {
+    throw new Error(`Expected ${label}`);
+  }
+  return family.toUpperCase();
+}
+
 /** Parses and validates inventory query filter options from parseArgs values. */
 export function parseFilters(values) {
   const filters = {};
   const graphicsMode = {};
   if (values['blend-mode'] !== undefined) {
-    const value = values['blend-mode'].trim();
-    if (!/^(?:0x[0-9a-f]+|[0-9]+)$/i.test(value) || Number(value) > 0xffff) {
-      throw new Error('Expected a 16-bit blend mode (0–65535 or 0x0000–0xffff)');
-    }
-    graphicsMode.blendMode = Number(value);
+    graphicsMode.blendMode = parseBlendMode(values['blend-mode']);
   }
   if (values['cycle-type'] !== undefined) {
-    const name = values['cycle-type'].trim().toLowerCase();
-    const index = ['1cycle', '2cycle', 'copy', 'fill'].indexOf(name);
-    if (index < 0) {
-      throw new Error('Expected cycle type 1cycle, 2cycle, copy, or fill');
-    }
-    graphicsMode.cycleType = index;
+    graphicsMode.cycleType = parseCycleType(values['cycle-type']);
   }
   if (Object.keys(graphicsMode).length) {
     filters.graphicsMode = graphicsMode;
   }
   if (values['audio-microcode'] !== undefined) {
-    if (!values['audio-microcode'].trim()) {
-      throw new Error('Expected an audio microcode family');
-    }
-    filters.audioMicrocode = values['audio-microcode'].trim().toUpperCase();
+    filters.audioMicrocode = parseMicrocodeFamily(values['audio-microcode'], 'an audio microcode family');
   }
   if (values.microcode !== undefined) {
-    if (!values.microcode.trim()) {
-      throw new Error('Expected a microcode family');
-    }
-    filters.microcode = values.microcode.trim().toUpperCase();
+    filters.microcode = parseMicrocodeFamily(values.microcode, 'a microcode family');
   }
   if (values.texture !== undefined) {
     filters.texture = parseTextureFormat(values.texture);
@@ -83,14 +95,42 @@ export function parseFilters(values) {
   return filters;
 }
 
+function extractBlendMode(record) {
+  return record.otherModeL >>> 16;
+}
+
+function extractCycleType(record) {
+  return (record.otherModeH >>> 20) & 3;
+}
+
 const featurePredicates = {
-  graphicsMode: value => record =>
-    (value.blendMode === undefined || (record.otherModeL >>> 16) === value.blendMode) &&
-    (value.cycleType === undefined || ((record.otherModeH >>> 20) & 3) === value.cycleType),
-  audioMicrocode: value => record => record.family.toUpperCase() === value,
-  microcode: value => record => record.family.toUpperCase() === value,
-  texture: value => record => record.format === value.format && record.size === value.size,
+  graphicsMode: filter => record =>
+    (filter.blendMode === undefined || extractBlendMode(record) === filter.blendMode) &&
+    (filter.cycleType === undefined || extractCycleType(record) === filter.cycleType),
+  audioMicrocode: family => record => record.family.toUpperCase() === family,
+  microcode: family => record => record.family.toUpperCase() === family,
+  texture: filter => record => record.format === filter.format && record.size === filter.size,
 };
+
+function combineCollectorStates(inspected) {
+  if (inspected.some(item => item.state === 'observed')) {
+    return 'observed';
+  }
+  if (inspected.some(item => item.state === 'unknown')) {
+    return 'unknown';
+  }
+  return 'not-observed';
+}
+
+function combineFeatureStates(states) {
+  if (states.includes('not-observed')) {
+    return 'not-observed';
+  }
+  if (states.includes('unknown')) {
+    return 'unknown';
+  }
+  return 'observed';
+}
 
 /** Evaluates parsed query filters against a report's collectors map. */
 export function assessReport(collectors, filters) {
@@ -98,45 +138,72 @@ export function assessReport(collectors, filters) {
   for (const [feature, value] of Object.entries(filters)) {
     const predicate = featurePredicates[feature](value);
     const inspected = collectorSpecs[feature].map(spec => inspectCollector(collectors, spec, predicate));
-    const state = inspected.some(item => item.state === 'observed') ? 'observed'
-      : inspected.some(item => item.state === 'unknown') ? 'unknown' : 'not-observed';
-    checks[feature] = { state, collectors: inspected };
+    checks[feature] = {
+      state: combineCollectorStates(inspected),
+      collectors: inspected,
+    };
   }
-  const states = Object.values(checks).map(check => check.state);
-  const state = states.includes('not-observed') ? 'not-observed' : states.includes('unknown') ? 'unknown' : 'observed';
+  const state = combineFeatureStates(Object.values(checks).map(check => check.state));
   return { state, checks };
+}
+
+function formatOutputFilters(filters) {
+  return {
+    ...filters,
+    ...(filters.texture ? { texture: filters.texture.name } : {}),
+  };
+}
+
+function buildUnknownChecks(filters, reportVersion) {
+  const reason = unknownReportReason(reportVersion);
+  const checks = {};
+  for (const feature of Object.keys(filters)) {
+    checks[feature] = { state: 'unknown', reason, reportVersion };
+  }
+  return checks;
 }
 
 /** Queries an inventory root, scan directory, or report path with normalized filters. */
 export async function queryInventory(input, filters) {
-  const output = {
-    schemaVersion: 1,
-    filters: { ...filters, ...(filters.texture ? { texture: filters.texture.name } : {}) },
-    summary: { matched: 0, notObserved: 0, unknown: 0, errors: 0 },
-    matches: [], unknown: [], errors: [],
-  };
   const { runs, errors } = await readInventory(input);
-  output.errors = errors;
+  const matches = [];
+  const unknown = [];
+  let notObserved = 0;
+
   for (const { collectors, reportVersion, ...row } of runs) {
-    const { state, checks } = collectors ? assessReport(collectors, filters) : {
-      state: 'unknown',
-      checks: Object.fromEntries(Object.keys(filters).map(feature => [feature, {
-        state: 'unknown', reason: unknownReportReason(reportVersion), reportVersion,
-      }])),
-    };
-    row.checks = checks;
-    if (state === 'observed') {
-      output.matches.push(row);
-    } else if (state === 'unknown') {
-      output.unknown.push(row);
+    const assessment = collectors
+      ? assessReport(collectors, filters)
+      : { state: 'unknown', checks: buildUnknownChecks(filters, reportVersion) };
+    row.checks = assessment.checks;
+    if (assessment.state === 'observed') {
+      matches.push(row);
+    } else if (assessment.state === 'unknown') {
+      unknown.push(row);
     } else {
-      output.summary.notObserved++;
+      notObserved++;
     }
   }
-  output.summary.matched = output.matches.length;
-  output.summary.unknown = output.unknown.length;
-  output.summary.errors = output.errors.length;
-  return output;
+
+  return {
+    schemaVersion: 1,
+    filters: formatOutputFilters(filters),
+    summary: {
+      matched: matches.length,
+      notObserved,
+      unknown: unknown.length,
+      errors: errors.length,
+    },
+    matches,
+    unknown,
+    errors,
+  };
+}
+
+function exitCodeForQuery(output) {
+  if (output.errors.length) {
+    return 2;
+  }
+  return output.matches.length ? 0 : 1;
 }
 
 /** Parses CLI arguments and prints matching inventory reports as JSON. */
@@ -162,7 +229,7 @@ export async function runInventoryQueryCommand(argv = Bun.argv.slice(2)) {
   }
   const output = await queryInventory(resolve(positionals[0]), parseFilters(values));
   console.log(JSON.stringify(output, null, 2));
-  return output.errors.length ? 2 : output.matches.length ? 0 : 1;
+  return exitCodeForQuery(output);
 }
 
 if (import.meta.main) {
