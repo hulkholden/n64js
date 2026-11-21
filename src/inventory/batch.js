@@ -6,7 +6,8 @@ import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { fixRomByteOrder } from '../endian.js';
-import { emulatorVersion, inventoryOptions, inventorySettings, loadInputScript, restoreInventorySettings, runInventory } from './runner.js';
+import { emulatorVersion, runInventory } from './runner.js';
+import { inventoryOptions, inventorySettings, loadInputScript, restoreInventorySettings } from './settings.js';
 import { inputScriptHelp } from './input.js';
 import {
   MANIFEST_SCHEMA_VERSION,

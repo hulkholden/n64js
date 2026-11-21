@@ -1,64 +1,13 @@
 import { fork, spawnSync } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { isDeepStrictEqual } from 'node:util';
-import { EmulationMode } from '../hle/emulation_mode.js';
-import { inputPolicy, parseInputScript } from './input.js';
 import { captureFailure } from './failure.js';
-import { REPORT_SCHEMA_VERSION, isPlainObject } from './schema.js';
+import { REPORT_SCHEMA_VERSION } from './schema.js';
 
-export const inventoryOptions = {
-  seed: { type: 'string' },
-  frames: { type: 'string' },
-  'max-cycles': { type: 'string' },
-  'timeout-ms': { type: 'string' },
-  'input-script': { type: 'string' },
-};
-
-export async function loadInputScript(path) {
-  return path === undefined ? undefined : JSON.parse(await readFile(path, 'utf8'));
-}
-
-export function inventorySettings(values, script) {
-  return {
-    seed: integer(values.seed ?? '1', 'seed', 0, 0xffffffff),
-    frames: integer(values.frames ?? '600', 'frames', 1),
-    maxCycles: integer(values['max-cycles'] ?? '5000000000', 'max-cycles', 1),
-    timeoutMs: integer(values['timeout-ms'] ?? '60000', 'timeout-ms', 1, 0x7fffffff),
-    randomAlgorithm: 'mulberry32',
-    inputPolicy: script === undefined ? inputPolicy : {
-      name: 'scripted-prefix', version: 1, script: parseInputScript(script), after: inputPolicy,
-    },
-    graphics: EmulationMode.HLE,
-  };
-}
-
-// Reject settings this version cannot reproduce, including changed input policies.
-export function restoreInventorySettings(settings) {
-  if (!isPlainObject(settings)) {
-    throw new Error('Invalid inventory settings');
-  }
-  const expected = inventorySettings({
-    seed: String(settings.seed), frames: String(settings.frames),
-    'max-cycles': String(settings.maxCycles), 'timeout-ms': String(settings.timeoutMs),
-  }, settings.inputPolicy?.script);
-  if (!isDeepStrictEqual(settings, expected)) {
-    throw new Error('Unsupported inventory settings or input policy');
-  }
-  return expected;
-}
-
-function integer(value, name, minimum, maximum = Number.MAX_SAFE_INTEGER) {
-  const number = Number(value);
-  if (!/^\d+$/.test(value) || !Number.isSafeInteger(number) || number < minimum || number > maximum) {
-    throw new Error(`Invalid ${name}: ${value}`);
-  }
-  return number;
-}
+const WORKER_PATH = fileURLToPath(new URL('./worker.js', import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
 export function emulatorVersion() {
-  const cwd = fileURLToPath(new URL('../../', import.meta.url));
-  const git = args => spawnSync('git', args, { cwd, encoding: 'utf8' });
+  const git = args => spawnSync('git', args, { cwd: REPO_ROOT, encoding: 'utf8' });
   const revision = git(['rev-parse', 'HEAD']);
   const changes = git(['status', '--porcelain']);
   return {
@@ -69,8 +18,8 @@ export function emulatorVersion() {
   };
 }
 
-export async function runInventory(romPath, settings, { signal, replayOf } = {}) {
-  const report = {
+function createEmptyReport(settings, replayOf) {
+  return {
     schemaVersion: REPORT_SCHEMA_VERSION,
     rom: null,
     emulator: emulatorVersion(),
@@ -81,17 +30,58 @@ export async function runInventory(romPath, settings, { signal, replayOf } = {})
     // events were observed during this run, not that the ROM never uses graphics.
     collectors: {},
   };
+}
+
+function applyWorkerUpdate(report, update) {
+  report.rom = update.rom;
+  report.collectors = update.collectors;
+  report.result.frames = update.frames;
+  report.result.cycles = update.cycles;
+  if (update.type !== 'result') {
+    return false;
+  }
+  report.result.status = update.status;
+  report.result.message = update.message;
+  if (update.failure) {
+    report.result.failure = update.failure;
+  }
+  report.result.checkpointOnly = false;
+  return true;
+}
+
+function finalizeIncompleteResult(report, { interrupted, timedOut, timeoutMs, code, exitSignal }) {
+  if (interrupted) {
+    report.result.status = 'interrupted';
+    report.result.message ??= 'Inventory interrupted';
+    return;
+  }
+  if (timedOut) {
+    report.result.status = 'timeout';
+    report.result.message ??= `Wall-clock limit of ${timeoutMs} ms reached`;
+    return;
+  }
+  report.result.status = 'error';
+  report.result.message ??= `Emulator exited without a result (${exitSignal ?? code})`;
+  report.result.failure ??= { version: 1, kind: 'worker-exit', code, signal: exitSignal };
+}
+
+export async function runInventory(romPath, settings, { signal, replayOf } = {}) {
+  const report = createEmptyReport(settings, replayOf);
+  const workerPayload = JSON.stringify({ romPath, settings, expectedRomSha256: replayOf?.romSha256 });
+
   return new Promise(resolveReport => {
-    const child = fork(fileURLToPath(new URL('./worker.js', import.meta.url)), [JSON.stringify({ romPath, settings, expectedRomSha256: replayOf?.romSha256 })], {
+    const child = fork(WORKER_PATH, [workerPayload], {
       execArgv: [],
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
     // Emulator diagnostics must not contaminate the JSON stream on stdout.
     child.stdout.pipe(process.stderr);
     child.stderr.pipe(process.stderr);
+
     let timedOut = false;
     let interrupted = false;
     let finished = false;
+
     const interrupt = () => {
       interrupted = true;
       child.kill('SIGKILL');
@@ -100,23 +90,15 @@ export async function runInventory(romPath, settings, { signal, replayOf } = {})
     if (signal?.aborted) {
       interrupt();
     }
+
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill('SIGKILL');
     }, settings.timeoutMs);
+
     child.on('message', update => {
-      report.rom = update.rom;
-      report.collectors = update.collectors;
-      report.result.frames = update.frames;
-      report.result.cycles = update.cycles;
-      if (update.type === 'result') {
+      if (applyWorkerUpdate(report, update)) {
         finished = true;
-        report.result.status = update.status;
-        report.result.message = update.message;
-        if (update.failure) {
-          report.result.failure = update.failure;
-        }
-        report.result.checkpointOnly = false;
       }
     });
     child.on('error', error => {
@@ -127,11 +109,13 @@ export async function runInventory(romPath, settings, { signal, replayOf } = {})
       clearTimeout(timer);
       signal?.removeEventListener('abort', interrupt);
       if (!finished) {
-        report.result.status = interrupted ? 'interrupted' : timedOut ? 'timeout' : 'error';
-        report.result.message ??= interrupted ? 'Inventory interrupted' : timedOut ? `Wall-clock limit of ${settings.timeoutMs} ms reached` : `Emulator exited without a result (${exitSignal ?? code})`;
-        if (!interrupted && !timedOut) {
-          report.result.failure ??= { version: 1, kind: 'worker-exit', code, signal: exitSignal };
-        }
+        finalizeIncompleteResult(report, {
+          interrupted,
+          timedOut,
+          timeoutMs: settings.timeoutMs,
+          code,
+          exitSignal,
+        });
       }
       resolveReport(report);
     });

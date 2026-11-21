@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { restoreInventorySettings } from './runner.js';
+import { restoreInventorySettings } from './settings.js';
 import { REPORT_SCHEMA_VERSION, isSha256, sha256Hex, validateReport } from './schema.js';
 
 export async function loadReplayReport(path) {
