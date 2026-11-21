@@ -14,27 +14,50 @@ async function readJSON(path) {
   return JSON.parse(await readFile(path, 'utf8'));
 }
 
+function makeScanSummary(manifestPath, manifest) {
+  return {
+    path: manifestPath,
+    id: manifest.id,
+    createdAt: manifest.createdAt,
+    status: manifest.status,
+    sourceSha256: manifest.sourceSha256,
+  };
+}
+
 async function scanSources(directory) {
   const manifestPath = join(directory, 'manifest.json');
   const manifest = await readJSON(manifestPath);
   validateManifest(manifest);
+
+  const scan = makeScanSummary(manifestPath, manifest);
   const sources = new Map();
   for (const [index, entry] of manifest.entries.entries()) {
     // A pending entry without a report still needs to appear as unknown.
     const key = entry.report ?? `pending-${index}`;
-    if (!sources.has(key)) {
-      sources.set(key, {
+    let source = sources.get(key);
+    if (!source) {
+      source = {
         reportPath: entry.report ? join(directory, entry.report) : null,
-        paths: [], sha256: entry.sha256, manifest,
-        scan: { path: manifestPath, id: manifest.id, createdAt: manifest.createdAt, status: manifest.status, sourceSha256: manifest.sourceSha256 },
-      });
+        paths: [],
+        sha256: entry.sha256,
+        manifest,
+        scan,
+      };
+      sources.set(key, source);
     }
-    const paths = sources.get(key).paths;
-    if (!paths.includes(entry.path)) {
-      paths.push(entry.path);
+    if (!source.paths.includes(entry.path)) {
+      source.paths.push(entry.path);
     }
   }
   return [...sources.values()];
+}
+
+async function listSubdirectories(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  return entries
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name)
+    .sort();
 }
 
 async function discoverSources(input, errors) {
@@ -42,16 +65,16 @@ async function discoverSources(input, errors) {
   if (info.isFile()) {
     return [{ reportPath: input, paths: [], scan: null }];
   }
+
   const manifest = await stat(join(input, 'manifest.json')).catch(ignoreMissing);
   if (manifest) {
     return scanSources(input);
   }
 
-  const runs = join(input, 'runs');
-  const directories = (await readdir(runs, { withFileTypes: true })).filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
+  const runsDir = join(input, 'runs');
   const sources = [];
-  for (const name of directories) {
-    const directory = join(runs, name);
+  for (const name of await listSubdirectories(runsDir)) {
+    const directory = join(runsDir, name);
     try {
       sources.push(...await scanSources(directory));
     } catch (error) {
@@ -64,7 +87,9 @@ async function discoverSources(input, errors) {
 function resultRow(source, report) {
   return {
     rom: report?.rom ?? (source.sha256 ? { sha256: source.sha256, name: null } : null),
-    paths: source.paths, reportPath: source.reportPath, scan: source.scan,
+    paths: source.paths,
+    reportPath: source.reportPath,
+    scan: source.scan,
     emulator: report?.emulator ?? source.manifest?.emulator ?? null,
     settings: report?.settings ?? source.manifest?.settings ?? null,
     result: report?.result ?? null,
@@ -72,12 +97,16 @@ function resultRow(source, report) {
   };
 }
 
+function hasValidSchemaVersion(report) {
+  return isPlainObject(report) && Number.isSafeInteger(report.schemaVersion) && report.schemaVersion >= 1;
+}
+
 async function readSource(source) {
   let report;
   if (source.reportPath) {
     report = await readJSON(source.reportPath).catch(ignoreMissing);
   }
-  if (report !== undefined && (!isPlainObject(report) || !Number.isSafeInteger(report.schemaVersion) || report.schemaVersion < 1)) {
+  if (report !== undefined && !hasValidSchemaVersion(report)) {
     throw new Error('Invalid inventory report');
   }
   const reportVersion = report?.schemaVersion ?? null;

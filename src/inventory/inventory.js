@@ -39,6 +39,13 @@ wall-clock limits can change the outcome. The original report is never overwritt
 
 ${inputScriptHelp}`;
 
+function isSameFile(destinationPath, destinationStat, sourcePath, sourceStat) {
+  if (resolve(destinationPath) === resolve(sourcePath)) {
+    return true;
+  }
+  return Boolean(sourceStat && destinationStat && sourceStat.dev === destinationStat.dev && sourceStat.ino === destinationStat.ino);
+}
+
 /** Verifies the destination path is non-empty and will not overwrite any input file. */
 export async function checkOutput(output, inputs) {
   if (!output) {
@@ -50,10 +57,14 @@ export async function checkOutput(output, inputs) {
   const destination = await stat(output).catch(() => null);
   for (const [path, label] of inputs) {
     const source = await stat(path).catch(() => null);
-    if (resolve(output) === resolve(path) || (source && destination && source.dev === destination.dev && source.ino === destination.ino)) {
+    if (isSameFile(output, destination, path, source)) {
       throw new Error(`Output path must not overwrite the ${label}`);
     }
   }
+}
+
+function hasSettingsOverride(values) {
+  return Object.keys(inventoryOptions).some(key => values[key] !== undefined);
 }
 
 /** Parses CLI arguments and runs a single-ROM inventory or replay command. */
@@ -75,7 +86,7 @@ export async function runInventoryCommand(argv = Bun.argv.slice(2)) {
   if (positionals.length !== 1) {
     throw new Error('Expected one ROM path');
   }
-  if (values.replay !== undefined && Object.keys(inventoryOptions).some(key => values[key] !== undefined)) {
+  if (values.replay !== undefined && hasSettingsOverride(values)) {
     throw new Error('--replay cannot be combined with inventory settings options');
   }
   const replay = values.replay === undefined ? null : await loadReplayReport(values.replay);
