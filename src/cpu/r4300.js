@@ -505,14 +505,14 @@ export class CPU0 {
 
   conditionalBranch(cond, offset) {
     const effectiveOffset = cond ? (offset * 4) : 4;
-    this.branchTarget = this.pc + 4 + effectiveOffset;
+    this.branchTarget = (this.pc + 4 + effectiveOffset) >>> 0;
   }
 
   conditionalBranchLikely(cond, offset) {
     if (cond) {
-      this.branchTarget = this.pc + 4 + (offset * 4);
+      this.branchTarget = (this.pc + 4 + (offset * 4)) >>> 0;
     } else {
-      this.nextPC += 4;  // Skip the next instruction
+      this.nextPC = (this.nextPC + 4) >>> 0;  // Skip the next instruction
     }
   }
 
@@ -1023,7 +1023,7 @@ export class CPU0 {
           const signedPC = this.pc | 0;
 
           // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
-          this.nextPC = this.delayPC ?? this.pc + 4;
+          this.nextPC = this.delayPC ?? ((this.pc + 4) >>> 0);
 
           // The load may raise an EmulatedException either via alignment or TLB exceptions.
           let instruction = memaccess.loadU32fast(signedPC);

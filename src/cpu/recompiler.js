@@ -1464,7 +1464,7 @@ function generateBEQL(ctx) {
       if (${genEquality(ctx, s, t, true)}) {
         c.delayPC = ${toString32(addr)};
       } else {
-        c.nextPC += 4;
+        c.nextPC = (c.nextPC + 4) >>> 0;
       }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
@@ -1498,7 +1498,7 @@ function generateBNEL(ctx) {
       if (${genEquality(ctx, s, t, false)}) {
         c.delayPC = ${toString32(addr)};
       } else {
-        c.nextPC += 4;
+        c.nextPC = (c.nextPC + 4) >>> 0;
       }
       `);
 
@@ -1529,7 +1529,7 @@ function generateBLEZL(ctx) {
       if (!(${genIsPositive(ctx, s)})) {
         c.delayPC = ${toString32(addr)};
       } else {
-        c.nextPC += 4;
+        c.nextPC = (c.nextPC + 4) >>> 0;
       }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
@@ -1559,7 +1559,7 @@ function generateBGTZL(ctx) {
       if (${genIsPositive(ctx, s)}) {
         c.delayPC = ${toString32(addr)};
       } else {
-        c.nextPC += 4;
+        c.nextPC = (c.nextPC + 4) >>> 0;
       }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
@@ -1588,7 +1588,7 @@ function generateBLTZL(ctx) {
       if (${genSrcRegS32Hi(s)} < 0) {
         c.delayPC = ${toString32(addr)};
       } else {
-        c.nextPC += 4;
+        c.nextPC = (c.nextPC + 4) >>> 0;
       }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
@@ -1617,7 +1617,7 @@ function generateBGEZL(ctx) {
       if (${genSrcRegS32Hi(s)} >= 0) {
         c.delayPC = ${toString32(addr)};
       } else {
-        c.nextPC += 4;
+        c.nextPC = (c.nextPC + 4) >>> 0;
       }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
@@ -2008,7 +2008,7 @@ function generateBCInstrStub(ctx) {
     opImpl += `if (cond) {\n`;
     opImpl += `  ${delayTarget} = ${toString32(target)};\n`;
     opImpl += '} else {\n';
-    opImpl += '  c.nextPC += 4;\n';
+    opImpl += '  c.nextPC = (c.nextPC + 4) >>> 0;\n';
     opImpl += '}\n';
   } else {
     opImpl += `if (cond) {\n`;
