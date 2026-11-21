@@ -16,7 +16,11 @@ export function captureFailure(kind, error, emulator) {
     // Capture numeric state synchronously at the halt, before CPU.run cleans
     // up. These are emulator cursors, not a reconstructed faulting instruction.
     failure.context = {
-      cpu: { pc: cpu0.pc >>> 0, nextPC: cpu0.nextPC >>> 0, delayPC: cpu0.delayPC >>> 0 },
+      cpu: {
+        pc: cpu0.pc >>> 0,
+        nextPC: cpu0.nextPC >>> 0,
+        delayPC: cpu0.delayPC === null ? null : cpu0.delayPC >>> 0,
+      },
       rsp: { pc: hardware.rsp.pc, halted: hardware.rsp.halted },
     };
   }

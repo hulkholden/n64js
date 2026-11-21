@@ -31,4 +31,18 @@ describe('inventory failure evidence', () => {
     });
     expect(failure.exception).toBeUndefined();
   });
+
+  test('preserves null delayPC separately from branch target 0', () => {
+    const noDelay = captureFailure('halt', undefined, {
+      cpu0: { pc: 0x80001000, nextPC: 0x80001004, delayPC: null },
+      hardware: { rsp: { pc: 0, halted: true } },
+    });
+    expect(noDelay.context.cpu.delayPC).toBeNull();
+
+    const zeroTarget = captureFailure('halt', undefined, {
+      cpu0: { pc: 0x80001000, nextPC: 0x80001004, delayPC: 0 },
+      hardware: { rsp: { pc: 0, halted: true } },
+    });
+    expect(zeroTarget.context.cpu.delayPC).toBe(0);
+  });
 });
