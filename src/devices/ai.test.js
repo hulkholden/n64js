@@ -102,6 +102,18 @@ describe('AI DMA timing', () => {
     expect(ai.readU32(statusReg) & busy).toBe(0);
     expect(ai.readU32(lengthReg)).toBe(0);
   });
+
+  test('returns an unsigned 32-bit status word when FIFO full is set', () => {
+    ai.frequency = 32000;
+    ai.write32(base, 0x1000);
+    ai.write32(lengthReg, 640);
+    ai.write32(base, 0x2000);
+    ai.write32(lengthReg, 640);
+
+    const status = ai.readU32(statusReg);
+    expect(status).toBeGreaterThanOrEqual(0x80000000);
+    expect(status).toBe(0xc1100001);
+  });
 });
 
 describe('browser audio scheduling', () => {
