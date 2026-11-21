@@ -173,6 +173,10 @@ export function presentBackBuffer() {
   // CRT animation follows emulated time, so a paused frame remains still.
   const timeSeconds = hardware.verticalBlankCount / vi.refreshRate;
 
+  if (!renderer) {
+    return;
+  }
+
   if (numDisplayListsRendered !== 0) {
     renderer.copyBackBufferToFrontBuffer(vi.dramAddrReg & 0x00fffffe, timeSeconds);
     return;
@@ -215,11 +219,11 @@ function replayDList(task, disassembler, bailAfter) {
 }
 
 function processDList(task, disassembler, bailAfter, onFullSync = null, replayRAM = null) {
+  if (!gl || !renderer) {
+    return null;
+  }
   // Update a counter to tell the video code that we've rendered something.
   numDisplayListsRendered++;
-  if (!gl) {
-    return;
-  }
 
   const hardware = n64js.hardware();
   const ramDV = replayRAM || hardware.cachedMemDevice.mem.dataView
@@ -253,7 +257,7 @@ function processDList(task, disassembler, bailAfter, onFullSync = null, replayRA
 
 function initDimensionsFromVI(vi) {
   const scanout = vi.computeScanout();
-  if (!scanout) {
+  if (!scanout || !renderer) {
     return;
   }
 
