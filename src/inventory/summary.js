@@ -26,18 +26,45 @@ are taken from reports; missing/unsupported reports have an unknown outcome.
 Exit codes: 0 summary read successfully (even with failed ROM runs); 2 argument
 or data error.`;
 
+function summarizeCollector(collectors, spec, reportVersion) {
+  if (!collectors) {
+    return {
+      state: 'unknown',
+      reason: unknownReportReason(reportVersion),
+    };
+  }
+  const { version, scope, state, reason, matches } = inspectCollector(collectors, spec);
+  const observation = { version, scope, state };
+  if (reason !== undefined) {
+    observation.reason = reason;
+  }
+  if (matches !== undefined) {
+    observation.records = matches;
+  }
+  return observation;
+}
+
 /** Normalizes collector observations for a single run row. */
 export function summarizeRun({ collectors, ...row }) {
-  row.collectors = Object.fromEntries(allCollectorSpecs.map(spec => {
-    if (!collectors) {
-      return [spec.name, {
-        state: 'unknown', reason: unknownReportReason(row.reportVersion),
-      }];
-    }
-    const { collector, matches: records, ...observation } = inspectCollector(collectors, spec);
-    return [collector, { ...observation, ...(records ? { records } : {}) }];
-  }));
+  const normalized = {};
+  for (const spec of allCollectorSpecs) {
+    normalized[spec.name] = summarizeCollector(collectors, spec, row.reportVersion);
+  }
+  row.collectors = normalized;
   return row;
+}
+
+function createCollectorCounters() {
+  const counters = {};
+  for (const spec of allCollectorSpecs) {
+    counters[spec.name] = { observed: 0, notObserved: 0, unknown: 0 };
+  }
+  return counters;
+}
+
+function sortCounts(countsMap) {
+  const sorted = [...countsMap.entries()].sort(([left], [right]) => left.localeCompare(right));
+  return Object.fromEntries(sorted);
 }
 
 /** Summarizes all saved runs and collector counts in an inventory path. */
@@ -45,25 +72,38 @@ export async function summarizeInventory(input) {
   const { runs, errors } = await readInventory(input);
   const rows = runs.map(summarizeRun);
   const statuses = new Map();
-  const collectors = Object.fromEntries(allCollectorSpecs.map(spec => [spec.name, { observed: 0, notObserved: 0, unknown: 0 }]));
+  const distinctRoms = new Set();
+  const collectors = createCollectorCounters();
+  let unidentifiedRuns = 0;
+
   for (const row of rows) {
     const status = row.result?.status ?? 'unknown';
     statuses.set(status, (statuses.get(status) ?? 0) + 1);
+
+    if (row.rom?.sha256) {
+      distinctRoms.add(row.rom.sha256);
+    } else {
+      unidentifiedRuns++;
+    }
+
     for (const [name, observation] of Object.entries(row.collectors)) {
-      const key = observation.state === 'not-observed' ? 'notObserved' : observation.state;
-      collectors[name][key]++;
+      const bucket = observation.state === 'not-observed' ? 'notObserved' : observation.state;
+      collectors[name][bucket]++;
     }
   }
+
   return {
     schemaVersion: 1,
     summary: {
       runs: rows.length,
-      roms: new Set(rows.map(row => row.rom?.sha256).filter(Boolean)).size,
-      unidentifiedRuns: rows.filter(row => !row.rom?.sha256).length,
-      statuses: Object.fromEntries([...statuses.entries()].sort(([left], [right]) => left.localeCompare(right))),
-      collectors, errors: errors.length,
+      roms: distinctRoms.size,
+      unidentifiedRuns,
+      statuses: sortCounts(statuses),
+      collectors,
+      errors: errors.length,
     },
-    runs: rows, errors,
+    runs: rows,
+    errors,
   };
 }
 
