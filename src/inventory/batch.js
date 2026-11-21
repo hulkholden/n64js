@@ -2,7 +2,7 @@
 
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, open, readFile, readdir, rename, stat, unlink } from 'node:fs/promises';
-import { dirname, extname, join, relative, resolve } from 'node:path';
+import { basename, dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { fixRomByteOrder } from '../endian.js';
@@ -25,6 +25,8 @@ import { runInventoryCLI } from './cli.js';
 // Conventional shell exit statuses: 128 + signal number (SIGINT = 2, SIGTERM = 15).
 const EXIT_CODE_SIGINT = 130;
 const EXIT_CODE_SIGTERM = 143;
+const ROM_EXTENSIONS = new Set(['.z64', '.v64', '.n64']);
+const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
 const usage = `Usage: bun run inventory-batch <rom-or-directory>... --output-dir <directory> [options]
        bun run inventory-batch --resume <scan-directory> [--resume <scan-directory>...]
@@ -97,7 +99,7 @@ export async function discoverROMs(inputs) {
     const info = await stat(path).catch(ignoreMissing);
     if (info?.isDirectory()) {
       for (const file of await directoryFiles(path)) {
-        if (['.z64', '.v64', '.n64'].includes(extname(file).toLowerCase())) {
+        if (ROM_EXTENSIONS.has(extname(file).toLowerCase())) {
           files.add(file);
         }
       }
@@ -112,14 +114,17 @@ export async function discoverROMs(inputs) {
   return [...files].sort();
 }
 
+function isProductionSource(path) {
+  return path.endsWith('.js') && !path.endsWith('.test.js') && basename(path) !== 'test_helpers.js';
+}
+
 /** Computes a SHA-256 digest of all non-test JS sources and lock/manifest metadata. */
 export async function sourceHash() {
-  const root = fileURLToPath(new URL('../../', import.meta.url));
-  const files = (await directoryFiles(join(root, 'src'))).filter(path => path.endsWith('.js') && !path.endsWith('.test.js'));
-  files.push(join(root, 'package.json'), join(root, 'bun.lock'));
+  const files = (await directoryFiles(join(REPO_ROOT, 'src'))).filter(isProductionSource);
+  files.push(join(REPO_ROOT, 'package.json'), join(REPO_ROOT, 'bun.lock'));
   const hash = createHash('sha256');
   for (const path of files.sort()) {
-    hash.update(relative(root, path) + '\0').update(await readFile(path)).update('\0');
+    hash.update(relative(REPO_ROOT, path) + '\0').update(await readFile(path)).update('\0');
   }
   return hash.digest('hex');
 }
@@ -136,6 +141,10 @@ async function romHash(path) {
   return sha256Hex(new Uint8Array(buffer));
 }
 
+function isAcceptedSavedStatus(status) {
+  return TERMINAL_STATUSES.has(status) || status === 'interrupted';
+}
+
 async function savedReport(scanDirectory, manifest, entry) {
   if (!entry.report) {
     return null;
@@ -147,8 +156,7 @@ async function savedReport(scanDirectory, manifest, entry) {
   }
   const report = JSON.parse(json);
   try {
-    if (report?.schemaVersion !== REPORT_SCHEMA_VERSION ||
-        (!TERMINAL_STATUSES.has(report.result?.status) && report.result?.status !== 'interrupted')) {
+    if (report?.schemaVersion !== REPORT_SCHEMA_VERSION || !isAcceptedSavedStatus(report.result?.status)) {
       throw new Error('Invalid inventory report');
     }
     validateReport(report, { manifest, sha256: entry.sha256 });
@@ -200,8 +208,7 @@ async function collectEntry(scanDirectory, manifest, index, signal) {
   return report;
 }
 
-/** Executes or resumes a single scan directory while holding its lock file. */
-export async function scan(scanDirectory, signal) {
+async function withScanLock(scanDirectory, fn) {
   const lockPath = join(scanDirectory, '.lock');
   const lock = await open(lockPath, 'wx').catch(error => {
     if (error.code === 'EEXIST') {
@@ -211,6 +218,16 @@ export async function scan(scanDirectory, signal) {
   });
   try {
     await lock.writeFile(`${process.pid}\n`);
+    return await fn();
+  } finally {
+    await lock.close();
+    await unlink(lockPath);
+  }
+}
+
+/** Executes or resumes a single scan directory while holding its lock file. */
+export async function scan(scanDirectory, signal) {
+  return withScanLock(scanDirectory, async () => {
     const manifestPath = join(scanDirectory, 'manifest.json');
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
     validateManifest(manifest);
@@ -228,13 +245,11 @@ export async function scan(scanDirectory, signal) {
       console.error(`[${index + 1}/${manifest.entries.length}] ${entry.status}: ${entry.path}`);
     }
 
-    manifest.status = manifest.entries.every(entry => TERMINAL_STATUSES.has(entry.status)) ? 'completed' : 'interrupted';
+    const allTerminal = manifest.entries.every(entry => TERMINAL_STATUSES.has(entry.status));
+    manifest.status = allTerminal ? 'completed' : 'interrupted';
     await writeJSON(manifestPath, manifest);
     return manifest.entries.every(entry => entry.status === 'completed') ? 0 : 1;
-  } finally {
-    await lock.close();
-    await unlink(lockPath);
-  }
+  });
 }
 
 /** Runs sequential scans across directories with SIGINT/SIGTERM handling. */
@@ -242,7 +257,10 @@ export async function scanAll(scanDirectories) {
   const controller = new AbortController();
   let interruptCode = EXIT_CODE_SIGINT;
   const onInterrupt = () => controller.abort();
-  const onTerminate = () => { interruptCode = EXIT_CODE_SIGTERM; controller.abort(); };
+  const onTerminate = () => {
+    interruptCode = EXIT_CODE_SIGTERM;
+    controller.abort();
+  };
   process.on('SIGINT', onInterrupt);
   process.on('SIGTERM', onTerminate);
   try {
@@ -276,8 +294,12 @@ export async function createScans(outputDirectory, paths, settingsList) {
     const id = randomUUID();
     const directory = resolve(outputDirectory, 'runs', id);
     const manifest = {
-      schemaVersion: MANIFEST_SCHEMA_VERSION, id, createdAt: new Date().toISOString(),
-      emulator, sourceSha256, settings,
+      schemaVersion: MANIFEST_SCHEMA_VERSION,
+      id,
+      createdAt: new Date().toISOString(),
+      emulator,
+      sourceSha256,
+      settings,
       status: 'pending',
       entries: paths.map(path => ({ path, sha256: null, report: null, status: 'pending' })),
     };
@@ -287,6 +309,12 @@ export async function createScans(outputDirectory, paths, settingsList) {
     directories.push(directory);
   }
   return directories;
+}
+
+function hasInvalidResumeArgs(values, positionals) {
+  const hasEmptyPath = values.resume.some(path => !path);
+  const hasOtherOption = Object.keys(values).some(key => key !== 'resume');
+  return hasEmptyPath || positionals.length > 0 || hasOtherOption;
 }
 
 function parseBatchArgs(argv) {
@@ -305,7 +333,7 @@ function parseBatchArgs(argv) {
     return { mode: 'help' };
   }
   if (values.resume !== undefined) {
-    if (values.resume.some(path => !path) || positionals.length || Object.keys(values).some(key => key !== 'resume')) {
+    if (hasInvalidResumeArgs(values, positionals)) {
       throw new Error('--resume takes only scan directories; inputs and settings come from their manifests');
     }
     return { mode: 'resume', scanDirectories: [...new Set(values.resume.map(path => resolve(path)))] };
@@ -314,6 +342,16 @@ function parseBatchArgs(argv) {
     throw new Error('Expected ROM paths/directories and --output-dir');
   }
   return { mode: 'scan', values, positionals };
+}
+
+function dedupeSettingsBySeed(settingsList) {
+  const bySeed = new Map();
+  for (const settings of settingsList) {
+    if (!bySeed.has(settings.seed)) {
+      bySeed.set(settings.seed, settings);
+    }
+  }
+  return [...bySeed.values()];
 }
 
 /** Parses CLI arguments and creates or resumes batch inventory scans. */
@@ -329,7 +367,7 @@ export async function runInventoryBatchCommand(argv = Bun.argv.slice(2)) {
   const { values, positionals } = parsed;
   const script = await loadInputScript(values['input-script']);
   const settings = (values.seed ?? ['1']).map(seed => inventorySettings({ ...values, seed }, script));
-  const uniqueSettings = [...new Map(settings.map(value => [value.seed, value])).values()];
+  const uniqueSettings = dedupeSettingsBySeed(settings);
   const paths = await discoverROMs(positionals);
   const directories = await createScans(values['output-dir'], paths, uniqueSettings);
   return scanAll(directories);

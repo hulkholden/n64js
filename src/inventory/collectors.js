@@ -1,6 +1,28 @@
 import { ImageFormat, ImageSize } from '../hle/graphics/gbi.js';
 
-const isUint32 = value => Number.isInteger(value) && value >= 0 && value <= 0xffffffff;
+const DRAW_MODE_FIELDS = ['otherModeH', 'otherModeL', 'combineHi', 'combineLo'];
+
+function isUint32(value) {
+  return Number.isInteger(value) && value >= 0 && value <= 0xffffffff;
+}
+
+function isPositiveSafeInt(value) {
+  return Number.isSafeInteger(value) && value > 0;
+}
+
+function isDrawModeRecord(record) {
+  return record != null &&
+    DRAW_MODE_FIELDS.every(key => isUint32(record[key])) &&
+    isPositiveSafeInt(record.draws);
+}
+
+function isMicrocodeRecord(countField) {
+  return record => typeof record?.family === 'string' && isPositiveSafeInt(record[countField]);
+}
+
+function isTextureFormatRecord(record) {
+  return Number.isInteger(record?.format) && Number.isInteger(record?.size);
+}
 
 /** Formats a numeric GBI image format/size pair as a short name such as CI4 or RGBA16. */
 export function formatTextureName(format, size) {
@@ -102,18 +124,19 @@ export function createInventoryCollectors() {
 }
 
 export const collectorSpecs = {
-  graphicsMode: [{
-    name: 'graphics.drawModes', scope: 'headless-draw', records: 'modes',
-    validate: record => record != null &&
-      ['otherModeH', 'otherModeL', 'combineHi', 'combineLo'].every(key => isUint32(record[key])) &&
-      Number.isSafeInteger(record.draws) && record.draws > 0,
-  }],
-  audioMicrocode: [{ name: 'audio.taskMicrocodes', scope: 'task-start', records: 'microcodes', count: 'tasks' }],
-  microcode: [
-    { name: 'graphics.taskMicrocodes', scope: 'task-start', records: 'microcodes', count: 'tasks' },
-    { name: 'graphics.microcodeLoads', scope: 'hle-load', records: 'microcodes', count: 'loads' },
+  graphicsMode: [
+    { name: 'graphics.drawModes', scope: 'headless-draw', records: 'modes', validate: isDrawModeRecord },
   ],
-  texture: [{ name: 'graphics.textureFormats', scope: 'hle-draw', records: 'formats' }],
+  audioMicrocode: [
+    { name: 'audio.taskMicrocodes', scope: 'task-start', records: 'microcodes', validate: isMicrocodeRecord('tasks') },
+  ],
+  microcode: [
+    { name: 'graphics.taskMicrocodes', scope: 'task-start', records: 'microcodes', validate: isMicrocodeRecord('tasks') },
+    { name: 'graphics.microcodeLoads', scope: 'hle-load', records: 'microcodes', validate: isMicrocodeRecord('loads') },
+  ],
+  texture: [
+    { name: 'graphics.textureFormats', scope: 'hle-draw', records: 'formats', validate: isTextureFormatRecord },
+  ],
 };
 
 export const allCollectorSpecs = Object.values(collectorSpecs).flat();
@@ -121,7 +144,12 @@ export const allCollectorSpecs = Object.values(collectorSpecs).flat();
 /** Validates a single collector entry and filters its records with predicate. */
 export function inspectCollector(collectors, spec, predicate = () => true) {
   const data = collectors?.[spec.name];
-  const result = { collector: spec.name, version: data?.version ?? null, scope: data?.scope ?? null, state: 'unknown' };
+  const result = {
+    collector: spec.name,
+    version: data?.version ?? null,
+    scope: data?.scope ?? null,
+    state: 'unknown',
+  };
   if (!data) {
     return { ...result, reason: 'missing-collector' };
   }
@@ -132,10 +160,7 @@ export function inspectCollector(collectors, spec, predicate = () => true) {
     return { ...result, reason: 'unsupported-scope' };
   }
   const records = data[spec.records];
-  const validRecord = spec.validate ?? (spec.count
-    ? record => typeof record?.family === 'string' && Number.isSafeInteger(record[spec.count]) && record[spec.count] > 0
-    : record => Number.isInteger(record?.format) && Number.isInteger(record?.size));
-  if (!Array.isArray(records) || !records.every(validRecord)) {
+  if (!Array.isArray(records) || !records.every(spec.validate)) {
     return { ...result, reason: 'invalid-records' };
   }
   const matches = records.filter(predicate);
