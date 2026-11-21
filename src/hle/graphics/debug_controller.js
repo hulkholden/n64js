@@ -20,6 +20,7 @@ export class DebugController {
   constructor(state, processDList) {
     this.state = state;
     this.processDList = processDList;
+    this.renderer = null;
 
     this.numOps = 0;
     this.bailAfter = -1;
@@ -286,7 +287,7 @@ export class DebugController {
     pre.append(gbi.CycleType.nameOf(this.state.getCycleType()) + '\n');
     pre.append(this.buildColorsTable());
     pre.append(shaders.getCombinerText(this.state.combine.hi, this.state.combine.lo));
-    const shader = this.renderer.getCurrentN64Shader();
+    const shader = this.renderer?.getCurrentN64Shader();
     if (shader) {
       pre.append(shader.shaderSource);
     }
