@@ -3,7 +3,8 @@
 import { stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { inventoryOptions, inventorySettings, loadInputScript, runInventory } from './runner.js';
+import { runInventory } from './runner.js';
+import { inventoryOptions, inventorySettings, loadInputScript } from './settings.js';
 import { inputScriptHelp } from './input.js';
 import { loadReplayReport } from './replay.js';
 import { REPORT_EXIT_CODES } from './schema.js';
