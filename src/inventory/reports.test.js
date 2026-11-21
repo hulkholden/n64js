@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { readInventory, validateReport } from './inventory_reports.js';
+import { readInventory, validateReport } from './reports.js';
 import { ci4, makeReport, withDirectory } from './test_helpers.js';
 
 describe('inventory reports', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { captureFailure } from './inventory_failure.js';
+import { captureFailure } from './failure.js';
 
 describe('inventory failure evidence', () => {
   test('serializes non-Error throws without inventing a stack or leaking error properties', () => {

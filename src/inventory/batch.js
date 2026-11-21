@@ -6,8 +6,8 @@ import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { fixRomByteOrder } from '../endian.js';
-import { emulatorVersion, inventoryOptions, inventorySettings, loadInputScript, restoreInventorySettings, runInventory } from './inventory_runner.js';
-import { inputScriptHelp } from './inventory_input.js';
+import { emulatorVersion, inventoryOptions, inventorySettings, loadInputScript, restoreInventorySettings, runInventory } from './runner.js';
+import { inputScriptHelp } from './input.js';
 import {
   MANIFEST_SCHEMA_VERSION,
   REPORT_SCHEMA_VERSION,
@@ -18,8 +18,8 @@ import {
   sha256Hex,
   validateManifest as validateManifestSchema,
   validateReport,
-} from './inventory_schema.js';
-import { runInventoryCLI } from './inventory_cli.js';
+} from './schema.js';
+import { runInventoryCLI } from './cli.js';
 
 // Conventional shell exit statuses: 128 + signal number (SIGINT = 2, SIGTERM = 15).
 const EXIT_CODE_SIGINT = 130;

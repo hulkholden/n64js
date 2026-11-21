@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { runInventoryCLI } from './inventory_cli.js';
+import { runInventoryCLI } from './cli.js';
 
 describe('inventory CLI runner', () => {
   test('applies returned exit codes and leaves exitCode untouched on undefined', async () => {

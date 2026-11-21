@@ -1,4 +1,4 @@
-import { isPlainObject } from './inventory_schema.js';
+import { isPlainObject } from './schema.js';
 
 // Mulberry32: keep CPU randomness and controller randomness on separate streams.
 export function createRandom(seed) {

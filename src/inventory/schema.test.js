@@ -12,7 +12,7 @@ import {
   sha256Hex,
   validateManifest,
   validateReport,
-} from './inventory_schema.js';
+} from './schema.js';
 import { ci4, makeReport } from './test_helpers.js';
 
 describe('inventory schema helpers', () => {

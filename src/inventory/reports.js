@@ -6,7 +6,7 @@ import {
   isPlainObject,
   validateManifest,
   validateReport,
-} from './inventory_schema.js';
+} from './schema.js';
 
 export { validateReport };
 

@@ -2,10 +2,10 @@ import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ImageFormat, ImageSize } from '../hle/graphics/gbi.js';
-import { parseFilters } from './inventory_query.js';
+import { parseFilters } from './query.js';
 import { ci4, invokeCLI, makeReport, rgba16, withDirectory, writeScan } from './test_helpers.js';
 
-const cli = fileURLToPath(new URL('./inventory_query.js', import.meta.url));
+const cli = fileURLToPath(new URL('./query.js', import.meta.url));
 
 async function invokeQuery(args) {
   const result = await invokeCLI(cli, args);

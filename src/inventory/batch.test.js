@@ -3,12 +3,12 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, rm, stat, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseInputScript } from './inventory_input.js';
-import { discoverROMs } from './inventory_batch.js';
+import { parseInputScript } from './input.js';
+import { discoverROMs } from './batch.js';
 import { invokeCLI, makeROM, swapRomBytes16, withDirectory } from './test_helpers.js';
 
-const batchCLI = fileURLToPath(new URL('./inventory_batch.js', import.meta.url));
-const queryCLI = fileURLToPath(new URL('./inventory_query.js', import.meta.url));
+const batchCLI = fileURLToPath(new URL('./batch.js', import.meta.url));
+const queryCLI = fileURLToPath(new URL('./query.js', import.meta.url));
 
 describe('inventory batch command', () => {
   test('prints usage with --help and rejects invalid CLI arguments', async () => {

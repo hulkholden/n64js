@@ -4,7 +4,7 @@ import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const ipcModule = new URL('./inventory_ipc.js', import.meta.url).href;
+const ipcModule = new URL('./ipc.js', import.meta.url).href;
 
 async function withWorker(source, inspect) {
   const directory = await realpath(await mkdtemp(join(tmpdir(), 'n64js-inventory-ipc-')));

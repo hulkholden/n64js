@@ -3,9 +3,9 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { EmulationMode } from '../hle/emulation_mode.js';
-import { inputPolicy, parseInputScript } from './inventory_input.js';
-import { captureFailure } from './inventory_failure.js';
-import { REPORT_SCHEMA_VERSION, isPlainObject } from './inventory_schema.js';
+import { inputPolicy, parseInputScript } from './input.js';
+import { captureFailure } from './failure.js';
+import { REPORT_SCHEMA_VERSION, isPlainObject } from './schema.js';
 
 export const inventoryOptions = {
   seed: { type: 'string' },
@@ -82,7 +82,7 @@ export async function runInventory(romPath, settings, { signal, replayOf } = {})
     collectors: {},
   };
   return new Promise(resolveReport => {
-    const child = fork(fileURLToPath(new URL('./inventory_worker.js', import.meta.url)), [JSON.stringify({ romPath, settings, expectedRomSha256: replayOf?.romSha256 })], {
+    const child = fork(fileURLToPath(new URL('./worker.js', import.meta.url)), [JSON.stringify({ romPath, settings, expectedRomSha256: replayOf?.romSha256 })], {
       execArgv: [],
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });

@@ -7,7 +7,7 @@ import {
   loadInputScript,
   restoreInventorySettings,
   runInventory,
-} from './inventory_runner.js';
+} from './runner.js';
 import { withDirectory } from './test_helpers.js';
 
 describe('inventory runner settings and helpers', () => {
