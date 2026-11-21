@@ -5,6 +5,7 @@ import { Vector2 } from "../../graphics/Vector2.js";
 import * as gbi from './gbi.js';
 import * as rdp_blend from './rdp_blend_constants.js';
 import { CRTMode, graphicsOptions } from './graphics_options.js';
+import { GLState } from './gl_state.js';
 import { RendererBase } from './renderer_base.js';
 import { RenderTargets } from './render_targets.js';
 import * as shaders from './shaders.js';
@@ -31,9 +32,11 @@ export class Renderer extends RendererBase {
   constructor(gl, state, initialWidth, initialHeight) {
     super(state);
     this.gl = gl;
+    this.glState = new GLState(gl);
 
-    this.tmemTexture = new TMEMTexture(gl);
+    this.tmemTexture = new TMEMTexture(gl, 4096, this.glState);
 
+    this._renderTargets = null;
     this.renderTargets = new RenderTargets(gl, initialWidth, initialHeight);
 
     // Allocate textures only when CPU video is presented. Progressive video
@@ -66,16 +69,35 @@ export class Renderer extends RendererBase {
 
     this.fillShaderProgram = shaders.createShaderProgram(gl, fillVertexSource, fillFragmentSource);
     this.fillFillColorUniform = gl.getUniformLocation(this.fillShaderProgram, "uFillColor");
+    this.fillColorR = NaN;
+    this.fillColorG = NaN;
+    this.fillColorB = NaN;
+    this.fillColorA = NaN;
     this.fillRectVA = this.initFillRectVA(this.fillShaderProgram);
     this.debugClearVA = this.initClearVA(this.fillShaderProgram);
     this.n64VA = this.initN64VA();
 
     this.currentShader = new CurrentShader();
+    this.glState.reset();
+  }
+
+  get renderTargets() { return this._renderTargets; }
+
+  set renderTargets(targets) {
+    if (this._renderTargets) {
+      this._renderTargets.onTextureBindingChange = null;
+    }
+    this._renderTargets = targets;
+    if (targets) {
+      targets.onTextureBindingChange = () => this.glState?.invalidateTexture();
+    }
+    this.glState?.reset();
   }
 
   initN64VA() {
     const va = new VertexArray(this.gl);
     va.initInterleavedN64Attrs();
+    this.glState?.invalidateVertexArray();
     return va;
   }
 
@@ -110,6 +132,7 @@ export class Renderer extends RendererBase {
     this.resetCPUFramebuffers();
     this.renderTargets.reset();
     this.tmemTexture?.reset();
+    this.glState?.reset();
   }
 
   resetCPUFramebuffers() {
@@ -121,10 +144,12 @@ export class Renderer extends RendererBase {
     this.cpuFramebuffers = [null, null];
     this.cpuFramebufferBitDepth = 0;
     this.cpuFramebufferInterlaced = false;
+    this.glState?.invalidateTexture();
   }
 
   newFrame() {
     this.currentShader?.reset();
+    this.glState?.reset();
     const gl = this.gl;
     this.renderTargets.beginFrame(this.state.ramDV);
     // Render everything to the back buffer. This prevents horrible flickering
@@ -210,6 +235,7 @@ export class Renderer extends RendererBase {
     gl.bindSampler(0, null);
     gl.bindSampler(1, null);
     gl.activeTexture(gl.TEXTURE0);
+    this.glState?.reset();
   }
 
   copyBackBufferToFrontBuffer(address, timeSeconds = 0) {
@@ -298,19 +324,18 @@ export class Renderer extends RendererBase {
 
     // texture filter
 
+    const glState = getGLState(this);
     if (!lines && (this.state.geometryMode.cullFront || this.state.geometryMode.cullBack)) {
-      gl.enable(gl.CULL_FACE);
       const mode = (this.state.geometryMode.cullFront) ? gl.FRONT : gl.BACK;
-      gl.cullFace(mode);
+      glState.setCullFace(true, mode);
     } else {
-      gl.disable(gl.CULL_FACE);
+      glState.setCullFaceEnabled(false);
     }
 
     this.markFramebufferDirty(tb.positions, tb.numTris * 3);
     gl.drawArrays(gl.TRIANGLES, 0, tb.numTris * 3);
     //gl.drawArrays(gl.LINE_STRIP, 0, numTris * 3);
     tb.reset();
-    gl.bindVertexArray(null);
   }
 
   initClearVA(program) {
@@ -330,10 +355,11 @@ export class Renderer extends RendererBase {
 
   debugClear() {
     const gl = this.gl;
+    const glState = getGLState(this);
 
     this.renderTargets.bindCurrent();
-    gl.disable(gl.SCISSOR_TEST);
-    gl.depthMask(true);
+    glState.setScissorEnabled(false);
+    glState.setDepthMask(true);
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -351,7 +377,7 @@ export class Renderer extends RendererBase {
     const gl = this.gl;
     this.applyScissor();
     gl.clearDepth(depth);
-    gl.depthMask(true);
+    getGLState(this).setDepthMask(true);
     gl.clear(gl.DEPTH_BUFFER_BIT);
   }
 
@@ -365,6 +391,7 @@ export class Renderer extends RendererBase {
 
   fillRect(x0, y0, x1, y1, color) {
     const gl = this.gl;
+    const glState = getGLState(this);
 
     this.applyScissor();
     this.setGLBlendMode();
@@ -379,42 +406,48 @@ export class Renderer extends RendererBase {
       display0.x, display0.y, 0.0, 1.0,
     ];
 
-    gl.useProgram(this.fillShaderProgram);
-    this.fillRectVA.bind();
-    this.fillRectVA.setPosData(new Float32Array(vertices), gl.DYNAMIC_DRAW);
+    glState.useProgram(this.fillShaderProgram);
+    glState.bindVertexArray(this.fillRectVA.vao);
+    glState.bindArrayBuffer(this.fillRectVA.posBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
 
     // uFillColor
-    gl.uniform4f(this.fillFillColorUniform, color.r, color.g, color.b, color.a);
+    if (this.fillColorR !== color.r || this.fillColorG !== color.g ||
+        this.fillColorB !== color.b || this.fillColorA !== color.a) {
+      this.fillColorR = color.r;
+      this.fillColorG = color.g;
+      this.fillColorB = color.b;
+      this.fillColorA = color.a;
+      gl.uniform4f(this.fillFillColorUniform, color.r, color.g, color.b, color.a);
+    }
 
     // Disable culling and depth testing.
-    gl.disable(gl.CULL_FACE);
-    gl.disable(gl.DEPTH_TEST);
-    gl.depthMask(false);
+    glState.setCullFaceEnabled(false);
+    glState.setDepthTestEnabled(false);
+    glState.setDepthMask(false);
 
     this.renderTargets.markDirty(this.state.scissor, y1);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    this.fillRectVA.unbind();
   }
 
   lleRect(tileIdx, vertices, uvs, colours, textureRect = null) {
     const gl = this.gl;
+    const glState = getGLState(this);
 
     this.setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs),
       true /* textureEnabled */, false /*texGenEnabled*/, tileIdx, vertices.length / 4, textureRect);
 
-    gl.disable(gl.CULL_FACE);
+    glState.setCullFaceEnabled(false);
 
     const depthSourcePrim = (this.state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
-    const depthEnabled = depthSourcePrim ? true : false;
-    if (depthEnabled) {
+    if (depthSourcePrim) {
       this.initDepth();
     } else {
-      gl.disable(gl.DEPTH_TEST);
-      gl.depthMask(false);
+      glState.setDepthTestEnabled(false);
+      glState.setDepthMask(false);
     }
     this.markFramebufferDirty(vertices);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    gl.bindVertexArray(null);
   }
 
   texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
@@ -468,7 +501,6 @@ export class Renderer extends RendererBase {
   }
 
   applyScissor() {
-    const gl = this.gl;
     const { width, height } = this.frameBuffer;
     const { viWidth, viHeight } = this.nativeTransform;
     const { x0, y0, x1, y1 } = this.state.scissor;
@@ -479,13 +511,13 @@ export class Renderer extends RendererBase {
     const right = Math.round(x1 * width / viWidth);
     const top = Math.round(y0 * height / viHeight);
     const bottom = Math.round(y1 * height / viHeight);
-    gl.enable(gl.SCISSOR_TEST);
-    gl.scissor(left, height - bottom, Math.max(0, right - left), Math.max(0, bottom - top));
+    getGLState(this).setScissor(left, height - bottom, Math.max(0, right - left), Math.max(0, bottom - top));
     // TODO: emulate odd/even scanline selection for interlaced scissor modes.
   }
 
   initDepth() {
     const gl = this.gl;
+    const glState = getGLState(this);
 
     // TODO: decal mode.
     //if (gRDPOtherMode.zmode == ZMODE_DEC) ...
@@ -495,7 +527,7 @@ export class Renderer extends RendererBase {
     // RSP clipping. XG2 uses this to put its sky behind the track. Divide by
     // 2^15, matching the RDP triangle path's 15.16 fixed-point depth scale.
     const depth = this.state.primDepth / 0x8000;
-    gl.depthRange(depthSourcePrim ? depth : 0, depthSourcePrim ? depth : 1);
+    glState.setDepthRange(depthSourcePrim ? depth : 0, depthSourcePrim ? depth : 1);
 
     const zGeomMode = Boolean(this.state.geometryMode.zbuffer);
     const zCmpRenderMode = (this.state.rdpOtherModeL & gbi.RenderMode.Z_CMP) !== 0;
@@ -503,17 +535,18 @@ export class Renderer extends RendererBase {
     const compare = (zGeomMode || depthSourcePrim) && zCmpRenderMode;
 
     if (compare || zUpdRenderMode) {
-      gl.enable(gl.DEPTH_TEST);
-      gl.depthFunc(compare ? gl.LEQUAL : gl.ALWAYS);
+      glState.setDepthTestEnabled(true);
+      glState.setDepthFunc(compare ? gl.LEQUAL : gl.ALWAYS);
     } else {
-      gl.disable(gl.DEPTH_TEST);
+      glState.setDepthTestEnabled(false);
     }
 
-    gl.depthMask(zUpdRenderMode);
+    glState.setDepthMask(zUpdRenderMode);
   }
 
   setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx, numVertices = positions.length / 4, textureRect = null, noNearClipping = false, { affineUV = false } = {}) {
     const gl = this.gl;
+    const glState = getGLState(this);
 
     this.applyScissor();
     this.setGLBlendMode();
@@ -536,75 +569,181 @@ export class Renderer extends RendererBase {
       tile1 = this.getTextureTileCount() === 2 ? this.state.tiles[tileIdx1] : null;
     }
 
-    const enableAlphaThreshold = (this.state.getAlphaCompareType() & gbi.AlphaCompare.G_AC_THRESHOLD) != 0;
-    const enableAlphaCvgKill = this.state.getAntiAliasEnabled() && this.state.getCoverageTimesAlpha();
+    const shader = this.getCurrentN64Shader(noNearClipping);
+    glState.useProgram(shader.program);
 
-    let alphaThreshold = 0;
-    if (enableAlphaThreshold) {
-      alphaThreshold = ((this.state.blendColor >>> 0) & 0xff) / 255.0;
-    } else if (enableAlphaCvgKill) {
-      // If CVG_X_ALPHA is set then the coverage value is multiplied by the computed alpha value.
-      // If anti-aliasing is enabled (AA_EN) then coverage values of zero will be discarded (won't write).
-      // TODO: this is a bit of a hack - as we don't compute coverage values we're just assuming that if
-      // the alpha is zero then the coverage will always come out as zero, but this is not accurate.
-      alphaThreshold = 0;
+    const affineUVInt = affineUV ? 1 : 0;
+    if (shader.uAffineUVUniform !== null && shader.affineUV !== affineUVInt) {
+      shader.affineUV = affineUVInt;
+      gl.uniform1i(shader.uAffineUVUniform, affineUVInt);
     }
 
-    const shader = this.getCurrentN64Shader(noNearClipping);
-    gl.useProgram(shader.program);
-    gl.uniform1i(shader.uAffineUVUniform, affineUV ? 1 : 0);
-
-    this.n64VA ??= this.initN64VA();
-    this.n64VA.bind();
-    this.n64VA.setInterleavedData(positions, colours, coords, numVertices);
+    if (!this.n64VA) {
+      this.n64VA = this.initN64VA();
+    }
+    glState.bindVertexArray(this.n64VA.vao);
+    glState.bindArrayBuffer(this.n64VA.interleavedBuffer);
+    this.n64VA.setInterleavedData(positions, colours, coords, numVertices, false);
 
     this.tmemTexture.bind(this.state.tmem);
-    gl.uniform1i(shader.uTMEMUniform, 0);
+    if (!shader.tmemInitialized) {
+      if (shader.uTMEMUniform !== null) {
+        gl.uniform1i(shader.uTMEMUniform, 0);
+      }
+      shader.tmemInitialized = true;
+    }
     const enabled0 = this.bindTile(tile0, texGenEnabled, shader.textureUniforms[0]);
     const enabled1 = this.bindTile(tile1, texGenEnabled, shader.textureUniforms[1]);
     const copy = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY;
-    const filter = copy ? gbi.TextureFilter.G_TF_POINT : this.state.getTextureFilterType();
-    gl.uniform1i(shader.uTextureFilterUniform, filter >>> gbi.G_MDSFT_TEXTFILT);
-    gl.uniform1i(shader.uTextureRectEnabledUniform, textureRect ? 1 : 0);
+    if (shader.uTextureFilterUniform !== null) {
+      const filter = copy ? gbi.TextureFilter.G_TF_POINT : this.state.getTextureFilterType();
+      const filterValue = filter >>> gbi.G_MDSFT_TEXTFILT;
+      if (shader.textureFilter !== filterValue) {
+        shader.textureFilter = filterValue;
+        gl.uniform1i(shader.uTextureFilterUniform, filterValue);
+      }
+    }
+    const textureRectInt = textureRect ? 1 : 0;
+    if (shader.uTextureRectEnabledUniform !== null && shader.textureRectEnabled !== textureRectInt) {
+      shader.textureRectEnabled = textureRectInt;
+      gl.uniform1i(shader.uTextureRectEnabledUniform, textureRectInt);
+    }
     if (textureRect) {
       const { x0, y0, s0, t0, dsdx, dtdy, flip } = textureRect;
       const { viWidth, viHeight } = this.nativeTransform;
-      gl.uniform4f(shader.uTextureRectScreenUniform,
-        viWidth / this.renderTargets.width, -viHeight / this.renderTargets.height, 0, viHeight);
-      // Rectangle interpolation starts on the first native scanline; the
-      // copy pipe additionally ignores the fractional X origin.
-      gl.uniform4f(shader.uTextureRectOriginUniform, copy ? Math.floor(x0) : x0, Math.floor(y0), s0, t0);
-      gl.uniform4f(shader.uTextureRectDerivativesUniform,
-        flip ? 0 : dsdx, flip ? dtdy : 0, flip ? dsdx : 0, flip ? 0 : dtdy);
+      if (shader.uTextureRectScreenUniform !== null) {
+        const sx = viWidth / this.renderTargets.width;
+        const sy = -viHeight / this.renderTargets.height;
+        if (shader.rectScreenX !== sx || shader.rectScreenY !== sy || shader.rectScreenW !== viHeight) {
+          shader.rectScreenX = sx;
+          shader.rectScreenY = sy;
+          shader.rectScreenW = viHeight;
+          gl.uniform4f(shader.uTextureRectScreenUniform, sx, sy, 0, viHeight);
+        }
+      }
+      if (shader.uTextureRectOriginUniform !== null) {
+        // Rectangle interpolation starts on the first native scanline; the
+        // copy pipe additionally ignores the fractional X origin.
+        const ox = copy ? Math.floor(x0) : x0;
+        const oy = Math.floor(y0);
+        if (shader.rectOriginX !== ox || shader.rectOriginY !== oy ||
+            shader.rectOriginS !== s0 || shader.rectOriginT !== t0) {
+          shader.rectOriginX = ox;
+          shader.rectOriginY = oy;
+          shader.rectOriginS = s0;
+          shader.rectOriginT = t0;
+          gl.uniform4f(shader.uTextureRectOriginUniform, ox, oy, s0, t0);
+        }
+      }
+      if (shader.uTextureRectDerivativesUniform !== null) {
+        const d0 = flip ? 0 : dsdx;
+        const d1 = flip ? dtdy : 0;
+        const d2 = flip ? dsdx : 0;
+        const d3 = flip ? 0 : dtdy;
+        if (shader.rectDeriv0 !== d0 || shader.rectDeriv1 !== d1 ||
+            shader.rectDeriv2 !== d2 || shader.rectDeriv3 !== d3) {
+          shader.rectDeriv0 = d0;
+          shader.rectDeriv1 = d1;
+          shader.rectDeriv2 = d2;
+          shader.rectDeriv3 = d3;
+          gl.uniform4f(shader.uTextureRectDerivativesUniform, d0, d1, d2, d3);
+        }
+      }
     }
 
-    gl.uniform1f(shader.uAlphaThresholdUniform, alphaThreshold);
+    if (shader.uAlphaThresholdUniform !== null) {
+      const enableAlphaThreshold = (this.state.getAlphaCompareType() & gbi.AlphaCompare.G_AC_THRESHOLD) !== 0;
+      // If CVG_X_ALPHA is set with AA_EN (and without threshold compare), the
+      // shader discards alpha <= 0 directly rather than reading uAlphaThreshold.
+      const alphaThreshold = enableAlphaThreshold ? ((this.state.blendColor >>> 0) & 0xff) / 255.0 : 0;
+      if (shader.alphaThreshold !== alphaThreshold) {
+        shader.alphaThreshold = alphaThreshold;
+        gl.uniform1f(shader.uAlphaThresholdUniform, alphaThreshold);
+      }
+    }
 
     const k = this.state.convert;
-    gl.uniform4f(shader.uConvertUniform, (k[0] * 2 + 1) / 256, (k[1] * 2 + 1) / 256,
-      (k[2] * 2 + 1) / 256, (k[3] * 2 + 1) / 256);
-    gl.uniform2f(shader.uConvertK45Uniform, k[4] / 255, k[5] / 256);
-    gl.uniform1i(shader.uTextureConvertUniform, (this.state.rdpOtherModeH & gbi.G_TC_MASK) >>> gbi.G_MDSFT_TEXTCONV);
-    gl.uniform2i(shader.uTextureYUVUniform,
-      enabled0 && tile0?.format === gbi.ImageFormat.G_IM_FMT_YUV ? 1 : 0,
-      enabled1 && tile1?.format === gbi.ImageFormat.G_IM_FMT_YUV ? 1 : 0);
+    if (shader.uConvertUniform !== null) {
+      const k0 = k[0];
+      const k1 = k[1];
+      const k2 = k[2];
+      const k3 = k[3];
+      if (shader.convert0 !== k0 || shader.convert1 !== k1 ||
+          shader.convert2 !== k2 || shader.convert3 !== k3) {
+        shader.convert0 = k0;
+        shader.convert1 = k1;
+        shader.convert2 = k2;
+        shader.convert3 = k3;
+        gl.uniform4f(shader.uConvertUniform, (k0 * 2 + 1) / 256, (k1 * 2 + 1) / 256,
+          (k2 * 2 + 1) / 256, (k3 * 2 + 1) / 256);
+      }
+    }
+    if (shader.uConvertK45Uniform !== null) {
+      const k4 = k[4];
+      const k5 = k[5];
+      if (shader.convert4 !== k4 || shader.convert5 !== k5) {
+        shader.convert4 = k4;
+        shader.convert5 = k5;
+        gl.uniform2f(shader.uConvertK45Uniform, k4 / 255, k5 / 256);
+      }
+    }
+    if (shader.uTextureConvertUniform !== null) {
+      const texConv = (this.state.rdpOtherModeH & gbi.G_TC_MASK) >>> gbi.G_MDSFT_TEXTCONV;
+      if (shader.textureConvert !== texConv) {
+        shader.textureConvert = texConv;
+        gl.uniform1i(shader.uTextureConvertUniform, texConv);
+      }
+    }
+    if (shader.uTextureYUVUniform !== null) {
+      const yuv0 = enabled0 && tile0?.format === gbi.ImageFormat.G_IM_FMT_YUV ? 1 : 0;
+      const yuv1 = enabled1 && tile1?.format === gbi.ImageFormat.G_IM_FMT_YUV ? 1 : 0;
+      const yuvMask = yuv0 | (yuv1 << 1);
+      if (shader.textureYUV !== yuvMask) {
+        shader.textureYUV = yuvMask;
+        gl.uniform2i(shader.uTextureYUVUniform, yuv0, yuv1);
+      }
+    }
 
-    gl.uniform4f(shader.uPrimColorUniform,
-      ((this.state.primColor >>> 24) & 0xff) / 255.0,
-      ((this.state.primColor >>> 16) & 0xff) / 255.0,
-      ((this.state.primColor >>> 8) & 0xff) / 255.0,
-      ((this.state.primColor >>> 0) & 0xff) / 255.0);
-    gl.uniform1f(shader.uPrimLodFracUniform, this.state.primLodFrac / 255.0);
-    gl.uniform4f(shader.uEnvColorUniform,
-      ((this.state.envColor >>> 24) & 0xff) / 255.0,
-      ((this.state.envColor >>> 16) & 0xff) / 255.0,
-      ((this.state.envColor >>> 8) & 0xff) / 255.0,
-      ((this.state.envColor >>> 0) & 0xff) / 255.0);
-    gl.uniform4f(shader.uFogColorUniform,
-      ((this.state.fogColor >>> 24) & 0xff) / 255.0,
-      ((this.state.fogColor >>> 16) & 0xff) / 255.0,
-      ((this.state.fogColor >>> 8) & 0xff) / 255.0,
-      (this.state.fogColor & 0xff) / 255.0);
+    if (shader.uPrimColorUniform !== null) {
+      const primColor = this.state.primColor >>> 0;
+      if (shader.primColor !== primColor) {
+        shader.primColor = primColor;
+        gl.uniform4f(shader.uPrimColorUniform,
+          ((primColor >>> 24) & 0xff) / 255.0,
+          ((primColor >>> 16) & 0xff) / 255.0,
+          ((primColor >>> 8) & 0xff) / 255.0,
+          (primColor & 0xff) / 255.0);
+      }
+    }
+    if (shader.uPrimLodFracUniform !== null) {
+      const primLodFrac = this.state.primLodFrac;
+      if (shader.primLodFrac !== primLodFrac) {
+        shader.primLodFrac = primLodFrac;
+        gl.uniform1f(shader.uPrimLodFracUniform, primLodFrac / 255.0);
+      }
+    }
+    if (shader.uEnvColorUniform !== null) {
+      const envColor = this.state.envColor >>> 0;
+      if (shader.envColor !== envColor) {
+        shader.envColor = envColor;
+        gl.uniform4f(shader.uEnvColorUniform,
+          ((envColor >>> 24) & 0xff) / 255.0,
+          ((envColor >>> 16) & 0xff) / 255.0,
+          ((envColor >>> 8) & 0xff) / 255.0,
+          (envColor & 0xff) / 255.0);
+      }
+    }
+    if (shader.uFogColorUniform !== null) {
+      const fogColor = this.state.fogColor >>> 0;
+      if (shader.fogColor !== fogColor) {
+        shader.fogColor = fogColor;
+        gl.uniform4f(shader.uFogColorUniform,
+          ((fogColor >>> 24) & 0xff) / 255.0,
+          ((fogColor >>> 16) & 0xff) / 255.0,
+          ((fogColor >>> 8) & 0xff) / 255.0,
+          (fogColor & 0xff) / 255.0);
+      }
+    }
   }
 
   getCurrentN64Shader(noNearClipping = false) {
@@ -620,36 +759,103 @@ export class Renderer extends RendererBase {
   bindTile(tile, texGenEnabled, uniforms) {
     const gl = this.gl;
     const enabled = !!tile && tile.format >= 0;
-    gl.uniform1i(uniforms.enabled, enabled ? 1 : 0);
+    if (uniforms.enabled === null) {
+      return enabled;
+    }
+    const enabledInt = enabled ? 1 : 0;
+    if (uniforms.cachedEnabled !== enabledInt) {
+      uniforms.cachedEnabled = enabledInt;
+      gl.uniform1i(uniforms.enabled, enabledInt);
+    }
     if (!enabled) {
       return false;
     }
-    gl.uniform4i(uniforms.memory, tile.tmem << 3, tile.line << 3, tile.format, tile.size);
-    gl.uniform2i(uniforms.palette, tile.palette,
-      getTexturePaletteFormat(tile, this.state.getTextureLUTType()) >>> gbi.G_MDSFT_TEXTLUT);
+    const tmem = tile.tmem << 3;
+    const line = tile.line << 3;
+    const format = tile.format;
+    const size = tile.size;
+    if (uniforms.memory !== null && (
+      uniforms.cachedTmem !== tmem ||
+      uniforms.cachedLine !== line ||
+      uniforms.cachedFormat !== format ||
+      uniforms.cachedSize !== size)) {
+      uniforms.cachedTmem = tmem;
+      uniforms.cachedLine = line;
+      uniforms.cachedFormat = format;
+      uniforms.cachedSize = size;
+      gl.uniform4i(uniforms.memory, tmem, line, format, size);
+    }
+
+    const palette = tile.palette;
+    const tlut = getTexturePaletteFormat(tile, this.state.getTextureLUTType()) >>> gbi.G_MDSFT_TEXTLUT;
+    if (uniforms.palette !== null && (
+      uniforms.cachedPalette !== palette ||
+      uniforms.cachedTlut !== tlut)) {
+      uniforms.cachedPalette = palette;
+      uniforms.cachedTlut = tlut;
+      gl.uniform2i(uniforms.palette, palette, tlut);
+    }
 
     // Generated coordinates use the HLE tile extent.
     const scaleS = shiftFactor(tile.shiftS) * (texGenEnabled ? tile.width : 1);
     const scaleT = shiftFactor(tile.shiftT) * (texGenEnabled ? tile.height : 1);
+    if (uniforms.scale !== null && (
+      uniforms.cachedScaleS !== scaleS ||
+      uniforms.cachedScaleT !== scaleT)) {
+      uniforms.cachedScaleS = scaleS;
+      uniforms.cachedScaleT = scaleT;
+      gl.uniform2f(uniforms.scale, scaleS, scaleT);
+    }
+
     const offsetS = texGenEnabled ? 0 : tile.left;
     const offsetT = texGenEnabled ? 0 : tile.top;
-    gl.uniform2f(uniforms.scale, scaleS, scaleT);
-    gl.uniform2f(uniforms.offset, offsetS, offsetT);
+    if (uniforms.offset !== null && (
+      uniforms.cachedOffsetS !== offsetS ||
+      uniforms.cachedOffsetT !== offsetT)) {
+      uniforms.cachedOffsetS = offsetS;
+      uniforms.cachedOffsetT = offsetT;
+      gl.uniform2f(uniforms.offset, offsetS, offsetT);
+    }
 
     // Clamp boundaries retain fractional tile coordinates; clamp texels are integers.
     const clampBoundaryS = tile.right - tile.left;
     const clampBoundaryT = tile.bottom - tile.top;
     const clampTexelS = ((tile.lrs >>> 2) - (tile.uls >>> 2)) & 0x3ff;
     const clampTexelT = ((tile.lrt >>> 2) - (tile.ult >>> 2)) & 0x3ff;
-    gl.uniform4f(uniforms.bounds, clampBoundaryS, clampBoundaryT, clampTexelS, clampTexelT);
-    gl.uniform2i(uniforms.mask, tile.maskS, tile.maskT);
+    if (uniforms.bounds !== null && (
+      uniforms.cachedBounds0 !== clampBoundaryS ||
+      uniforms.cachedBounds1 !== clampBoundaryT ||
+      uniforms.cachedBounds2 !== clampTexelS ||
+      uniforms.cachedBounds3 !== clampTexelT)) {
+      uniforms.cachedBounds0 = clampBoundaryS;
+      uniforms.cachedBounds1 = clampBoundaryT;
+      uniforms.cachedBounds2 = clampTexelS;
+      uniforms.cachedBounds3 = clampTexelT;
+      gl.uniform4f(uniforms.bounds, clampBoundaryS, clampBoundaryT, clampTexelS, clampTexelT);
+    }
+
+    const maskS = tile.maskS;
+    const maskT = tile.maskT;
+    if (uniforms.mask !== null && (
+      uniforms.cachedMaskS !== maskS ||
+      uniforms.cachedMaskT !== maskT)) {
+      uniforms.cachedMaskS = maskS;
+      uniforms.cachedMaskT = maskT;
+      gl.uniform2i(uniforms.mask, maskS, maskT);
+    }
 
     // Mask zero implicitly clamps, even when the clamp bit is clear.
     // The copy pipeline applies shifts and masks but bypasses tile clamping.
     const copy = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY;
-    const modeS = copy ? tile.cmS & gbi.G_TX_MIRROR : tile.cmS | (tile.maskS === 0 ? gbi.G_TX_CLAMP : 0);
-    const modeT = copy ? tile.cmT & gbi.G_TX_MIRROR : tile.cmT | (tile.maskT === 0 ? gbi.G_TX_CLAMP : 0);
-    gl.uniform2i(uniforms.mode, modeS, modeT);
+    const modeS = copy ? tile.cmS & gbi.G_TX_MIRROR : tile.cmS | (maskS === 0 ? gbi.G_TX_CLAMP : 0);
+    const modeT = copy ? tile.cmT & gbi.G_TX_MIRROR : tile.cmT | (maskT === 0 ? gbi.G_TX_CLAMP : 0);
+    if (uniforms.mode !== null && (
+      uniforms.cachedModeS !== modeS ||
+      uniforms.cachedModeT !== modeT)) {
+      uniforms.cachedModeS = modeS;
+      uniforms.cachedModeT = modeT;
+      gl.uniform2i(uniforms.mode, modeS, modeT);
+    }
     return true;
   }
 
@@ -677,6 +883,7 @@ export class Renderer extends RendererBase {
 
   setGLBlendMode() {
     const gl = this.gl;
+    const glState = getGLState(this);
 
     // Optionally multiply coverage by combiner alpha.
     const cvgXAlpha = this.state.getCoverageTimesAlpha();
@@ -686,7 +893,7 @@ export class Renderer extends RendererBase {
     const cycleType = this.state.getCycleType();
     if (cycleType == gbi.CycleType.G_CYC_FILL || cycleType == gbi.CycleType.G_CYC_COPY) {
       // No blending in copy/fill modes, although they may set up alpha thresholding in the shader.
-      gl.disable(gl.BLEND);
+      glState.setBlendEnabled(false);
       return;
     }
 
@@ -732,32 +939,32 @@ export class Renderer extends RendererBase {
     let logUnhandled = false;
     switch (mode) {
       case kBlendModeOpaque:
-        gl.disable(gl.BLEND);
+        glState.setBlendEnabled(false);
         break;
       case kBlendModeAlphaTrans:
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.enable(gl.BLEND);
+        glState.setBlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        glState.setBlendEquation(gl.FUNC_ADD);
+        glState.setBlendEnabled(true);
         break;
       case kBlendModeFade:
-        gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_ALPHA);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.enable(gl.BLEND);
+        glState.setBlendFunc(gl.ZERO, gl.ONE_MINUS_SRC_ALPHA);
+        glState.setBlendEquation(gl.FUNC_ADD);
+        glState.setBlendEnabled(true);
         break;
       case kBlendModeConstantFog:
         // RDP forced blending uses A >> 3 and ((255-A) >> 3) + 1,
         // divided by 32. Even A=255 retains 1/32 of the framebuffer.
         // See angrylion-rdp-plus blender.c, blender_equation_cycle0/1.
         // GL rounds the final channel instead of truncating (<= 1 byte).
-        gl.blendColor(0, 0, 0, ((this.state.fogColor & 0xff) >>> 3) / 32);
+        glState.setBlendColorAlpha(((this.state.fogColor & 0xff) >>> 3) / 32);
         // Preserve the existing framebuffer-alpha policy independently of RGB.
-        gl.blendFuncSeparate(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.enable(gl.BLEND);
+        glState.setBlendFunc(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        glState.setBlendEquation(gl.FUNC_ADD);
+        glState.setBlendEnabled(true);
         break;
       case kBlendModeUnknown:
         logUnhandled = true;
-        gl.disable(gl.BLEND);
+        glState.setBlendEnabled(false);
         break;
     }
 
@@ -829,6 +1036,10 @@ class CurrentShader {
     this.constantFogColor = constantFogColor;
     return shader;
   }
+}
+
+function getGLState(renderer) {
+  return renderer.glState ?? (renderer.glState = new GLState(renderer.gl));
 }
 
 function shiftFactor(shift) {
