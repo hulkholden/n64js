@@ -43,7 +43,7 @@ class Instruction {
     this.opcode = opcode;
     this.srcRegs = {};
     this.dstRegs = {};
-    this.target = '';
+    this.target = null;
     this.memory = null;
     this.outputHTML = outputHTML;
   }
@@ -611,7 +611,7 @@ export function disassembleRange(beginAddr, endAddr, outputHTML) {
   for (let addr = beginAddr; addr < endAddr; addr += 4) {
     const instruction = breakpoints.getInstruction(addr);
     const d = disassembleInstruction(addr, instruction, outputHTML);
-    if (d.instruction.target) {
+    if (d.instruction.target !== null) {
       targets.add(d.instruction.target);
     }
     disassembly.push(d);
