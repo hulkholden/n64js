@@ -106,9 +106,50 @@ describe('normal single multiply versus generic arithmetic', () => {
     expect(trapped.traps).toBe(1);
   });
 
-  test('fallbacks apply status once and preserve destinations on underflow/overflow/NaN traps', () => {
+  test('signed-zero times normal or zero stays on the MUL.S fast path in all rounding and FR modes', () => {
+    const zeros = [0x00000000, 0x80000000];
+    const normals = [0x00800000, 0x3f800000, 0x7f7fffff, 0x80800000, 0xbf800000, 0xff7fffff];
+    const zeroPairs = [
+      ...zeros.flatMap(z => normals.flatMap(n => [[z, n], [n, z]])),
+      ...zeros.flatMap(a => zeros.map(b => [a, b])),
+    ];
+    for (const fullMode of [false, true]) {
+      const state = createFPU();
+      const fpu = state.fpu;
+      fpu.fullMode = fullMode;
+      let fallbacks = 0;
+      const origBinaryOp = fpu.f32BinaryOp;
+      fpu.f32BinaryOp = function (...args) {
+        fallbacks++;
+        return origBinaryOp.apply(this, args);
+      };
+      for (const [d, fs, ft] of [[7, 3, 5], [3, 3, 5], [5, 3, 5], [4, 2, 4]]) {
+        for (let rm = 0; rm < 4; rm++) {
+          for (const [s, t] of zeroPairs) {
+            fpu.regU32.fill(0xdeadbeef);
+            fpu.regU32[fpu.fsRegIdx32(fs)] = s;
+            fpu.regU32[fpu.ftRegIdx32(ft)] = t;
+            // Set all cause bits, sticky flags, all 5 enables, C and FS.
+            const control = 0x0183fffc | rm;
+            fpu.control[31] = control;
+            state.traps = 0;
+            fpu.MUL_S(d, fs, ft);
+            const expectedSign = ((s ^ t) & 0x80000000) >>> 0;
+            expect(fpu.regU64[d]).toBe(BigInt(expectedSign));
+            expect(fpu.control[31]).toBe((control & ~0x0003f000) >>> 0);
+            expect(state.traps).toBe(0);
+          }
+        }
+      }
+      expect(fallbacks).toBe(0);
+    }
+  });
+
+  test('fallbacks apply status once and preserve destinations on 0*Inf/denormal/underflow/overflow/NaN traps', () => {
     for (const [s, t, control, expected, status, traps] of [
-      [0x80000000, 0x40000000, 0, 0x80000000n, 0, 0],
+      [0x00000000, 0x7f800000, 0x0003f000, 0x7fbfffffn, 0x10040, 0],
+      [0x80000000, 0xff800000, 0x0003f800, 0x123456789abcdef0n, 0x10800, 1],
+      [0x00000000, 0x00000001, 0x0003f000, 0x123456789abcdef0n, 0x20000, 1],
       [0x00800000, 0x3f000000, 0, 0x123456789abcdef0n, 0x20000, 1],
       [0x00800000, 0x3f000000, 0x1000000, 0n, 0x100300c, 0],
       [0x7f7fffff, 0x40000000, 0x200, 0x123456789abcdef0n, 0x5200, 1],
@@ -193,6 +234,76 @@ describe('single-precision float compare fast path versus generic compare', () =
         }
       }
       expect(u32LoadsOnNonNaN).toBe(0);
+    });
+  }
+});
+
+describe('f32BinaryOp and f32UnaryOp status, traps, and FR indexing', () => {
+  for (const fullMode of [false, true]) {
+    test(`ADD_S, SUB_S, and DIV_S handle exact, inexact, traps, and FR=${Number(fullMode)}`, () => {
+      const cases = [
+        // Exact addition clears old cause bits and preserves sticky flags.
+        ['ADD_S', 0x3f800000, 0x40000000, 0x0083f020, 0x40400000n, 0x00800020, 0],
+        // Inexact addition (absorption: 1.0 + 2^-30 == 1.0) sets CI and FI when EI=0.
+        ['ADD_S', 0x3f800000, 0x30800000, 0x0083f020, 0x3f800000n, 0x00801024, 0],
+        // Inexact addition traps and preserves fd when EI=1.
+        ['ADD_S', 0x3f800000, 0x30800000, 0x0083f0a0, 0x123456789abcdef0n, 0x008010a0, 1],
+        // Exact addition with EI=1 does not trap and clears causes.
+        ['ADD_S', 0x3f800000, 0x40000000, 0x0083f0a0, 0x40400000n, 0x008000a0, 0],
+        // Overflow sets CO|CI and FO|FI when EO=0, traps when EO=1.
+        ['ADD_S', 0x7f7fffff, 0x7f7fffff, 0x0003f000, 0x7f800000n, 0x00005014, 0],
+        ['ADD_S', 0x7f7fffff, 0x7f7fffff, 0x0003f200, 0x123456789abcdef0n, 0x00005200, 1],
+        // SUB_S inexact and exact.
+        ['SUB_S', 0x40400000, 0x3f800000, 0x0003f000, 0x40000000n, 0x00000000, 0],
+        ['SUB_S', 0x3f800000, 0x30800000, 0x0003f000, 0x3f800000n, 0x00001004, 0],
+        // DIV_S exact, inexact, div-by-zero (trapping & non-trapping), and underflow.
+        ['DIV_S', 0x40c00000, 0x40000000, 0x0003f000, 0x40400000n, 0x00000000, 0],
+        ['DIV_S', 0x3f800000, 0x40400000, 0x0003f000, 0x3eaaaaabn, 0x00001004, 0],
+        ['DIV_S', 0x3f800000, 0x80000000, 0x0003f000, 0xff800000n, 0x00008020, 0],
+        ['DIV_S', 0x3f800000, 0x80000000, 0x0003f400, 0x123456789abcdef0n, 0x00008400, 1],
+        ['DIV_S', 0x00800000, 0x40000000, 0x0103f000, 0x00000000n, 0x0100300c, 0],
+        ['DIV_S', 0x00800000, 0x40000000, 0x0003f000, 0x123456789abcdef0n, 0x00020000, 1],
+      ];
+      for (const [op, s, t, control, expected, status, traps] of cases) {
+        const state = createFPU();
+        const fpu = state.fpu;
+        fpu.fullMode = fullMode;
+        fpu.regU32.fill(0xdeadbeef);
+        fpu.regU32[fpu.fsRegIdx32(3)] = s;
+        fpu.regU32[fpu.ftRegIdx32(5)] = t;
+        fpu.regU64[7] = 0x123456789abcdef0n;
+        fpu.control[31] = control;
+        fpu[op](7, 3, 5);
+        expect(fpu.regU64[7]).toBe(expected);
+        expect(fpu.control[31]).toBe(status);
+        expect(state.traps).toBe(traps);
+      }
+    });
+
+    test(`SQRT_S, ABS_S, and NEG_S handle exact, inexact, traps, and FR=${Number(fullMode)}`, () => {
+      const cases = [
+        ['SQRT_S', 0x40800000, 0x0083f020, 0x40000000n, 0x00800020, 0],
+        ['SQRT_S', 0x40000000, 0x0083f020, 0x3fb504f3n, 0x00801024, 0],
+        ['SQRT_S', 0x40000000, 0x0083f0a0, 0x123456789abcdef0n, 0x008010a0, 1],
+        ['SQRT_S', 0xbf800000, 0x0003f000, 0x7fbfffffn, 0x00010040, 0],
+        ['SQRT_S', 0xbf800000, 0x0003f800, 0x123456789abcdef0n, 0x00010800, 1],
+        ['SQRT_S', 0x00000001, 0x0003f000, 0x123456789abcdef0n, 0x00020000, 1],
+        ['ABS_S', 0xbf800000, 0x0003f080, 0x3f800000n, 0x00000080, 0],
+        ['NEG_S', 0x3f800000, 0x0003f080, 0xbf800000n, 0x00000080, 0],
+      ];
+      for (const [op, s, control, expected, status, traps] of cases) {
+        const state = createFPU();
+        const fpu = state.fpu;
+        fpu.fullMode = fullMode;
+        fpu.regU32.fill(0xdeadbeef);
+        fpu.regU32[fpu.fsRegIdx32(3)] = s;
+        fpu.regU64[7] = 0x123456789abcdef0n;
+        fpu.control[31] = control;
+        fpu[op](7, 3);
+        expect(fpu.regU64[7]).toBe(expected);
+        expect(fpu.control[31]).toBe(status);
+        expect(state.traps).toBe(traps);
+      }
     });
   }
 });

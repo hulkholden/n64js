@@ -1,10 +1,11 @@
 import { CPU1 } from './cpu1.js';
 
-// Recover the multiply-op table through MUL_S's zero-operand fallback. Tests
+// Recover the multiply-op table through MUL_S's non-finite fallback. Tests
 // can then call the unchanged generic helper without duplicating its policy or
 // adding a production switch just to disable the optimization.
 const probe = new CPU1({});
 let multiplyCases;
+probe.regU32[0] = 0x7f80_0000;
 probe.f32BinaryOp = (d, s, t, cases) => { multiplyCases = cases; };
 probe.MUL_S(0, 0, 0);
 
