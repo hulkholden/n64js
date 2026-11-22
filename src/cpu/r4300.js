@@ -409,6 +409,13 @@ function pageMaskName(pageMask) {
   return `Unknown(${bits.toString(2)})`;
 }
 
+// Wrap a PC/branch target to unsigned 32-bit only when it crosses 0 or 2^32.
+// Unconditional `>>> 0` overflows signed Int32 for every KSEG0 PC (>= 0x80000000),
+// causing JIT OSR/boxing overhead in the interpreter and unfused branch paths.
+function wrapPC(pc) {
+  return (pc < 0 || pc >= 0x100000000) ? (pc >>> 0) : pc;
+}
+
 export class CPU0 {
   constructor(hardware) {
     this.hardware = hardware;
@@ -505,14 +512,14 @@ export class CPU0 {
 
   conditionalBranch(cond, offset) {
     const effectiveOffset = cond ? (offset * 4) : 4;
-    this.branchTarget = this.pc + 4 + effectiveOffset;
+    this.branchTarget = wrapPC(this.pc + 4 + effectiveOffset);
   }
 
   conditionalBranchLikely(cond, offset) {
     if (cond) {
-      this.branchTarget = this.pc + 4 + (offset * 4);
+      this.branchTarget = wrapPC(this.pc + 4 + (offset * 4));
     } else {
-      this.nextPC += 4;  // Skip the next instruction
+      this.nextPC = wrapPC(this.nextPC + 4);  // Skip the next instruction
     }
   }
 
@@ -521,7 +528,7 @@ export class CPU0 {
     //  logger.log('Oops, branching to negative address: ' + pc);
     //  throw 'Oops, branching to negative address: ' + pc;
     //}
-    this.branchTarget = pc;
+    this.branchTarget = wrapPC(pc);
   }
 
   getOpsExecuted() {
@@ -1023,7 +1030,7 @@ export class CPU0 {
           const signedPC = this.pc | 0;
 
           // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
-          this.nextPC = this.delayPC ?? this.pc + 4;
+          this.nextPC = this.delayPC ?? (this.pc >= 0xfffffffc ? (this.pc + 4) >>> 0 : this.pc + 4);
 
           // The load may raise an EmulatedException either via alignment or TLB exceptions.
           let instruction = memaccess.loadU32fast(signedPC);
@@ -1110,7 +1117,7 @@ export class CPU0 {
       }
       return;
     }
-    const nextInstruction = n64js.hardware().memMap.readMemoryInternal32(this.pc + 4);
+    const nextInstruction = n64js.hardware().memMap.readMemoryInternal32((this.pc + 4) >>> 0);
     if (nextInstruction !== 0) {
       if (performanceProfile.enabled) {
         performanceProfile.counters.speedHackNonNopDelay++;
@@ -3111,7 +3118,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c, entryDelayPC = null
 //    bodies can reach their back-edge before stopping.
 function shouldStopOnBranch(fragment, entryPC, c, entryDelayPC) {
   const atSelfLoopBackEdge = fragment.isAtEntryState(c.pc, c.delayPC);
-  const fellThrough = c.pc === entryPC + 4 || (entryDelayPC === null && c.pc === entryPC + 8);
+  const fellThrough = c.pc === ((entryPC + 4) >>> 0) || (entryDelayPC === null && c.pc === ((entryPC + 8) >>> 0));
   if (atSelfLoopBackEdge || fellThrough) {
     return atSelfLoopBackEdge;
   }

@@ -173,7 +173,7 @@ describe('recompiler COP1 boilerplate codegen', () => {
       expect(fragment.bodyCode).not.toContain('if (c.stuffToDo)');
       expect(fragment.bodyCode).not.toContain('executeCop1_disabled');
       if (likely) {
-        expect(fragment.bodyCode).toContain('c.nextPC += 4;');
+        expect(fragment.bodyCode).toContain('c.nextPC = 0x80001008;');
         expect(fragment.bodyCode).toContain('if (c.pc !== 0x80001004) { return 1; }');
       } else {
         expect(fragment.bodyCode).toContain('c.delayPC = 0x80001008;');

@@ -139,7 +139,7 @@ const GROUP_SPECS = Object.freeze({
 });
 
 function getGroupSpec(ctx) {
-  if (ctx.needsDelayCheck || ctx.postPC !== ctx.pc + 4) {
+  if (ctx.needsDelayCheck || ctx.postPC !== ((ctx.pc + 4) >>> 0)) {
     return null;
   }
   const spec = GROUP_SPECS[simpleOp(ctx.instruction)];
@@ -187,7 +187,7 @@ export class RAMAccessGroup {
       spec === this.spec &&
       !this.clobbersBase &&
       base === this.base &&
-      pc === this.lastPC + 4 &&
+      pc === ((this.lastPC + 4) >>> 0) &&
       ((offset - this.lastOffset) & spec.alignMask) === 0;
   }
 
@@ -203,9 +203,9 @@ export class RAMAccessGroup {
       if (includeStepPreamble) {
         ctx.fragment.bodyCode += ctx.genStepPreamble();
       }
-      if (ctx.delayedPCUpdate !== 0) {
+      if (ctx.delayedPCUpdate !== null) {
         ctx.fragment.bodyCode += `// Applying delayed pc\nc.pc = ${toString32(ctx.delayedPCUpdate)};\n`;
-        ctx.delayedPCUpdate = 0;
+        ctx.delayedPCUpdate = null;
       }
     }
     if (spec.usesCop1) {

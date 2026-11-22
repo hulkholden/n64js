@@ -67,7 +67,7 @@ export class FragmentContext {
     this.opTraits = null; // Static instruction classification traits seeded on set().
     this.isTrivial = false; // Seeded from opTraits.isTrivial on set().
     this.fuseDelaySlot = false; // When set, generateTrivialOpBoilerplate emits only the raw ALU body.
-    this.delayedPCUpdate = 0; // Trivial ops can try to delay setting the pc so that back-to-back trivial ops can emit them entirely.
+    this.delayedPCUpdate = null; // Null means no pending PC update; virtual address zero is a valid PC.
     this.dump = false; // Display this op when finished.
     this.gprFacts = new GPRFacts();
     this.forwardedComparison = null;
@@ -127,14 +127,14 @@ export class FragmentContext {
   flushDelayedPCUpdate() {
     finishCodeGeneration(this);
     // Check if the last op has a delayed pc update, and do it now.
-    if (this.delayedPCUpdate !== 0) {
+    if (this.delayedPCUpdate !== null) {
       this.fragment.bodyCode += `c.pc = ${toString32(this.delayedPCUpdate)};\n`;
-      this.delayedPCUpdate = 0;
+      this.delayedPCUpdate = null;
     }
   }
   
   newFragment(opsCounterVar = null) {
-    this.delayedPCUpdate = 0;
+    this.delayedPCUpdate = null;
     this.gprFacts.reset();
     this.forwardedComparison = null;
     this.opsCounterVar = opsCounterVar;
@@ -147,10 +147,10 @@ export class FragmentContext {
       this.newFragment(this.opsCounterVar);
     }
     this.fragment = fragment;
-    this.pc = pc;
+    this.pc = pc >>> 0;
     this.instruction = instruction;
-    this.postPC = postPC;
-    this.nextPC = nextPC;
+    this.postPC = postPC >>> 0;
+    this.nextPC = nextPC >>> 0;
     this.opTraits = getOpTraits(instruction, fragment.cop1statusKnown, kUseOptimisedDynarecHandlers);
     this.bailOut = instructionBailsOut(pc, instruction);
 
@@ -195,10 +195,10 @@ export function generateCodeForOp(ctx, { includeStepPreamble = false } = {}) {
   }
 
   // If the last op tried to delay updating the pc, see if it needs updating now.
-  if (!ctx.isTrivial && ctx.delayedPCUpdate !== 0) {
+  if (!ctx.isTrivial && ctx.delayedPCUpdate !== null) {
     // TODO: add a template string function to dedent this.
     ctx.fragment.bodyCode += `// Applying delayed pc\nc.pc = ${toString32(ctx.delayedPCUpdate)};\n`;
-    ctx.delayedPCUpdate = 0;
+    ctx.delayedPCUpdate = null;
   }
 
   let preflight = '';
@@ -376,13 +376,8 @@ function tryEmitFusedBranchAndDelaySlot(fragment, branchStep, delayStep, stepInd
     fnCode += `if (jumpTarget !== ${toString32(postPC)}) { c.pc = jumpTarget; ${returnAfterPair} }\n`;
   }
 
-  if (postPC === 0) {
-    fnCode += `c.pc = ${toString32(0)};\n`;
-    ctx.delayedPCUpdate = 0;
-  } else {
-    fnCode += '// Delaying pc update\n';
-    ctx.delayedPCUpdate = postPC;
-  }
+  fnCode += '// Delaying pc update\n';
+  ctx.delayedPCUpdate = postPC;
 
   const branchDasm = disassembleInstruction(branchPC, branchInstr, false);
   const delayDasm = disassembleInstruction(delaySlotPC, delayInstr, false);
@@ -517,7 +512,7 @@ function generateGenericOpBoilerplate(fn, ctx, effects) {
 function generateMemoryAccessBoilerplate(fn, ctx, effects = ctx.opTraits?.memoryEffects ?? conservativeMemoryEffects) {
   // Capture entry knowledge before clearing needsDelayCheck below. A pending
   // delay target is dynamic even when the training trace happened to fall through.
-  const needsPCGuard = ctx.needsDelayCheck || effects.mayChangeNextPC || ctx.postPC !== ctx.pc + 4;
+  const needsPCGuard = ctx.needsDelayCheck || effects.mayChangeNextPC || ctx.postPC !== ((ctx.pc + 4) >>> 0);
   let code = '';
   code += ctx.genAssert(`c.pc === ${toString32(ctx.pc)}`, 'pc mismatch');
   if (ctx.needsDelayCheck) {
@@ -587,7 +582,7 @@ function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
   let code = '';
 
   // We only need to check for off-trace branches
-  const need_pc_test = ctx.needsDelayCheck || might_adjust_next_pc || ctx.postPC !== ctx.pc + 4;
+  const need_pc_test = ctx.needsDelayCheck || might_adjust_next_pc || ctx.postPC !== ((ctx.pc + 4) >>> 0);
 
   code += generateStandardPCUpdate(fn, ctx, might_adjust_next_pc);
 
@@ -644,14 +639,16 @@ function generateTrivialOpBoilerplate(fn, ctx) {
     code += `if (c.delayPC !== null) { c.pc = c.delayPC; c.delayPC = null; } else { c.pc = ${toString32(ctx.pc + 4)}; }\n`;
     // Might happen: delay op from previous instruction takes effect
     code += `if (c.pc !== ${toString32(ctx.postPC)}) { ${ctx.genReturnOps()} }\n`;
+    ctx.delayedPCUpdate = null;
   } else {
     code += ctx.genAssert('c.delayPC === null', 'delay pc should be null');
 
     // We can avoid off-branch checks in this case.
-    const expectedPC = ctx.pc + 4;
+    const expectedPC = (ctx.pc + 4) >>> 0;
     if (ctx.postPC !== expectedPC) {
       code += `c.pc = ${toString32(expectedPC)};\n`;
       code += `if (c.pc !== ${toString32(ctx.postPC)}) { ${ctx.genReturnOps()} }\n`;
+      ctx.delayedPCUpdate = null;
     } else {
       code += '// Delaying pc update\n';
       ctx.delayedPCUpdate = expectedPC;
@@ -1377,7 +1374,7 @@ function generateSpeedHack(ctx) {
   // the call avoids repeatedly reading guest memory to rediscover that fact.
   // Use only traced instructions: they participate in I-cache invalidation and
   // revalidation. An unobserved delay slot still needs the runtime check.
-  const index = ctx.fragment.instructionPCs.lastIndexOf(ctx.pc + 4);
+  const index = ctx.fragment.instructionPCs.lastIndexOf((ctx.pc + 4) >>> 0);
   return index >= 0 && ctx.fragment.instructionWords[index] !== 0 ? '' : 'c.speedHack();\n';
 }
 
@@ -1398,7 +1395,7 @@ function genSetLinkReg(reg, ctx) {
     return genSetRegS32Extend(reg, '(c.nextPC + 4) | 0');
   }
   // When delayPC is known to be null, nextPC is guaranteed to be ctx.pc + 4.
-  const ra = ctx.pc + 8;
+  const ra = (ctx.pc + 8) >>> 0;
   const ra_hi = (ra & 0x80000000) ? -1 : 0;
   return genSetRegS64LoHi(reg, toString32(ra), ra_hi);
 }
@@ -1455,6 +1452,12 @@ function generateBEQ(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
+function genSkipDelaySlot(ctx) {
+  return ctx.needsDelayCheck
+    ? 'c.nextPC = (c.nextPC + 4) >>> 0;'
+    : `c.nextPC = ${toString32(ctx.pc + 8)};`;
+}
+
 function generateBEQL(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
@@ -1464,7 +1467,7 @@ function generateBEQL(ctx) {
       if (${genEquality(ctx, s, t, true)}) {
         c.delayPC = ${toString32(addr)};
       } else {
-        c.nextPC += 4;
+        ${genSkipDelaySlot(ctx)}
       }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
@@ -1498,7 +1501,7 @@ function generateBNEL(ctx) {
       if (${genEquality(ctx, s, t, false)}) {
         c.delayPC = ${toString32(addr)};
       } else {
-        c.nextPC += 4;
+        ${genSkipDelaySlot(ctx)}
       }
       `);
 
@@ -1529,7 +1532,7 @@ function generateBLEZL(ctx) {
       if (!(${genIsPositive(ctx, s)})) {
         c.delayPC = ${toString32(addr)};
       } else {
-        c.nextPC += 4;
+        ${genSkipDelaySlot(ctx)}
       }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
@@ -1559,7 +1562,7 @@ function generateBGTZL(ctx) {
       if (${genIsPositive(ctx, s)}) {
         c.delayPC = ${toString32(addr)};
       } else {
-        c.nextPC += 4;
+        ${genSkipDelaySlot(ctx)}
       }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
@@ -1588,7 +1591,7 @@ function generateBLTZL(ctx) {
       if (${genSrcRegS32Hi(s)} < 0) {
         c.delayPC = ${toString32(addr)};
       } else {
-        c.nextPC += 4;
+        ${genSkipDelaySlot(ctx)}
       }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
@@ -1617,7 +1620,7 @@ function generateBGEZL(ctx) {
       if (${genSrcRegS32Hi(s)} >= 0) {
         c.delayPC = ${toString32(addr)};
       } else {
-        c.nextPC += 4;
+        ${genSkipDelaySlot(ctx)}
       }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
@@ -2008,7 +2011,7 @@ function generateBCInstrStub(ctx) {
     opImpl += `if (cond) {\n`;
     opImpl += `  ${delayTarget} = ${toString32(target)};\n`;
     opImpl += '} else {\n';
-    opImpl += '  c.nextPC += 4;\n';
+    opImpl += `  ${genSkipDelaySlot(ctx)}\n`;
     opImpl += '}\n';
   } else {
     opImpl += `if (cond) {\n`;

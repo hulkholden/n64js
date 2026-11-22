@@ -18,11 +18,12 @@ const kSuccessorHashMultiplier = 0x9e3779b1;
 
 export class Fragment {
   constructor(pc, fragmentCache) {
+    const normalizedPC = pc >>> 0;
     this.fragmentCache    = fragmentCache;
-    this.entryPC          = pc;
+    this.entryPC          = normalizedPC;
     this.generation       = 0;
-    this.minPC            = pc;
-    this.maxPC            = pc+4;
+    this.minPC            = normalizedPC;
+    this.maxPC            = normalizedPC + 4;
     this.func             = undefined;
     this.cachedFunc       = undefined;
     this.instructionPCs   = [];
@@ -89,13 +90,16 @@ export class Fragment {
     this.maxPC = Math.max(this.maxPC, pc + 4);
   }
 
-  recordInstruction(pc, instruction, postPC = pc + 4, nextPC = postPC) {
-    this.updateMinMax(pc);
-    this.instructionPCs.push(pc);
+  recordInstruction(pc, instruction, postPC = (pc + 4) >>> 0, nextPC = postPC) {
+    const normalizedPC = pc >>> 0;
+    const normalizedPostPC = postPC >>> 0;
+    const normalizedNextPC = nextPC >>> 0;
+    this.updateMinMax(normalizedPC);
+    this.instructionPCs.push(normalizedPC);
     this.instructionWords.push(instruction >>> 0);
-    const step = { pc, instruction, postPC, nextPC };
+    const step = { pc: normalizedPC, instruction, postPC: normalizedPostPC, nextPC: normalizedNextPC };
     this.traceSteps.push(step);
-    this.trackInstruction(pc);
+    this.trackInstruction(normalizedPC);
     return step;
   }
 
