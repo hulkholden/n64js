@@ -58,7 +58,7 @@ export function resetTestHardware(hardware) {
   hardware.ram.clear();
 }
 
-export function compileOp(word, { pc = DEFAULT_PC, postPC = pc + 4, nextPC = postPC, needsDelayCheck, cop1statusKnown } = {}) {
+export function compileOp(word, { pc = DEFAULT_PC, postPC = (pc + 4) >>> 0, nextPC = postPC, needsDelayCheck, cop1statusKnown } = {}) {
   const fragment = new Fragment(pc);
   fragment.opsCompiled = 1;
   if (needsDelayCheck !== undefined) {
@@ -77,8 +77,8 @@ export function compileOp(word, { pc = DEFAULT_PC, postPC = pc + 4, nextPC = pos
 export function compileOps(words, { pc = DEFAULT_PC, ctx = new FragmentContext(), fragment = new Fragment(pc), target } = {}) {
   words.forEach((word, index) => {
     fragment.opsCompiled++;
-    const addr = pc + index * 4;
-    const postPC = target !== undefined && index === words.length - 1 ? target : addr + 4;
+    const addr = (pc + index * 4) >>> 0;
+    const postPC = target !== undefined && index === words.length - 1 ? target >>> 0 : (addr + 4) >>> 0;
     ctx.set(fragment, addr, word >>> 0, postPC, postPC);
     generateCodeForOp(ctx);
   });

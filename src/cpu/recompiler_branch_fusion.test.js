@@ -381,7 +381,7 @@ describe('branch + trivial delay-slot fusion codegen', () => {
       { pc, instruction: iop(decode.OP_BEQL, 8, 9, off), postPC: pc + 8, nextPC: pc + 8 },
       { pc: pc + 8, instruction: ADDIU_T0_1, postPC: pc + 12 },
     ]);
-    expect(untakenBeqlCode).toContain('c.nextPC += 4;');
+    expect(untakenBeqlCode).toContain('c.nextPC = 0x80001008;');
     expect(untakenBeqlCode).toContain('if (c.delayPC !== null)');
 
     // Synthetic Branch-Likely with delayStep.postPC !== takenPC is not fused.
@@ -389,7 +389,7 @@ describe('branch + trivial delay-slot fusion codegen', () => {
       { pc, instruction: iop(decode.OP_BEQL, 8, 9, off), postPC: pc + 4 },
       { pc: pc + 4, instruction: ADDIU_T0_1, postPC: pc + 8 },
     ]);
-    expect(badTargetBeqlCode).toContain('c.nextPC += 4;');
+    expect(badTargetBeqlCode).toContain('c.nextPC = 0x80001008;');
     expect(badTargetBeqlCode).toContain('if (c.delayPC !== null)');
 
     // BLTZAL and BLTZALL are not fused.
@@ -637,9 +637,11 @@ for (const profiled of [false, true]) {
             });
             expect(result.gpr[11]).toBe(runTaken ? 5n : 0n);
             if (trainTaken) {
+              const notTakenHex = `0x${((pc + prefix.length * 4 + 8) >>> 0).toString(16)}`;
               expect(result.code).not.toContain('const branchTaken');
               expect(result.code).not.toContain('if (c.delayPC !== null)');
-              expect(result.code).not.toContain('c.nextPC += 4;');
+              expect(result.code).not.toContain(`c.nextPC = ${notTakenHex};`);
+              expect(result.code).not.toContain('c.nextPC = (c.nextPC + 4) >>> 0;');
             }
           });
         }
