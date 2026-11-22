@@ -1,7 +1,7 @@
 {
   "src/cpu/cpu1.js": {
     "no-unused-vars": {
-      "count": 21
+      "count": 19
     }
   },
   "src/devices/device.js": {

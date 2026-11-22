@@ -80,6 +80,7 @@ function makeCauseBits(bits) { return bits << causeShift; }
 
 // https://stackoverflow.com/questions/29666236
 const f32SignBit = 0x8000_0000;
+const f32AbsMask = 0x7fff_ffff;
 const f32ExponentBits = 0x7f80_0000;
 const f32ManissaBits = 0x007f_ffff;
 const f32QuietBit = (1 << 22);
@@ -126,6 +127,11 @@ const numFloatTypes = 8;
 function f32IsNormal(bits) {
   const exponent = bits & f32ExponentBits;
   return exponent !== 0 && exponent !== f32ExponentBits;
+}
+
+function f32IsNormalOrZero(bits) {
+  const abs = bits & f32AbsMask;
+  return abs === 0 || (abs >= f32MinPosNumberBits && abs < f32PosInfinityBits);
 }
 
 function f32Classify(bits) {
@@ -697,36 +703,32 @@ export class CPU1 {
   NEG_S(d, s) { this.f32UnaryOp(d, s, negOpCases); }
   ADD_S(d, s, t) { this.f32BinaryOp(d, s, t, addOpCases); }
   SUB_S(d, s, t) { this.f32BinaryOp(d, s, t, subOpCases); }
-  // The common GoldenEye multiply: nearest rounding, normal inputs and output.
+  // The common GoldenEye multiply: nearest rounding on normal inputs/output,
+  // plus exact signed-zero multiplication (valid in every rounding mode).
   // Leave other rounding modes and exceptional classes to the generic helper.
   MUL_S(d, s, t) {
-    if (this.control[31] & FPCSR_RM_MASK) {
-      this.f32BinaryOp(d, s, t, mulOpCases);
-      return;
-    }
-    const si = this.fsRegIdx32(s);
-    const ti = this.ftRegIdx32(t);
-    if (!f32IsNormal(this.loadU32(si)) || !f32IsNormal(this.loadU32(ti))) {
+    const si = this.regIdx32_s[s];
+    const ti = this.regIdx32_t[t];
+    if (!f32IsNormalOrZero(this.regU32[si]) || !f32IsNormalOrZero(this.regU32[ti])) {
       this.f32BinaryOp(d, s, t, mulOpCases);
       return;
     }
 
     // Two 24-bit significands multiply exactly in the host's 53-bit precision.
-    // Round once to f32, retaining the exact product for the inexact check.
-    const result = this.loadF32(si) * this.loadF32(ti);
+    // A normal×normal product is at least 2^-252 (never 0 in float64), so
+    // result === 0 iff at least one input is ±0.0, producing exact signed zero
+    // in every rounding mode with no exceptions.
+    const result = this.regF32[si] * this.regF32[ti];
     this.tempF32[0] = result;
-    if (!f32IsNormal(this.tempU32[0])) {
+    const rBits = this.tempU32[0];
+    const fcsr = this.control[31];
+    if (((fcsr & (FPCSR_RM_MASK | FPCSR_EI)) || !f32IsNormal(rBits)) && result !== 0) {
       this.f32BinaryOp(d, s, t, mulOpCases);
       return;
     }
 
-    // No architectural state changes before all guards pass. In particular a
-    // fallback must clear cause/raise status only once, and traps preserve fd.
-    this.clearCause();
-    const exceptionBits = result != this.tempF32[0] ? exceptionInexactBit : 0;
-    if (!this.raiseException(exceptionBits)) {
-      this.store32ZeroExtend(this.fdRegIdx32(d), this.tempU32[0]);
-    }
+    this.control[31] = (fcsr & ~causeMask) | (result !== this.tempF32[0] ? (FPCSR_CI | FPCSR_FI) : 0);
+    this.store32ZeroExtend(this.regIdx32_d[d], rBits);
   }
 
   DIV_S(d, s, t) { this.f32BinaryOp(d, s, t, divOpCases); }
@@ -844,10 +846,9 @@ export class CPU1 {
   }
 
   f32UnaryOp(d, s, cases) {
-    this.clearCause();
-
-    const sValue = this.loadF32(this.fsRegIdx32(s));
-    const sType = f32Classify(this.loadU32(this.fsRegIdx32(s)));
+    const si = this.regIdx32_s[s];
+    const sValue = this.regF32[si];
+    const sType = f32Classify(this.regU32[si]);
     const opCase = getUnaryOpCase(cases, sType);
 
     // Keep track of the intermediate result, as it's needed to figure
@@ -855,21 +856,24 @@ export class CPU1 {
     let result;
     switch (opCase) {
       case opUnimplm:
+        this.clearCause();
         this.raiseUnimplemented();
         return;
       case opInvalid:
+        this.clearCause();
         if (!this.raiseException(exceptionInvalidBit)) {
-          this.store32ZeroExtend(this.fdRegIdx32(d), f32SignallingNaNBits);
+          this.store32ZeroExtend(this.regIdx32_d[d], f32SignallingNaNBits);
         }
         return;
       case opSqrt:
         if (sValue < 0) {
+          this.clearCause();
           if (!this.raiseException(exceptionInvalidBit)) {
-            this.store32ZeroExtend(this.fdRegIdx32(d), f32SignallingNaNBits);
+            this.store32ZeroExtend(this.regIdx32_d[d], f32SignallingNaNBits);
           }
           return;
         }
-        result =  Math.sqrt(sValue);
+        result = Math.sqrt(sValue);
         break;
       case opAbs:
         result = Math.abs(sValue);
@@ -883,12 +887,13 @@ export class CPU1 {
 
     // Store the result as a float32 so we can see if it loses precision.
     this.tempF32[0] = result;
-    const rType = f32Classify(this.tempU32[0]);
+    const rBits = this.tempU32[0];
+    const rType = f32Classify(rBits);
 
     let exceptionBits = 0;
 
     // Check for inexact result (result changed value).
-    if (result != this.tempF32[0]) {
+    if (result !== this.tempF32[0]) {
       exceptionBits |= exceptionInexactBit;
     }
 
@@ -906,22 +911,32 @@ export class CPU1 {
 
     // TODO: check for underflow?
 
+    const fcsr = this.control[31];
+    if ((exceptionBits & ~exceptionInexactBit) === 0 && (fcsr & FPCSR_EI) === 0) {
+      this.control[31] = (fcsr & ~causeMask) | (exceptionBits ? (FPCSR_FI | FPCSR_CI) : 0);
+      this.store32ZeroExtend(this.regIdx32_d[d], rBits);
+      return;
+    }
+
+    this.clearCause();
     if (!this.raiseException(exceptionBits)) {
-      this.store32ZeroExtend(this.fdRegIdx32(d), this.tempU32[0]);
+      this.store32ZeroExtend(this.regIdx32_d[d], rBits);
     }
   }
 
   f32BinaryOp(d, s, t, cases) {
     this.clearCause();
 
-    const sValue = this.loadF32(this.fsRegIdx32(s));
-    const tValue = this.loadF32(this.ftRegIdx32(t));
-    const sBits = this.loadU32(this.fsRegIdx32(s));
-    const tBits = this.loadU32(this.ftRegIdx32(t));
+    const si = this.regIdx32_s[s];
+    const ti = this.regIdx32_t[t];
+    const sValue = this.regF32[si];
+    const tValue = this.regF32[ti];
+    const sBits = this.regU32[si];
+    const tBits = this.regU32[ti];
     const sType = f32Classify(sBits);
     const tType = f32Classify(tBits);
     const opCase = getBinaryOpCase(cases, sType, tType);
-    
+
     // Keep track of the intermediate result, as it's needed to figure
     // out if we saw underflow, overflow etc.
     let result;
@@ -931,13 +946,13 @@ export class CPU1 {
         return;
       case opInvalid:
         if (!this.raiseException(exceptionInvalidBit)) {
-          this.store32ZeroExtend(this.fdRegIdx32(d), f32SignallingNaNBits);
+          this.store32ZeroExtend(this.regIdx32_d[d], f32SignallingNaNBits);
         }
         return;
       case opDivZero:
         if (!this.raiseException(exceptionDivByZeroBit)) {
-          const sameSign = (sBits & f32SignBit) == (tBits & f32SignBit)
-          this.store32ZeroExtend(this.fdRegIdx32(d), sameSign ? f32PosInfinityBits : f32NegInfinityBits);
+          const sameSign = (sBits & f32SignBit) == (tBits & f32SignBit);
+          this.store32ZeroExtend(this.regIdx32_d[d], sameSign ? f32PosInfinityBits : f32NegInfinityBits);
         }
         return;
       case opAdd:
@@ -958,7 +973,8 @@ export class CPU1 {
 
     // Store the result as a float32 so we can see if it loses precision.
     this.tempF32[0] = result;
-    const rType = f32Classify(this.tempU32[0]);
+    const rBits = this.tempU32[0];
+    const rType = f32Classify(rBits);
 
     let exceptionBits = 0;
 
@@ -995,9 +1011,18 @@ export class CPU1 {
       this.tempU32[0] = getUnderflowValue(f32UnderflowResults, this.control[31] & FPCSR_RM_MASK, result > 0);
     }
 
+    if (exceptionBits === 0) {
+      this.store32ZeroExtend(this.regIdx32_d[d], rBits);
+      return;
+    }
+    if (exceptionBits === exceptionInexactBit && (this.control[31] & FPCSR_EI) === 0) {
+      this.control[31] |= FPCSR_FI | FPCSR_CI;
+      this.store32ZeroExtend(this.regIdx32_d[d], rBits);
+      return;
+    }
     if (!this.raiseException(exceptionBits)) {
       // Store the underlying bits to avoid renormalising.
-      this.store32ZeroExtend(this.fdRegIdx32(d), this.tempU32[0]);
+      this.store32ZeroExtend(this.regIdx32_d[d], this.tempU32[0]);
     }
   }
 
