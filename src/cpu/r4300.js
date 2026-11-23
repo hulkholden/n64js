@@ -2963,7 +2963,7 @@ const simpleTable = validateSimpleOpTable([
 n64js.singleStep = function () {
   const breakpoints = n64js.breakpoints();
 
-  let restoreAddress = 0;
+  let restoreAddress = null;
   if (breakpoints.isBreakpoint(cpu0.pc)) {
     restoreAddress = cpu0.pc;
     breakpoints.toggle(restoreAddress);
@@ -2971,7 +2971,7 @@ n64js.singleStep = function () {
 
   cpu0.run(1);
 
-  if (restoreAddress) {
+  if (restoreAddress !== null) {
     breakpoints.toggle(restoreAddress);
   }
 };

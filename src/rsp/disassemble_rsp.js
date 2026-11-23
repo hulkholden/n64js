@@ -62,7 +62,7 @@ class Instruction {
     this.opcode = opcode;
     this.srcRegs = {};
     this.dstRegs = {};
-    this.target = '';
+    this.target = null;
     this.memory = null;
   }
 
@@ -411,7 +411,7 @@ export function disassembleRemappedRange(mem, baseAddr, memOffset, length) {
   for (let i = 0; i < length; i += 4) {
     const instruction = mem.getU32((memOffset + i) & mask);
     const d = disassembleInstruction(baseAddr + i, instruction);
-    if (d.instruction.target) {
+    if (d.instruction.target !== null) {
       targets.add(d.instruction.target);
     }
     disassembly.push(d);
