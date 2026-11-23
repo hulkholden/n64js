@@ -499,6 +499,13 @@ export class CPU1 {
   }
 
   /**
+   * @return {boolean}
+   */
+  get fullMode() {
+    return this._fullMode;
+  }
+
+  /**
    * Set the register mode (full or half width).
    * @param {boolean} value
    */
